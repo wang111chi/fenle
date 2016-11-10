@@ -1,0 +1,8 @@
+gevent
+redis
+Flask
+requests
+uwsgi
+pytest
+sqlalchemy
+pg8000
