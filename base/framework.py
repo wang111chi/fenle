@@ -9,6 +9,7 @@ import config
 from base import logger
 from base.db import engine
 from base import util
+from base.xform import FormChecker
 from base import constant as const
 
 
@@ -95,3 +96,45 @@ def db_conn(old_handler):
         return old_handler(*args, **kwargs)
 
     return new_handler
+
+
+def form_check(settings, var_name="safe_vars", strict_error=True,
+               error_handler=None, error_var="form_errors"):
+
+    def new_deco(old_handler):
+        @wraps(old_handler)
+        def new_handler(*args, **kwargs):
+            req_data = {}
+            for k, v in settings.iteritems():
+                if v.multiple:
+                    req_data[k] = request.values.getlist(k)
+                else:
+                    req_data[k] = request.values.get(k, None)
+
+            checker = FormChecker(req_data, settings)
+            if not checker.is_valid():
+                if strict_error:
+                    error_msg = [
+                        v for v in checker.get_error_messages().values() if
+                        v is not None
+                    ]
+                    if error_handler is None:
+                        err_handler = JsonErrorResponse if \
+                                        request.is_xhr else TempErrorResponse
+                        return err_handler(error_msg)
+                    else:
+                        return error_handler(error_msg)
+                else:
+                    kwargs[error_var] = checker.get_error_messages()
+                    return old_handler(*args, **kwargs)
+
+            valid_data = checker.get_valid_data()
+            kwargs[var_name] = valid_data
+
+            response = old_handler(*args, **kwargs)
+            if isinstance(response, TempResponse):
+                response.context_update(**{var_name: valid_data})
+
+            return response
+        return new_handler
+    return new_deco

@@ -1,0 +1,3 @@
+#!/bin/sh
+
+docker exec -it jidui_api tail -f logs/uwsgi.log

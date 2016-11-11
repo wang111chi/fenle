@@ -14,14 +14,11 @@ home = Blueprint("home", __name__)
 
 @home.route("/")
 @general("首页")
-@db_conn
-def index(db):
-    s = text("SELECT pg_sleep(5)")
-    db.execute(s)
-    return "Hello, Jidui!"
+def index():
+    return "What do you want?"
 
 
-@home.route("/test")
-@general("测试")
-def test():
+@home.route("/cardpay/apply")
+@general("信用卡分期支付申请")
+def cardpay_apply():
     return JsonResponse(hello="world")

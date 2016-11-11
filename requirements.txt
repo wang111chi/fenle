@@ -6,3 +6,4 @@ uwsgi
 pytest
 sqlalchemy
 pg8000
+pycrypto

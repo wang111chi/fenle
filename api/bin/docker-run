@@ -1,0 +1,4 @@
+#!/bin/sh
+
+docker run --name jidui_api -v $PWD/../:/jidui -p3032:3031 --network jidui -e JIDUI_SETTINGS="local" -d jidui_api
+

@@ -40,3 +40,36 @@ def safe_json_dumps(obj, encoding=None, silent=True):
         raise
 
     return str
+
+
+def to_unicode(data, encoding="utf-8", only_str=False):
+    """convert data from some encoding to unicode
+    data could be string, list, tuple or dict
+    that contains string as key or value
+    """
+    if data is None:
+        return unicode('')
+
+    if isinstance(data, unicode):
+        return data
+
+    if isinstance(data, (list, tuple)):
+        u_data = []
+        for item in data:
+            u_data.append(to_unicode(item, encoding, only_str))
+        return u_data
+    elif isinstance(data, dict):
+        u_data = {}
+        for key in data:
+            u_data[to_unicode(key, encoding, only_str)] = to_unicode(
+                data[key], encoding, only_str)
+        return u_data
+    elif isinstance(data, str):
+        u_data = unicode(data, encoding, 'ignore')
+    else:
+        u_data = data
+
+    if only_str:
+        return u_data
+
+    return unicode(u_data)
