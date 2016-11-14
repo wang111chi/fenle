@@ -391,12 +391,6 @@ class FormChecker(object):
         self._messages = messages
         self._checked = True
 
-        for field in self._messages:
-            if self._messages[field]:
-                self._messages[field] = self._messages[field]
-            else:
-                self._messages.pop(field)
-
     def is_valid(self):
         if not self._checked:
             self.check()

@@ -4,6 +4,16 @@
 import json
 import datetime
 from decimal import Decimal
+import operator
+import urllib
+from base64 import b64encode
+
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_v1_5
+from Crypto.Signature import PKCS1_v1_5 as sign_PKCS1_v1_5
+from Crypto.Hash import SHA
+
+import config
 
 
 def safe_json_default(obj):
@@ -73,3 +83,62 @@ def to_unicode(data, encoding="utf-8", only_str=False):
         return u_data
 
     return unicode(u_data)
+
+
+def pkcs_encrypt(cipher, message):
+    handled = 0
+    ciphertext = ""
+    while len(message[handled:]) > 0:
+        part = message[handled:handled + 117]
+        ciphertext += cipher.encrypt(part)
+        handled += len(part)
+    return ciphertext
+
+
+def pkcs_decrypt(cipher, ciphertext):
+    e = Exception()
+    handled = 0
+    message = ""
+    while len(ciphertext[handled:]) > 0:
+        part = ciphertext[handled:handled + 128]
+        try:
+            m = cipher.decrypt(part, e)
+        except ValueError:
+            return None
+
+        if isinstance(m, Exception):
+            return None
+
+        message += m
+        handled += len(part)
+    return message
+
+
+def rsa_sign(message, private_key):
+    u"""用SHA1 hash后再用RSA签名"""
+
+    h = SHA.new(message)
+    private_key = RSA.importKey(private_key)
+    signer = sign_PKCS1_v1_5.new(private_key)
+    return signer.sign(h)
+
+
+def rsa_encrypt(message, public_key):
+    public_key = RSA.importKey(public_key)
+    cipher = PKCS1_v1_5.new(public_key)
+    return pkcs_encrypt(cipher, message)
+
+
+def _handle_params(params):
+    params = params.items()
+    params = [(k, v) for k, v in params if
+              v is not None and v != ""]
+    return sorted(params, key=operator.itemgetter(0))
+
+
+def rsa_sign_and_encrypt_params(params, private_key, public_key):
+    handled_params = _handle_params(params)
+    sign = b64encode(rsa_sign(urllib.urlencode(handled_params), private_key))
+    params_with_sign = handled_params + [("sign", sign)]
+    urlencoded_params = urllib.urlencode(params_with_sign)
+    return b64encode(rsa_encrypt(urlencoded_params, public_key))

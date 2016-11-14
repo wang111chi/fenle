@@ -75,6 +75,11 @@ class JsonResponse(Response):
         return util.safe_json_dumps(self._json)
 
 
+class JsonErrorResponse(JsonResponse):
+    def __init__(self, retcode, retmsg):
+        JsonResponse.__init__(self, retcode=retcode, retmsg=retmsg)
+
+
 class TempResponse(Response):
     def __init__(self, template_name, **context):
         Response.__init__(self)
@@ -119,8 +124,7 @@ def form_check(settings, var_name="safe_vars", strict_error=True,
                         v is not None
                     ]
                     if error_handler is None:
-                        err_handler = JsonErrorResponse if \
-                                        request.is_xhr else TempErrorResponse
+                        err_handler = JsonErrorResponse
                         return err_handler(error_msg)
                     else:
                         return error_handler(error_msg)
@@ -138,3 +142,7 @@ def form_check(settings, var_name="safe_vars", strict_error=True,
             return response
         return new_handler
     return new_deco
+
+
+def gen_json_error_response(code):
+    return JsonErrorResponse(code, const.ERROR.NAMES[code])
