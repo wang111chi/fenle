@@ -24,13 +24,17 @@ from base import logger
 from base import util
 from base.xform import FormChecker
 import config
+from base.db import t_users
 
 home = Blueprint("home", __name__)
 
 
 @home.route("/")
 @general("首页")
-def index():
+@db_conn
+def index(db):
+    ins = t_users.insert().values(name=u'张三')
+    db.execute(ins)
     return "What do you want?"
 
 
@@ -107,6 +111,7 @@ def cardpay_apply(safe_vars):
     ret_data = {
         "spid": "1" * 10,
         "spbillno": "12343434",
+        "encode_type": const.ENCODE_TYPE.RSA,
     }
 
     cipher_data = util.rsa_sign_and_encrypt_params(

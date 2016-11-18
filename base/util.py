@@ -129,15 +129,12 @@ def rsa_encrypt(message, public_key):
     return pkcs_encrypt(cipher, message)
 
 
-def _handle_params(params):
+def rsa_sign_and_encrypt_params(params, private_key, public_key):
     params = params.items()
     params = [(k, v) for k, v in params if
               v is not None and v != ""]
-    return sorted(params, key=operator.itemgetter(0))
+    handled_params = sorted(params, key=operator.itemgetter(0))
 
-
-def rsa_sign_and_encrypt_params(params, private_key, public_key):
-    handled_params = _handle_params(params)
     sign = b64encode(rsa_sign(urllib.urlencode(handled_params), private_key))
     params_with_sign = handled_params + [("sign", sign)]
     urlencoded_params = urllib.urlencode(params_with_sign)
