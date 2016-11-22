@@ -58,9 +58,6 @@ class TestCardpayApply(object):
 
         assert resp.status_code == 200
 
-        data = json.loads(resp.data)
-        print data
-
     def test_cardpay_apply_rsa(self, client):
         u"""RSA签名 + RSA加密"""
 

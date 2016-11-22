@@ -10,8 +10,8 @@ default.py is a default config module.
 JIDUI_SETTINGS is a env, it can be set in
 uwsgi config file:
 * local, for development enviroment.
+* test, for testing environment.
 * online, for online enviroment.
-
 """
 
 import os

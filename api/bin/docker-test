@@ -1,3 +1,4 @@
 #!/bin/sh
 
-docker run --rm -it -v $PWD/../:/jidui --network jidui -e JIDUI_SETTINGS="local" jidui_api pytest "$@"
+cd docker/test
+docker-compose -p jiduiApiTest run test

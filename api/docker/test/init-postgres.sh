@@ -1,3 +1,8 @@
+#!/bin/bash
+set -e
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+
 CREATE TABLE merchant_info (
         spid varchar(16) NOT NULL UNIQUE,
         name varchar(64),
@@ -275,3 +280,5 @@ CREATE TABLE lf_pay_list (
         acc_name varchar(64),
         user_type smallint
         );
+
+EOSQL

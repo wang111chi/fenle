@@ -14,7 +14,7 @@ from Crypto.Cipher import PKCS1_v1_5
 from Crypto.Signature import PKCS1_v1_5 as sign_PKCS1_v1_5
 from Crypto.Hash import SHA
 
-from base.framework import db_conn
+#from base.framework import db_conn
 from base.framework import general
 from base.framework import JsonResponse, JsonErrorResponse
 from base.framework import form_check, gen_json_error_response
@@ -24,17 +24,14 @@ from base import logger
 from base import util
 from base.xform import FormChecker
 import config
-from base.db import t_users
 
 home = Blueprint("home", __name__)
 
 
 @home.route("/")
 @general("首页")
-@db_conn
+#@db_conn
 def index(db):
-    ins = t_users.insert().values(name=u'张三')
-    db.execute(ins)
     return "What do you want?"
 
 

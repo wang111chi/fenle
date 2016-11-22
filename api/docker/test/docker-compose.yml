@@ -1,0 +1,21 @@
+version: '2'
+services:
+  test:
+    build:
+      context: ../../..
+      dockerfile: api/docker/test/Dockerfile
+    volumes:
+     - ../../../config_global:/jidui/config_global
+     - ../../config:/jidui/api/config
+     - ../../logs:/jidui/api/logs
+    entrypoint: ./wait-for-postgres.py pytest
+    depends_on:
+     - postgres
+
+  postgres:
+    build:
+      context: ./
+      dockerfile: Dockerfile-postgres
+    environment:
+      - POSTGRES_PASSWORD=123456
+      - POSTGRES_DB=jidui
