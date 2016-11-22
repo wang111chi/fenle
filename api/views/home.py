@@ -31,7 +31,7 @@ home = Blueprint("home", __name__)
 @home.route("/")
 @general("首页")
 #@db_conn
-def index(db):
+def index():
     return "What do you want?"
 
 

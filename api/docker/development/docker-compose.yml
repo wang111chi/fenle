@@ -1,0 +1,19 @@
+version: '2'
+services:
+  api:
+    build:
+      context: ../../..
+      dockerfile: api/docker/development/Dockerfile
+    volumes:
+     - ../../..:/jidui
+    ports:
+     - "3032:3031"
+    depends_on:
+     - postgres
+  postgres:
+    build:
+      context: ./
+      dockerfile: Dockerfile-postgres
+    environment:
+      - POSTGRES_PASSWORD=123456
+      - POSTGRES_DB=jidui
