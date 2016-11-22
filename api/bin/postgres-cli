@@ -1,0 +1,5 @@
+#!/bin/sh
+
+cd docker/development
+docker-compose -p jiduiApiServer exec postgres /bin/bash -c "LD_PRELOAD=/lib/x86_64-linux-gnu/libreadline.so.6 psql -U postgres -d jidui"
+
