@@ -1,9 +1,13 @@
-#!/bin/sh
+#!/bin/bash
 
 cd docker/development
 
 if [ $# -eq 0 ]; then
     docker-compose -p jiduiApiServer up -d
+    if [ $? -eq 0 ]; then
+        echo
+        echo "server started! you can go to http://localhost:3032"
+    fi
 else
     docker-compose -p jiduiApiServer "$@" 
 fi
