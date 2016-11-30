@@ -1,4 +1,0 @@
-#!/bin/sh
-
-cd docker/test
-docker-compose -p jiduiApiTest run test

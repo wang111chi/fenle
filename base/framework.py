@@ -2,10 +2,17 @@
 # -*- coding: utf-8 -*-
 
 from functools import wraps
+from base64 import b64decode
+import urlparse
 
 from flask import make_response, render_template, redirect, request
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_v1_5
+from Crypto.Signature import PKCS1_v1_5 as sign_PKCS1_v1_5
+from Crypto.Hash import SHA
 
 import config
+from base import dblogic as dbl
 from base import logger
 from base.db import engine
 from base import util
@@ -76,7 +83,11 @@ class JsonResponse(Response):
 
 
 class JsonErrorResponse(JsonResponse):
-    def __init__(self, retcode, retmsg):
+    def __init__(self, retcode, retmsg=None):
+        if retmsg is None:
+            retmsg = const.ERROR.NAMES.get(retcode, "")
+        if isinstance(retmsg, (list, tuple)):
+            retmsg = ", ".join(retmsg)
         JsonResponse.__init__(self, retcode=retcode, retmsg=retmsg)
 
 
@@ -144,5 +155,61 @@ def form_check(settings, var_name="safe_vars", strict_error=True,
     return new_deco
 
 
-def gen_json_error_response(code):
-    return JsonErrorResponse(code, const.ERROR.NAMES[code])
+def sign_and_encrypt_form_check(db, settings, var_name="safe_vars"):
+    def new_deco(old_handler):
+        @wraps(old_handler)
+        def new_handler(*args, **kwargs):
+            cipher_data = request.values.get("cipher_data", None)
+            if cipher_data is None:
+                return JsonErrorResponse(const.ERROR.DECRYPT_ERROR)
+
+            # RSA解密
+            try:
+                cipher_data = b64decode(cipher_data)
+            except ValueError:
+                return JsonErrorResponse(const.ERROR.DECRYPT_ERROR)
+
+            jidui_private_key = RSA.importKey(config.JIDUI_PRIVATE_KEY)
+            cipher = PKCS1_v1_5.new(jidui_private_key)
+
+            message = util.pkcs_decrypt(cipher, cipher_data)
+
+            if message is None:
+                return JsonErrorResponse(const.ERROR.DECRYPT_ERROR)
+
+            # 参数检查
+            params = urlparse.parse_qs(message)
+
+            req_data = {}
+            for k, v in settings.iteritems():
+                param = params.get(k, None)
+                if v.multiple:
+                    req_data[k] = [] if param is None else param
+                else:
+                    req_data[k] = None if param is None else param[0]
+
+            checker = FormChecker(req_data, settings)
+            if not checker.is_valid():
+                error_msg = [
+                    v for v in checker.get_error_messages().values() if
+                    v is not None
+                ]
+                return JsonErrorResponse(const.ERROR.PARAM_ERROR, error_msg)
+
+            valid_data = checker.get_valid_data()
+
+            # 验签
+            encode_type = valid_data["encode_type"]
+            if encode_type == const.ENCODE_TYPE.MD5:
+                check_sign_valid = dbl.check_sign_md5(db, valid_data)
+            elif encode_type == const.ENCODE_TYPE.RSA:
+                check_sign_valid = dbl.check_sign_rsa(db, valid_data)
+
+            if not check_sign_valid:
+                return JsonErrorResponse(const.ERROR.SIGN_INVALID)
+
+            kwargs[var_name] = valid_data
+            return old_handler(*args, **kwargs)
+
+        return new_handler
+    return new_deco
