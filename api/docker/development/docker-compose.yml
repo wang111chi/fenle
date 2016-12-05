@@ -12,7 +12,7 @@ services:
      - postgres
   postgres:
     build:
-      context: ./
+      context: ../
       dockerfile: Dockerfile-postgres
     environment:
       - POSTGRES_PASSWORD=123456
