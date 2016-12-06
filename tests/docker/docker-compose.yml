@@ -5,16 +5,16 @@ services:
       context: ../../
       dockerfile: tests/docker/Dockerfile
     volumes:
-     - ../../config_global:/jidui/config_global
-     - ../config:/jidui/tests/config
-    entrypoint: ./wait-for-postgres.py pytest
+     - ../../config_global:/fenle/config_global
+     - ../config:/fenle/tests/config
+    entrypoint: ./wait-for-mysql.py pytest
     depends_on:
-     - postgres
-
-  postgres:
+     - mysql
+  mysql:
     build:
       context: ../../docker/
-      dockerfile: Dockerfile-postgres
+      dockerfile: Dockerfile-mysql
     environment:
-      - POSTGRES_PASSWORD=123456
-      - POSTGRES_DB=jidui
+      - MYSQL_ROOT_PASSWORD=123456
+      - MYSQL_DATABASE=fenle_fenqi_db
+      - MYSQL_ROOT_HOST=%

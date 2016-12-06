@@ -19,7 +19,7 @@ def cli():
 @click.pass_context
 def server(ctx, build):
     os.chdir(os.path.join(api_root_path, 'docker', 'development'))
-    os.environ['COMPOSE_PROJECT_NAME'] = 'jidui_api_server'
+    os.environ['COMPOSE_PROJECT_NAME'] = 'fenle_api_server'
 
     if ctx.invoked_subcommand is not None:
         return
@@ -47,7 +47,7 @@ def server_stop():
 @click.pass_context
 def test(ctx, build):
     os.chdir(os.path.join(api_root_path, 'docker', 'test'))
-    os.environ['COMPOSE_PROJECT_NAME'] = 'jidui_api_test'
+    os.environ['COMPOSE_PROJECT_NAME'] = 'fenle_api_test'
 
     if ctx.invoked_subcommand is not None:
         return

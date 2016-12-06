@@ -1,6 +1,6 @@
 FROM liyuan462/ubuntu:trusty-py
 
-COPY requirements.txt /jidui/
-RUN pip install -r /jidui/requirements.txt
-WORKDIR /jidui/api/
+COPY requirements.txt /fenle/
+RUN pip install -r /fenle/requirements.txt
+WORKDIR /fenle/api/
 CMD ["uwsgi", "uwsgi.ini"]

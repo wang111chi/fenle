@@ -5,15 +5,15 @@ services:
       context: ../../..
       dockerfile: api/docker/development/Dockerfile
     volumes:
-     - ../../..:/jidui
+     - ../../..:/fenle
     ports:
      - "3032:3031"
     depends_on:
-     - postgres
-  postgres:
+     - mysql
+  mysql:
     build:
-      context: ../
-      dockerfile: Dockerfile-postgres
+      context: ../../../docker/
+      dockerfile: Dockerfile-mysql
     environment:
-      - POSTGRES_PASSWORD=123456
-      - POSTGRES_DB=jidui
+      - MYSQL_ROOT_PASSWORD=123456
+      - MYSQL_DATABASE=fenle

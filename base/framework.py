@@ -170,8 +170,8 @@ def sign_and_encrypt_form_check(db, settings, var_name="safe_vars"):
             except ValueError:
                 return JsonErrorResponse(const.ERROR.DECRYPT_ERROR)
 
-            jidui_private_key = RSA.importKey(config.JIDUI_PRIVATE_KEY)
-            cipher = PKCS1_v1_5.new(jidui_private_key)
+            fenle_private_key = RSA.importKey(config.FENLE_PRIVATE_KEY)
+            cipher = PKCS1_v1_5.new(fenle_private_key)
 
             message = util.pkcs_decrypt(cipher, cipher_data)
 

@@ -17,7 +17,7 @@ def cli():
 @click.pass_context
 def test(ctx, build):
     os.chdir(os.path.join(root_path, 'tests', 'docker'))
-    os.environ['COMPOSE_PROJECT_NAME'] = 'jidui_test'
+    os.environ['COMPOSE_PROJECT_NAME'] = 'fenle_test'
 
     if ctx.invoked_subcommand is not None:
         return

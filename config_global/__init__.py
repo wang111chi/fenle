@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 
 """
-SplitSettings for jidui project.
+SplitSettings for fenle project.
 
-__init__.py merges default.py, <JIDUI_SETTINGS>.py in that order.
+__init__.py merges default.py, <FENLE_SETTINGS>.py in that order.
 
 default.py is a default config module.
 
-JIDUI_SETTINGS is a env, it can be set in
+FENLE_SETTINGS is a env, it can be set in
 uwsgi config file:
 * local, for development enviroment.
 * test, for testing environment.
@@ -28,7 +28,7 @@ def deep_update(from_dict, to_dict):
 
 
 modules = ["default"]
-env = os.environ.get("JIDUI_SETTINGS")
+env = os.environ.get("FENLE_SETTINGS")
 if env:
     modules.append(env)
 
