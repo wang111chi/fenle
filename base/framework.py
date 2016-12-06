@@ -4,6 +4,7 @@
 from functools import wraps
 from base64 import b64decode
 import urlparse
+from contextlib import contextmanager, closing
 
 from flask import make_response, render_template, redirect, request
 from Crypto.PublicKey import RSA
@@ -213,3 +214,48 @@ def sign_and_encrypt_form_check(db, settings, var_name="safe_vars"):
 
         return new_handler
     return new_deco
+
+
+class Job(object):
+    """
+    A indicator to mark whether the job is finished.
+    """
+    def __init__(self):
+        self._finished = False
+
+    def is_finished(self):
+        return self._finished
+
+    def finish(self):
+        self._finished = True
+
+
+@contextmanager
+def transaction(conn):
+    """
+    Automatic handle transaction COMMIT/ROLLBACK. You MUST call trans.finish(),
+    if you want to COMMIT; Otherwise(not call or exception occurs), ROLLBACK.
+
+    >>> with transaction(conn) as trans:
+    >>>     do something...
+    >>>     if xxxxx:
+    >>>         # if you don't want to commit, you just not call trans.finish().
+    >>>         return error_page("xxxxxx")
+    >>>     # if you want to commit, you call:
+    >>>     trans.finish()
+
+    @param conn: database connection
+    """
+    job = Job()
+    trans = conn.begin()
+
+    try:
+        yield job
+    except:
+        trans.rollback()
+        raise
+
+    if job.is_finished():
+        trans.commit()
+    else:
+        trans.rollback()

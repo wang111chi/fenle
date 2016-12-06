@@ -1,0 +1,73 @@
+
+create database if not exists fenle_fenqi_db;
+use fenle_fenqi_db;
+
+##分期交易表
+DROP TABLE IF EXISTS t_trans_list;
+CREATE TABLE t_trans_list (
+    `list_id`             varchar(32) NOT NULL  PRIMARY KEY  ,
+    `coding`              varchar(32)           NOT NULL     ,
+    `spid`                varchar(16)           NOT NULL     ,
+    `bank_list`           varchar(32)           default NULL ,
+    `bank_roll`           varchar(32)           default NULL ,
+    `request_sn`          varchar(32)                        ,
+    `rcd_type`            smallint(6)    NOT NULL default '1' ,
+
+    `bank_type`           int                                ,
+    `bank_name`           varchar(64)                        ,
+    `bank_area`           varchar(16)                        ,
+    `bank_city`           varchar(16)                        ,
+    `mobile`              varchar(32)                        ,
+    `bankacc_no`          varchar(32)                NOT NULL,
+    `bankacc_type`        smallint(6)                 NOT NULL,
+    `bankacc_attr`        smallint(6)                 NOT NULL,
+    `pin_code`            varchar(32)                        ,
+    `bank_valicode`       varchar(32)                        ,
+    `valid_period`        varchar(8)                         ,
+    `iterface_type`       smallint(6)               default '1',
+    `rsp_time`            varchar(16)                NOT NULL,
+    `cur_type`            smallint(6)                NOT NULL,
+    `credit_type`         smallint(6)                        ,
+    `credit_id`           varchar(64)                        ,
+    `bank_channel`        varchar(16)                NOT NULL,
+    `channel`             int           NOT NULL default '0' ,
+    `pay_type`            smallint(6)    NOT NULL default '0' ,
+    `trade_type`          smallint(6)    NOT NULL default '0' ,
+    `memo`                varchar(256)                       ,
+    `amount`              bigint        NOT NULL default '0' ,
+    `paynum`              bigint        NOT NULL default '0' ,
+    `fee_direct`          smallint(6)    NOT NULL default '1' ,
+    `fee`                 bigint        NOT NULL default '0' ,
+    `bank_fee`            bigint        NOT NULL default '0' ,
+    
+    `token`               varchar(32)                        ,
+    `valid_cnt`           int           NOT NULL default '0' ,
+    `pact_no`             varchar(64)                        ,
+    `sp_userid`           varchar(32)                        ,
+    `state`               smallint(6)    NOT NULL             ,
+    `lstate`              smallint(6)    NOT NULL             ,
+    `adjust_flag`         smallint(6)                         ,
+    `create_time`         datetime                   NOT NULL,
+    `modify_time`         datetime                   NOT NULL,
+    `bankacc_time`        datetime                           ,
+    `pay_time`            datetime                           ,
+    `future_time`         datetime                           ,
+    `settle_time`         datetime                           ,
+    `explain`             varchar(256)                       ,
+    `client_ip`           varchar(16)                NOT NULL,
+    `modify_ip`           varchar(16)                NOT NULL,
+    `refund_id`           varchar(32)                        ,
+    `extend_spinfo`       varchar(256)                       ,
+    `standby1`            bigint                  default '0',
+    `standby2`            bigint                  default '0',
+    `standby3`            datetime               default NULL,
+    `standby4`            varchar(64)            default NULL,
+    `standby5`            varchar(256)           default NULL,
+
+     UNIQUE KEY `idx_sp_listid`(`spid`,`coding`),
+     KEY `idx_uid`(`uid`),
+     KEY `idx_bank_acc`(`bankacc_no`,`bankacc_type`),
+     KEY `idx_create_time`(`create_time`),
+     KEY `idx_modify_time`(`modify_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+

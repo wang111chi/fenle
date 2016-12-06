@@ -1,0 +1,36 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import os
+import subprocess
+
+import click
+
+root_path = os.path.split(os.path.split(os.path.realpath(__file__))[0])[0]
+
+@click.group()
+def cli():
+    pass
+
+@cli.group(invoke_without_command=True)
+@click.option('--build', '-b', is_flag=True)
+@click.pass_context
+def test(ctx, build):
+    os.chdir(os.path.join(root_path, 'tests', 'docker'))
+    os.environ['COMPOSE_PROJECT_NAME'] = 'jidui_test'
+
+    if ctx.invoked_subcommand is not None:
+        return
+
+    if build:
+        subprocess.call("docker-compose build test", shell=True)
+
+    subprocess.call("docker-compose run test", shell=True)
+
+
+@test.command('build')
+def test_build():
+    subprocess.call("docker-compose build test", shell=True)
+
+if __name__ == '__main__':
+    cli()
