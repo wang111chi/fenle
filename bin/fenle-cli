@@ -15,9 +15,11 @@ def cli():
 
 
 @cli.group(invoke_without_command=True)
-@click.option('--build', '-b', is_flag=True)
+@click.option('--build', '-b', is_flag=True, help='build before testing')
 @click.pass_context
 def test(ctx, build):
+    u"""commands related to testing"""
+
     os.chdir(os.path.join(root_path, 'tests', 'docker'))
     os.environ['COMPOSE_PROJECT_NAME'] = 'fenle_test'
 
@@ -35,13 +37,18 @@ def test(ctx, build):
 ))
 @click.argument('args', nargs=-1, type=click.UNPROCESSED)
 def test_compose(args):
+    u"""a wrapper to docker-compose for testing"""
+
     cmdline = ['docker-compose'] + list(args)
     subprocess.call(cmdline)
 
 
-@test.command('build')
-def test_build():
-    subprocess.call("docker-compose build test", shell=True)
+@test.command('mysql')
+def test_mysql():
+    u"""mysql console for testing"""
+
+    subprocess.call("docker-compose exec mysql mysql "
+                    "-uroot -p123456 fenle_fenqi_db", shell=True)
 
 
 if __name__ == '__main__':

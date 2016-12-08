@@ -14,22 +14,12 @@ def cli():
     pass
 
 
-@cli.group(invoke_without_command=True)
-@click.option('--build', is_flag=True)
-@click.pass_context
-def server(ctx, build):
+@cli.group()
+def server():
+    u"""commands related to development server"""
+
     os.chdir(os.path.join(api_root_path, 'docker', 'development'))
     os.environ['COMPOSE_PROJECT_NAME'] = 'fenle_api_server'
-
-    if ctx.invoked_subcommand is not None:
-        return
-
-    if build:
-        subprocess.call("docker-compose build api", shell=True)
-
-    subprocess.call("docker-compose up -d", shell=True)
-    click.echo()
-    click.echo("server started! you can go to http://localhost:3032")
 
 
 @server.command('compose', context_settings=dict(
@@ -37,24 +27,42 @@ def server(ctx, build):
 ))
 @click.argument('args', nargs=-1, type=click.UNPROCESSED)
 def server_compose(args):
+    u"""a wrapper to docker-compose for development server"""
+
     cmdline = ['docker-compose'] + list(args)
     subprocess.call(cmdline)
 
 
-@server.command('build')
-def server_build():
-    subprocess.call("docker-compose build api", shell=True)
+@server.command('mysql')
+def server_mysql():
+    u"""mysql console for development server"""
+
+    subprocess.call("docker-compose exec mysql mysql "
+                    "-uroot -p123456 fenle_fenqi_db", shell=True)
+
+
+@server.command('start')
+def server_start():
+    u"""start development server"""
+
+    subprocess.call("docker-compose up -d", shell=True)
+    click.echo()
+    click.echo("server started! you can go to http://localhost:3032")
 
 
 @server.command('stop')
 def server_stop():
+    u"""stop development server"""
+
     subprocess.call("docker-compose stop", shell=True)
 
 
 @cli.group(invoke_without_command=True)
-@click.option('--build', is_flag=True)
+@click.option('--build', '-b', is_flag=True, help='build before testing')
 @click.pass_context
 def test(ctx, build):
+    u"""commands related to testing"""
+
     os.chdir(os.path.join(api_root_path, 'docker', 'test'))
     os.environ['COMPOSE_PROJECT_NAME'] = 'fenle_api_test'
 
@@ -72,13 +80,18 @@ def test(ctx, build):
 ))
 @click.argument('args', nargs=-1, type=click.UNPROCESSED)
 def test_compose(args):
+    u"""a wrapper to docker-compose for testing"""
+
     cmdline = ['docker-compose'] + list(args)
     subprocess.call(cmdline)
 
 
-@test.command('build')
-def test_build():
-    subprocess.call("docker-compose build test", shell=True)
+@test.command('mysql')
+def test_mysql():
+    u"""mysql console for testing"""
+
+    subprocess.call("docker-compose exec mysql mysql "
+                    "-uroot -p123456 fenle_fenqi_db", shell=True)
 
 
 if __name__ == '__main__':
