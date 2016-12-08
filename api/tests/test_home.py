@@ -49,7 +49,7 @@ class TestCardpayApply(object):
         urlencoded_params = urllib.urlencode(params_with_sign)
 
         cipher_data = b64encode(
-            util.rsa_encrypt(urlencoded_params, config.JIDUI_PUB_KEY))
+            util.rsa_encrypt(urlencoded_params, config.FENLE_PUB_KEY))
 
         final_params = {"cipher_data": cipher_data}
         final_params = urllib.urlencode(final_params)
@@ -71,7 +71,7 @@ class TestCardpayApply(object):
         cipher_data = util.rsa_sign_and_encrypt_params(
             params,
             config.TEST_MERCHANT_PRIVATE_KEY,
-            config.JIDUI_PUB_KEY
+            config.FENLE_PUB_KEY
         )
 
         final_params = urllib.urlencode({"cipher_data": cipher_data})

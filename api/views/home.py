@@ -60,7 +60,7 @@ def cardpay_apply(safe_vars):
 
     cipher_data = util.rsa_sign_and_encrypt_params(
         ret_data,
-        config.JIDUI_PRIVATE_KEY,
+        config.FENLE_PRIVATE_KEY,
         config.TEST_MERCHANT_PUB_KEY
     )
 

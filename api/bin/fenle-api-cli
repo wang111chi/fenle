@@ -32,6 +32,15 @@ def server(ctx, build):
     click.echo("server started! you can go to http://localhost:3032")
 
 
+@server.command('compose', context_settings=dict(
+    ignore_unknown_options=True,
+))
+@click.argument('args', nargs=-1, type=click.UNPROCESSED)
+def server_compose(args):
+    cmdline = ['docker-compose'] + list(args)
+    subprocess.call(cmdline)
+
+
 @server.command('build')
 def server_build():
     subprocess.call("docker-compose build api", shell=True)
@@ -56,6 +65,15 @@ def test(ctx, build):
         subprocess.call("docker-compose build test", shell=True)
 
     subprocess.call("docker-compose run test", shell=True)
+
+
+@test.command('compose', context_settings=dict(
+    ignore_unknown_options=True,
+))
+@click.argument('args', nargs=-1, type=click.UNPROCESSED)
+def test_compose(args):
+    cmdline = ['docker-compose'] + list(args)
+    subprocess.call(cmdline)
 
 
 @test.command('build')

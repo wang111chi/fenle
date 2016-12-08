@@ -8,9 +8,11 @@ import click
 
 root_path = os.path.split(os.path.split(os.path.realpath(__file__))[0])[0]
 
+
 @click.group()
 def cli():
     pass
+
 
 @cli.group(invoke_without_command=True)
 @click.option('--build', '-b', is_flag=True)
@@ -28,9 +30,19 @@ def test(ctx, build):
     subprocess.call("docker-compose run test", shell=True)
 
 
+@test.command('compose', context_settings=dict(
+    ignore_unknown_options=True,
+))
+@click.argument('args', nargs=-1, type=click.UNPROCESSED)
+def test_compose(args):
+    cmdline = ['docker-compose'] + list(args)
+    subprocess.call(cmdline)
+
+
 @test.command('build')
 def test_build():
     subprocess.call("docker-compose build test", shell=True)
+
 
 if __name__ == '__main__':
     cli()
