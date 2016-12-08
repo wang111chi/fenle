@@ -1,19 +1,19 @@
 create database if not exists fenle_fenqi_db;
 use fenle_fenqi_db;
 
-DROP TABLE IF EXISTS t_merchant_info;
-CREATE TABLE t_merchant_info (
+# DROP TABLE IF EXISTS merchant_info;
+CREATE TABLE merchant_info (
    `spid` varchar(20) NOT NULL  PRIMARY KEY  comment '商户外部编号',
-   `uid`  unsigned int  NOT NULL    comment '内部编号', 
-   `agent_uid` unsigned int  NOT NULL    comment '代理编号',
-   `parent_uid`  unsigned int  NOT NULL    comment '上级商户uid', 
+   `uid`  int unsigned  NOT NULL    comment '内部编号', 
+   `agent_uid` int unsigned NOT NULL    comment '代理编号',
+   `parent_uid` int unsigned NOT NULL    comment '上级商户uid', 
    `name` varchar(64) NOT NULL  comment '商户名称:可以是公司名，也可以是某个缩写', 
-   `fee_contract_no` integer comment '结算合同编号',
-   `contract_no varchar(64) comment '业务合同编号',
-   `corporation_name` varchar(64) comment default null '法人姓名',
+   `fee_contract_no` int comment '结算合同编号',
+   `contract_no` varchar(64) comment '业务合同编号',
+   `corporation_name` varchar(64) default null comment '法人姓名',
    `corporation_credid` varchar(64) default null comment '法人身份证号码',
    `licence` varchar(64) comment '统一社会信用代码',
-   `corp_address` varchar(128) default comment '企业地址' ,
+   `corp_address` varchar(128) default null comment '企业地址',
    `mobile` varchar(15) comment '商户联系手机号码',
    `tel` varchar(65) comment '坐机电话',
    `oper_user_id` varchar(65) comment '操作员编号，即录入该信息的操作员',
@@ -26,4 +26,4 @@ CREATE TABLE t_merchant_info (
    `memo` varchar(128) comment '备注',
    `ip` varchar(64) null default '',
    UNIQUE KEY `uid` ( `uid` )
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

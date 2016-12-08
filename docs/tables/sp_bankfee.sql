@@ -1,8 +1,8 @@
 create database if not exists fenle_fenqi_db;
 use fenle_fenqi_db;
 
-#商户银行手续费配置表
-#DROP TABLE IF EXISTS sp_bankfee;
+# 商户银行手续费配置表
+# DROP TABLE IF EXISTS sp_bankfee;
 
 CREATE TABLE sp_bankfee (
    `bkid` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键',
@@ -12,4 +12,4 @@ CREATE TABLE sp_bankfee (
    `fee_percent` double not null default 0 comment '该银行的签约手续费,千分之',
     PRIMARY KEY  (`bkid`),
     unique `idx_spid_banktype` (`spid`,`bank_type`)
-)ENGINE=InnoDB DEFAULT CHARSET=latin1;
+)ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

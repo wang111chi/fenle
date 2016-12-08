@@ -1,8 +1,8 @@
 create database if not exists fenle_fenqi_db;
 use fenle_fenqi_db;
 
-DROP TABLE IF EXISTS `t_user_bank_card`;
-CREATE TABLE `t_user_bank_card` (
+# DROP TABLE IF EXISTS `user_bank_card`;
+CREATE TABLE `user_bank_card` (
   `tid` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键',
   `bank_card_no` varchar(20) not null DEFAULT '' COMMENT '卡号',
   `bank_card_type` smallint not null DEFAULT 0 COMMENT '卡种 1信用卡、2借计卡、3公司账号',
@@ -24,4 +24,4 @@ CREATE TABLE `t_user_bank_card` (
   PRIMARY KEY (`tid`),
   index idx_idcard_no(`idcard_no`),
   index idx_idcard_no_hash(`idcard_no_hash`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8 COMMENT='用户银行卡信息';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

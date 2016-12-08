@@ -1,8 +1,8 @@
 create database if not exists fenle_fenqi_db;
 use fenle_fenqi_db;
 
-#分乐商户(虚拟银行)入账表
-#DROP TABLE IF EXISTS sp_bankroll_list;
+# 分乐商户(虚拟银行)入账表
+# DROP TABLE IF EXISTS sp_bankroll_list;
 
 CREATE TABLE sp_bankroll_list (
         `bkid` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键',
@@ -17,7 +17,7 @@ CREATE TABLE sp_bankroll_list (
         `pay_num` bigint NOT NULL DEFAULT 0 comment '交易金额：支付时，是指用户需要去银行扣除的金额',
         `sp_num` bigint NOT NULL DEFAULT 0 comment '商户所得金额',
         `con_num` bigint NOT NULL DEFAULT 0 comment '冻结金额',
-        `bank_type` smallint not null '银行类型',
+        `bank_type` smallint not null comment '银行类型',
         `curtype` smallint not null  DEFAULT 1 comment '币种 1人民币',
         `prove` varchar(32) DEFAULT null comment '入账凭证',
         `memo` varchar(128) comment '备注',
@@ -32,4 +32,4 @@ CREATE TABLE sp_bankroll_list (
         KEY `idx_list_id` (`list_id`),
         KEY `idx_bankacc_hash` (`bankacc_no_hash`),
         KEY `idx_modify_time` (`modify_time`)
-        )ENGINE=InnoDB DEFAULT CHARSET=latin1;
+        )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

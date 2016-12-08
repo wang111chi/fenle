@@ -13,8 +13,9 @@ services:
      - mysql
   mysql:
     build:
-      context: ../../../docker/
-      dockerfile: Dockerfile-mysql
+      context: ../../..
+      dockerfile: docker/Dockerfile-mysql
     environment:
       - MYSQL_ROOT_PASSWORD=123456
       - MYSQL_DATABASE=fenle
+      - MYSQL_ROOT_HOST=%

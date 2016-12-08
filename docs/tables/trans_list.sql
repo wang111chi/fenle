@@ -1,49 +1,48 @@
-
 create database if not exists fenle_fenqi_db;
 use fenle_fenqi_db;
 
-##分期交易表
-DROP TABLE IF EXISTS t_trans_list;
-CREATE TABLE t_trans_list (
+# 分期交易表
+# DROP TABLE IF EXISTS trans_list;
+CREATE TABLE trans_list (
     `list_id`             varchar(32) NOT NULL  PRIMARY KEY COMMENT '内部交易单' ,
     `coding`              varchar(32)           NOT NULL    COMMENT '商户提交的交易单号' ,
     `spid`                varchar(16)           NOT NULL     COMMENT '商户号',
     `bank_list`           varchar(32)           default NULL COMMENT '给银行订单号',
     `bank_roll`           varchar(32)           default NULL COMMENT '银行返回订单号',
     `request_sn`          varchar(32)           default NULL COMMENT '银行请求消息序列号',
-    `rcd_type`            smallint(6)      NOT NULL default '1' COMMENT '预留 默认1',
+    `rcd_type`            smallint      NOT NULL default '1' COMMENT '预留 默认1',
     `bank_type`           int              not null COMMENT '交易银行的数字编号 1001广发信用卡' ,
     `bank_name`           varchar(64)      COMMENT　'银行名称:如 广东发展银行',
     `bank_area`           varchar(16)      COMMENT　'银行所在地区',
     `bank_city`           varchar(16)      COMMENT　'银行所在城市',
     `mobile`              varchar(32)      COMMENT　'用户手机号',
     `bankacc_no`          varchar(32)      NOT NULL  COMMENT　'交易卡号',
-    `bankacc_type`        smallint(6)      NOT NULL COMMENT　'0  信用卡',
-    `bankacc_attr`        smallint(6)      NOT NULL COMMENT　'0－个人',
+    `bankacc_type`        smallint      NOT NULL COMMENT　'0  信用卡',
+    `bankacc_attr`        smallint      NOT NULL COMMENT　'0－个人',
     `pin_code`            varchar(32)      NOT NULL COMMENT　'信用卡cvv2',
     `bank_valicode`       varchar(32)      NOT NULL COMMENT　'银行下发的验证码',
     `valid_period`        varchar(8)       NOT NULL COMMENT　'信用卡有效期',
-    `iterface_type`       smallint(6)      default '1' COMMENT　'接口类型(预留)默认1',
+    `iterface_type`       smallint      default '1' COMMENT　'接口类型(预留)默认1',
     `rsp_time`            varchar(16)      NOT NULL COMMENT　'预期返回时间',
-    `cur_type`            smallint(6)      NOT NULL comment '币种 默认1  ',
-    `idcard_type`         smallint(6)      COMMENT '证件类型'   ,
+    `cur_type`            smallint      NOT NULL comment '币种 默认1  ',
+    `idcard_type`         smallint      COMMENT '证件类型'   ,
     `idcard_no`           varchar(64)     COMMENT '证件号码'   ,
     `bank_channel`        varchar(16)     NOT NULL COMMENT '银行渠道名，对应t_bank_channel表',
     `channel`             int           NOT NULL default '0' COMMENT '发起渠道 1 api,2商户系统，3网关',
-    `pay_type`            smallint(6)    NOT NULL default '0' COMMENT '支付方式 1 信用卡分期支付 2 信用积分支付',
-    `trade_type`          smallint(6)    NOT NULL default '0' COMMENT '交易类型 默认1 b2c',
+    `pay_type`            smallint    NOT NULL default '0' COMMENT '支付方式 1 信用卡分期支付 2 信用积分支付',
+    `trade_type`          smallint    NOT NULL default '0' COMMENT '交易类型 默认1 b2c',
     `memo`                varchar(256)    COMMENT '商户提交的备注信息'                   ,
     `amount`              bigint        NOT NULL default '0' COMMENT '商户提交的交易金额',
     `paynum`              bigint        NOT NULL default '0' COMMENT '实际去银行支付金额 以分为单位',
-    `fee_direct`          smallint(6)    NOT NULL default '1'  COMMENT '付费手续费 1用户，2商户',
+    `fee_direct`          smallint    NOT NULL default '1'  COMMENT '付费手续费 1用户，2商户',
     `fee`                 bigint        NOT NULL default '0' COMMENT '分乐收取的手费费',
     `bank_fee`            bigint        NOT NULL default '0' COMMENT '银行将要收的手费费',
     `token`               varchar(32)     comment '验证token。每一步都会生成一个token'   ,
     `valid_cnt`           int           NOT NULL default '0'  COMMENT '交易验证数次',
-    `sp_userid`           varchar(32)    COMMENT '商户侧的用户id',                    ,
-    `state`               smallint(6)    NOT NULL  COMMENT '业务状态:见文档',
-    `lstate`              smallint(6)    NOT NULL  COMMENT '物理状态1 有效 2 挂起 3 作废' ,
-    `adjust_flag`         smallint(6)    COMMENT '调账标志 １正常（default）2 调账 3 同步查询状态未返回 4 不补单设置失败 5 超过补单时间设置失败 6待冲正 7 冲正完成(明确知道银行原交易失败/交易不存在、交易成功但冲正也成功)'                     ,
+    `sp_userid`           varchar(32)    COMMENT '商户侧的用户id',
+    `state`               smallint    NOT NULL  COMMENT '业务状态:见文档',
+    `lstate`              smallint    NOT NULL  COMMENT '物理状态1 有效 2 挂起 3 作废' ,
+    `adjust_flag`         smallint    COMMENT '调账标志 １正常（default）2 调账 3 同步查询状态未返回 4 不补单设置失败 5 超过补单时间设置失败 6待冲正 7 冲正完成(明确知道银行原交易失败/交易不存在、交易成功但冲正也成功)'                     ,
     `create_time`         datetime       NOT NULL COMMENT '创建时间',
     `modify_time`         datetime       NOT NULL COMMENT '最后一次修改时间',
     `bankacc_time`        datetime       COMMENT '最后一次去银行时间' ,
@@ -64,5 +63,5 @@ CREATE TABLE t_trans_list (
      KEY `idx_bank_acc`(`bankacc_no`,`bankacc_type`),
      KEY `idx_create_time`(`create_time`),
      KEY `idx_modify_time`(`modify_time`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

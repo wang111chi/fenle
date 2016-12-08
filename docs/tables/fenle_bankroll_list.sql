@@ -1,8 +1,8 @@
 create database if not exists fenle_fenqi_db;
 use fenle_fenqi_db;
 
-#分乐银行入账表
-DROP TABLE IF EXISTS fenle_bankroll_list;
+# 分乐银行入账表
+# DROP TABLE IF EXISTS fenle_bankroll_list;
 
 CREATE TABLE fenle_bankroll_list (
         `list_id` varchar(32) not null comment '交易单号',
@@ -17,7 +17,7 @@ CREATE TABLE fenle_bankroll_list (
         `sign` smallint not null default 0 comment '1-成功 2-失败 3-等待付款',
         `bank_list` varchar(32) default '' comment '给银行订单号',
         `bank_backid` varchar(32) comment '银行返回订单号',
-        `bank_type` smallint not null commnet '银行类型',
+        `bank_type` smallint not null comment '银行类型',
         `curtype` smallint not null default 1 comment '币种',
         `bankacc_hash` varchar(65) comment '用户卡号hash值，可以从银行卡表中索引得到',
         `aname` varchar(64) comment '用户姓名',
@@ -37,5 +37,5 @@ CREATE TABLE fenle_bankroll_list (
         index `bankacc_hash_idx`(`bankacc_hash`),
         index `bank_list_idex` (`bank_type`,`bank_list`),
         index `create_time_idx` (`create_time`),
-        index `modify_time_idx` (`modify_time`),
-        )ENGINE=InnoDB DEFAULT CHARSET=latin1;
+        index `modify_time_idx` (`modify_time`)
+        )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

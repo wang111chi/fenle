@@ -1,12 +1,9 @@
-#!/bin/sh
-
-
 create database if not exists fenle_fenqi_db;
 use fenle_fenqi_db;
 
-##银行渠道表
-DROP TABLE IF EXISTS t_bank_channel;
-CREATE TABLE t_bank_channel (
+# 银行渠道表
+# DROP TABLE IF EXISTS bank_channel;
+CREATE TABLE bank_channel (
     `index`                int NOT NULL AUTO_INCREMENT PRIMARY KEY ,
     `bank_channel`         varchar(16)               NOT NULL COMMENT '银行渠道字符编号:用于配置路由表',
     `bank_type`            int                       NOT NULL COMMENT '4位的银行编号如：1001 广发信用卡 ',
@@ -34,8 +31,8 @@ CREATE TABLE t_bank_channel (
     `standby4`             varchar(64)           default NULL,
     `standby5`             varchar(256)          default NULL,
 
-     UNIQUE KEY `idx_bank_channel` ( `Fbank_channel` ),
-     KEY `idx_channel` ( `Fbank_type`)
+     UNIQUE KEY `idx_bank_channel` ( `bank_channel` ),
+     KEY `idx_channel` ( `bank_type`)
     
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
