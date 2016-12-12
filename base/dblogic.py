@@ -54,3 +54,4 @@ def check_sign_rsa(db, params):
     h = SHA.new(urlencoded_params)
 
     return verifier.verify(h, sign)
+    
