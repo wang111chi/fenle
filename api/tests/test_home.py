@@ -19,19 +19,40 @@ import config
 
 
 class TestCardpayApply(object):
+    # 测试参数
+    params = util.encode_unicode({
+        "encode_type": "MD5",
+        "spid": "1234567890",
+        "sp_userid": "12345678",
+        "spbillno": "1234567",
+        "money": 12345,
+        "cur_type": 1,
+        "notify_url": "FIXME",
+        "errpage_url": "",
+        "memo": u"测试商品",
+        "expire_time": "",
+        "attach": "",
+        "card_type": 1,
+        "bank_segment": "1004",
+        "user_type": 1,
+        "acct_name": u"张三",
+        "acct_id": "1234567890123456",
+        "mobile": "1331234b5678",
+        "expiration_date": "2020-05",
+        "pin_code": "9376",
+        "divided_term": 6,
+        "fee_duty": 1,
+        "channel": 1,
+        "rist_ctrl": "",
+    })
+
     def test_cardpay_apply_md5(self, client):
         u"""MD5签名 + RSA加密"""
 
         # 分配给商户的key
         key = "123456"
 
-        # 参数
-        params = {
-            "encode_type": "MD5",
-            "spid": "1" * 10,
-        }
-
-        params = params.items()
+        params = self.params.items()
         params = [(k, v) for k, v in params if
                   v is not None and v != ""]
         params = sorted(params, key=operator.itemgetter(0))
@@ -58,14 +79,13 @@ class TestCardpayApply(object):
 
         assert resp.status_code == 200
 
+        json_resp = json.loads(resp.data)
+        # assert json_resp["retcode"] == 0
+
     def test_cardpay_apply_rsa(self, client):
         u"""RSA签名 + RSA加密"""
 
-        # 参数
-        params = {
-            "encode_type": "RSA",
-            "spid": "1" * 10,
-        }
+        params = self.params
 
         # RSA签名 + RSA加密
         cipher_data = util.rsa_sign_and_encrypt_params(
@@ -78,9 +98,9 @@ class TestCardpayApply(object):
         resp = client.get('/cardpay/apply?%s' % final_params)
 
         assert resp.status_code == 200
-        data = json.loads(resp.data)
-        print data
 
+        json_resp = json.loads(resp.data)
+        # assert json_resp["retcode"] == 0
 
 @pytest.fixture()
 def app():

@@ -85,6 +85,21 @@ def to_unicode(data, encoding="utf-8", only_str=False):
     return unicode(u_data)
 
 
+def encode_unicode(obj, encoding="utf8"):
+    """translate unicode obj into local encoding
+    """
+
+    if isinstance(obj, unicode):
+        return obj.encode(encoding)
+    elif isinstance(obj, list):
+        return [encode_unicode(v, encoding) for v in obj]
+    elif isinstance(obj, dict):
+        return dict([(encode_unicode(k, encoding), encode_unicode(v, encoding))
+                     for k, v in obj.iteritems()])
+
+    return obj
+
+
 def pkcs_encrypt(cipher, message):
     handled = 0
     ciphertext = ""
