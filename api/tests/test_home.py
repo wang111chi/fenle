@@ -19,7 +19,7 @@ import config
 
 
 class TestCardpayApply(object):
-    # 测试参数
+    # 测试参数模板
     params = util.encode_unicode({
         "encode_type": "MD5",
         "spid": "1234567890",
@@ -37,7 +37,7 @@ class TestCardpayApply(object):
         "user_type": 1,
         "acct_name": u"张三",
         "acct_id": "1234567890123456",
-        "mobile": "1331234b5678",
+        "mobile": "13312345678",
         "expiration_date": "2020-05",
         "pin_code": "9376",
         "divided_term": 6,
@@ -101,6 +101,7 @@ class TestCardpayApply(object):
 
         json_resp = json.loads(resp.data)
         # assert json_resp["retcode"] == 0
+
 
 @pytest.fixture()
 def app():

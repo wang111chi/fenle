@@ -8,7 +8,18 @@ services:
      - ../../../config_global:/fenle/config_global
      - ../../config:/fenle/api/config
      - ../../logs:/fenle/api/logs
-    entrypoint: ./wait-for-mysql.py pytest
+    entrypoint: ../docker/wait-for-mysql.py pytest
+    depends_on:
+     - mysql
+  repl:
+    build:
+      context: ../../..
+      dockerfile: api/docker/test/Dockerfile-repl
+    volumes:
+     - ../../../config_global:/fenle/config_global
+     - ../../config:/fenle/api/config
+     - ../../logs:/fenle/api/logs
+    entrypoint: ../docker/wait-for-mysql.py python ipython-entrypoint.py
     depends_on:
      - mysql
   mysql:

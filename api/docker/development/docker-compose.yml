@@ -10,6 +10,15 @@ services:
      - "3032:3031"
     depends_on:
      - mysql
+  repl:
+    build:
+      context: ../../..
+      dockerfile: api/docker/development/Dockerfile-repl
+    volumes:
+     - ../../..:/fenle
+    entrypoint: ../docker/wait-for-mysql.py python ipython-entrypoint.py
+    depends_on:
+     - mysql
   mysql:
     build:
       context: ../../..

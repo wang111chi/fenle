@@ -41,6 +41,13 @@ def server_mysql():
                     "-uroot -p123456 fenle_fenqi_db", shell=True)
 
 
+@server.command('repl')
+def server_repl():
+    u"""an ipython repl for development server"""
+
+    subprocess.call("docker-compose run repl", shell=True)
+
+
 @server.command('start')
 def server_start():
     u"""start development server"""
@@ -92,6 +99,12 @@ def test_mysql():
 
     subprocess.call("docker-compose exec mysql mysql "
                     "-uroot -p123456 fenle_fenqi_db", shell=True)
+
+@test.command('repl')
+def test_repl():
+    u"""an ipython repl for testing"""
+
+    subprocess.call("docker-compose run repl", shell=True)
 
 
 if __name__ == '__main__':
