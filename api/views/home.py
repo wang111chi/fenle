@@ -6,8 +6,9 @@ import urlparse
 import operator
 import hashlib
 import urllib
+from datetime import datetime
 
-from flask import Blueprint
+from flask import Blueprint,request
 from sqlalchemy.sql import text
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5
@@ -22,7 +23,7 @@ from base.xform import F_mobile, F_str, F_int
 from base import constant as const
 from base import logger
 from base import util
-from base.db import engine
+from base.db import engine,meta
 from base.xform import FormChecker
 import config
 
@@ -46,18 +47,70 @@ def index():
     (F_str("签名") <= 1024) & "strict" & "required",
 
     "encode_type":
-    (F_str("签名类型") <= 5) & "strict" & "required" & (
+    (F_str("") <= 5) & "strict" & "required" & (
         lambda v: (v in const.ENCODE_TYPE.ALL, v)),
+        
+    "sp_userid":
+    (F_str("用户号") <= 20) & "strict" & "required",
+    
+    "spbillno": 
+    (F_str("支付订单号") <= 32) & "strict" & "required",
+    
+    "money": (F_int("订单交易金额")) & "strict" & "required",
+    "cur_type":(F_int("币种类型")) & "strict" & "required",
+    "notify_url": (F_str("后台回调地址")<=255) & "strict" & "required",
+    "errpage_url": (F_str("错误页面回调地址")<=255) & "strict" & "optional",
+    "memo":(F_str("订单备注")<=255) & "strict" & "required", 
+    "expire_time": (F_int("订单有效时长")) & "strict" & "optional",
+    "attach": (F_str("附加数据")<=255) & "strict" & "optional",
+    "card_type":(F_int("银行卡类型")) & "strict" & "required",
+    "bank_segment":(F_str("银行代号")<=4) & "strict" & "required",
+    "user_type": (F_int("用户类型")) & "strict" & "required",
+    "acct_name": (F_str("付款人姓名")<=16) & "strict" & "required",
+    "acct_id": (F_str("付款人帐号")<=16) & "strict" & "required",
+    "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
+    "expiration_date": (F_str("有效期")<=11) & "strict" & "required",
+    "pin_code": (F_str("cvv2")<=11) & "strict" & "required",
+    "divided_term": (F_int("分期期数")) & "strict" & "required",
+    "fee_duty": (F_int("手续费承担方")) & "strict" & "required",
+    "channel": (F_int("渠道类型")) & "strict" & "required",
+    "rist_ctrl": (F_str("风险控制数据")<=10240) & "strict" & "optional",
 })
 def cardpay_apply(safe_vars):
     # 处理逻辑
+    abouted_field_dict={u'card_type':'bankacc_type', u'spbillno':'coding',u'user_type':'bankacc_attr', u'acct_id':'bankacc_no', u'bank_segment':'bank_type', u'fee_duty':'fee_direct',u'mobile':'mobile',  u'sp_userid':'sp_userid', u'spid':u'spid', u'cur_type':'cur_type',  u'pin_code':'pin_code'}
+
+    other_field=(u'attach',  u'expiration_date',u'channel', u'money',u'memo',u'acct_name',u'rist_ctrl', u'divided_term',u'expire_time',u'notify_url',u'errpage_url', u'encode_type',u'sign',)
+    
+    saved_data={}
+    for k,v in abouted_field_dict.items():
+        saved_data[v]=safe_vars[k]
+    	
+    comput_data=dict(
+	list_id=33,
+        bank_valicode = saved_data['pin_code'],
+        valid_period='10',
+        rsp_time='3',
+        bank_channel='1',
+        state=1,
+        lstate =1,
+        create_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        modify_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        client_ip = '10.0.0.23',
+        modify_ip = '10.0.0.23',
+    )
+       
+    trans_list=meta.tables['trans_list']
+    ins=trans_list.insert().values(**saved_data)
+    conn=engine.connect()
+    conn.execute(ins,**comput_data)
 
     ret_data = {
         "spid": "1" * 10,
         "spbillno": "12343434",
         "encode_type": const.ENCODE_TYPE.RSA,
     }
-
+    
     cipher_data = util.rsa_sign_and_encrypt_params(
         ret_data,
         config.FENLE_PRIVATE_KEY,
@@ -65,5 +118,15 @@ def cardpay_apply(safe_vars):
     )
 
     return ApiJsonOkResponse(
-        cipher_data=cipher_data
+        cipher_data=cipher_data,
+        clientip=request.remote_addr,
+        safe_vars=safe_vars,
     )
+
+
+
+
+
+
+
+

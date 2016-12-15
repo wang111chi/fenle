@@ -69,3 +69,39 @@ class CALLBACK_URL(object):
 class CUR_TYPE(object):
     RMB = 1
 	
+
+class CARD_TYPE(object):
+    u"""银行卡类型"""
+    
+    QUASI_CREDIT_CARD=1
+    DEBIT_CARD=2
+    CREDIT_CARD=3
+
+    NAMES={
+        QUASI_CREDIT_CARD:u"贷记卡",
+        DEBIT_CARD:u"借记卡",
+        CREDIT_CARD:u"信用卡"    
+    }
+
+    
+class USER_TYPE(object):
+    u"""用户类型"""
+    
+    PERSONAL=1    
+    ENTERPRISE=2
+    
+    NAMES={
+        PERSONAL:u"个人",
+        ENTERPRISE:u"企业"    
+    }	
+
+
+class FEE_DUTY(object):
+    CUSTOM=1
+    BUSINESS=2
+
+    NAMES={
+        CUSTOM:u"用户",
+        BUSINESS:u"商户"
+    
+}

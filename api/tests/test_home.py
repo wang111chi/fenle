@@ -16,7 +16,7 @@ import pytest
 import wsgi_handler
 from base import util
 import config
-
+from base import logger
 
 class TestCardpayApply(object):
     # 测试参数模板
@@ -58,7 +58,7 @@ class TestCardpayApply(object):
         params_with_key = params + [("key", key)]
 
         urlencoded_params = urllib.urlencode(params_with_key)
-
+        logger.debug(urlencoded_params)
         # MD5签名
         m = hashlib.md5()
         m.update(urlencoded_params)
@@ -78,8 +78,9 @@ class TestCardpayApply(object):
 
         assert resp.status_code == 200
 
-        # json_resp = json.loads(resp.data)
-        # assert json_resp["retcode"] == 0
+        json_resp = json.loads(resp.data)
+        print json_resp 
+        assert json_resp["retcode"] == 0
 
     def test_cardpay_apply_rsa(self, client):
         u"""RSA签名 + RSA加密."""
