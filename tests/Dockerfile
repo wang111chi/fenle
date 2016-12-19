@@ -2,5 +2,5 @@ FROM liyuan462/ubuntu:trusty-py
 
 COPY requirements.txt /fenle/
 RUN pip install -r /fenle/requirements.txt
-COPY . /fenle/
-WORKDIR /fenle/api/
+WORKDIR /fenle/tests/
+CMD ["/fenle/mysql/wait-for-mysql.py", "pytest"]

@@ -1,0 +1,23 @@
+version: '2'
+services:
+  test:
+    build:
+      context: ../..
+      dockerfile: api/tests/Dockerfile
+    volumes:
+     - ../..:/fenle
+    depends_on:
+     - mysql
+  repl:
+    build:
+      context: ../..
+      dockerfile: api/tests/Dockerfile-repl
+    volumes:
+     - ../..:/fenle
+    entrypoint: ../mysql/wait-for-mysql.py python ipython-entrypoint.py
+    depends_on:
+     - mysql
+  mysql:
+    extends:
+      file: ../../mysql/docker-compose.yml
+      service: mysql

@@ -1,0 +1,14 @@
+version: '2'
+services:
+  test:
+    build:
+      context: ..
+      dockerfile: tests/Dockerfile
+    volumes:
+     - ..:/fenle
+    depends_on:
+     - mysql
+  mysql:
+    extends:
+      file: ../mysql/docker-compose.yml
+      service: mysql

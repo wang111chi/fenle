@@ -1,0 +1,11 @@
+version: '2'
+services:
+  api_repl:
+    build:
+      context: .
+      dockerfile: api/Dockerfile-repl
+    volumes:
+     - .:/fenle
+    entrypoint: ../mysql/wait-for-mysql.py python ipython-entrypoint.py
+    depends_on:
+     - mysql

@@ -1,4 +1,4 @@
 FROM mysql/mysql-server:5.7
 
-COPY docker/my.cnf /etc/my.cnf
+COPY mysql/my.cnf /etc/my.cnf
 COPY docs/tables/* /docker-entrypoint-initdb.d/

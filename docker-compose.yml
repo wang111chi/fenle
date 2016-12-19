@@ -1,0 +1,27 @@
+version: '2'
+services:
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    volumes:
+     - .:/fenle
+    ports:
+     - "3032:3031"
+    depends_on:
+     - mysql
+  callback_url:
+    build:
+      context: .
+      dockerfile: callback_url/Dockerfile
+    volumes:
+     - .:/fenle
+    ports:
+     - "3033:3031"
+    depends_on:
+     - mysql
+  mysql:
+    extends:
+      file: mysql/docker-compose.yml
+      service: mysql
+
