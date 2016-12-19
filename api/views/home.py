@@ -18,7 +18,7 @@ from Crypto.Hash import SHA
 from base.framework import db_conn
 from base.framework import general
 from base.framework import ApiJsonOkResponse
-from base.framework import api_sign_and_encrypt_form_check
+from base.framework import api_sign_and_encrypt_form_check, transaction
 from base.xform import F_mobile, F_str, F_int
 from base import constant as const
 from base import logger
@@ -53,7 +53,7 @@ def index():
     "sp_userid":
     (F_str("用户号") <= 20) & "strict" & "required",
     
-    "spbillno": 
+    "sp_tid": 
     (F_str("支付订单号") <= 32) & "strict" & "required",
     
     "money": (F_int("订单交易金额")) & "strict" & "required",
@@ -63,11 +63,11 @@ def index():
     "memo":(F_str("订单备注")<=255) & "strict" & "required", 
     "expire_time": (F_int("订单有效时长")) & "strict" & "optional",
     "attach": (F_str("附加数据")<=255) & "strict" & "optional",
-    "card_type":(F_int("银行卡类型")) & "strict" & "required",
-    "bank_segment":(F_str("银行代号")<=4) & "strict" & "required",
+    "bankcard_type":(F_int("银行卡类型")) & "strict" & "required",
+    "bank_id":(F_str("银行代号")<=4) & "strict" & "required",
     "user_type": (F_int("用户类型")) & "strict" & "required",
-    "acct_name": (F_str("付款人姓名")<=16) & "strict" & "required",
-    "acct_id": (F_str("付款人帐号")<=16) & "strict" & "required",
+    "acnt_name": (F_str("付款人姓名")<=16) & "strict" & "required",
+    "acnt_bankno": (F_str("付款人帐号")<=16) & "strict" & "required",
     "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
     "expiration_date": (F_str("有效期")<=11) & "strict" & "required",
     "pin_code": (F_str("cvv2")<=11) & "strict" & "required",
@@ -78,13 +78,13 @@ def index():
 })
 def cardpay_apply(safe_vars):
     # 处理逻辑
-    abouted_field_dict={u'card_type':'bankacc_type', u'spbillno':'coding',u'user_type':'bankacc_attr', u'acct_id':'bankacc_no', u'bank_segment':'bank_type', u'fee_duty':'fee_direct',u'mobile':'mobile',  u'sp_userid':'sp_userid', u'spid':u'spid', u'cur_type':'cur_type',  u'pin_code':'pin_code'}
+    abouted_field=[u'bankcard_type', u'sp_tid',u'user_type', 'acnt_bankno', u'bank_id', u'fee_duty',u'mobile',u'sp_userid', u'spid', u'cur_type', u'pin_code',u'attach',u'memo',u'acnt_name',u'divided_term',u'notify_url']
 
-    other_field=(u'attach',  u'expiration_date',u'channel', u'money',u'memo',u'acct_name',u'rist_ctrl', u'divided_term',u'expire_time',u'notify_url',u'errpage_url', u'encode_type',u'sign',)
+    other_field=(u'expiration_date',u'channel', u'money',u'rist_ctrl', u'expire_time',u'errpage_url', u'encode_type',u'sign',)
     
     saved_data={}
-    for k,v in abouted_field_dict.items():
-        saved_data[v]=safe_vars[k]
+    for k in abouted_field:
+        saved_data[k]=safe_vars[k]
     	
     comput_data=dict(
 	list_id=33,
@@ -99,15 +99,25 @@ def cardpay_apply(safe_vars):
         client_ip = '10.0.0.23',
         modify_ip = '10.0.0.23',
     )
-       
+    
+    fenle_bankroll_list = meta.tables['fenle_bankroll_list']
+    sp_bankroll_list = meta.tables['sp_bankroll_list']
     trans_list=meta.tables['trans_list']
     ins=trans_list.insert().values(**saved_data)
     conn=engine.connect()
-    conn.execute(ins,**comput_data)
+    with transaction(conn) as trans:
+        #t=conn.execute(ins,**comput_data)
+        #if xxxxx:
+            # if you don't want to commit, you just not call trans.finish().
+         #   return error_page("xxxxxx")
+        # if you want to commit, you call:
+        trans.finish()
+    
+
 
     ret_data = {
         "spid": "1" * 10,
-        "spbillno": "12343434",
+        "sp_tid": "12343434",
         "encode_type": const.ENCODE_TYPE.RSA,
     }
     
@@ -122,11 +132,5 @@ def cardpay_apply(safe_vars):
         clientip=request.remote_addr,
         safe_vars=safe_vars,
     )
-
-
-
-
-
-
 
 

@@ -22,21 +22,21 @@ class TestCardpayApply(object):
     # 测试参数模板
     params = util.encode_unicode({
         "encode_type": "MD5",
-        "spid": "1234567890",
+        "spid": "1"*9+'1',
         "sp_userid": "12345678",
-        "spbillno": "1234567",
+        "sp_tid": "1234567",
         "money": 12345,
         "cur_type": 1,
         "notify_url": "FIXME",
         "errpage_url": "",
         "memo": u"测试商品",
         "expire_time": "",
-        "attach": "",
-        "card_type": 1,
-        "bank_segment": "1004",
+        "attach": "wang",
+        "bankcard_type": 1,
+        "bank_id": "1004",
         "user_type": 1,
-        "acct_name": u"张三",
-        "acct_id": "1234567890123456",
+        "acnt_name": u"张三",
+        "acnt_bankno": "1234567890123456",
         "mobile": "13312345678",
         "expiration_date": "2020-05",
         "pin_code": "9376",
@@ -49,7 +49,7 @@ class TestCardpayApply(object):
     def test_cardpay_apply_md5(self, client):
         u"""MD5签名 + RSA加密."""
         # 分配给商户的key
-        key = "123456"
+        key = "654321"*3
 
         params = self.params.items()
         params = [(k, v) for k, v in params if
