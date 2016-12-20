@@ -83,13 +83,37 @@ class JsonResponse(Response):
         return util.safe_json_dumps(self._json)
 
 
+class JsonOkResponse(JsonResponse):
+    def __init__(self, **kwargs):
+        JsonResponse.__init__(self)
+
+        self._json = {
+            "status": const.REQUEST_STATUS.SUCCESS,
+            "message": u"成功",
+        }
+        self._json.update(kwargs)
+
+
 class JsonErrorResponse(JsonResponse):
-    def __init__(self, retcode, retmsg=None):
+    def __init__(self, message, status=const.REQUEST_STATUS.FAIL):
+        if isinstance(message, (list, tuple)):
+            message = ", ".join(message)
+        JsonResponse.__init__(self, status=status, message=message)
+
+
+class ApiJsonErrorResponse(JsonResponse):
+    def __init__(self, retcode=None, retmsg=None):
         if retmsg is None:
-            retmsg = const.ERROR.NAMES.get(retcode, "")
+            retmsg = const.API_ERROR.NAMES.get(retcode, "")
         if isinstance(retmsg, (list, tuple)):
             retmsg = ", ".join(retmsg)
         JsonResponse.__init__(self, retcode=retcode, retmsg=retmsg)
+
+
+class ApiJsonOkResponse(JsonResponse):
+    def __init__(self, retmsg=u"成功", **kwargs):
+        JsonResponse.__init__(
+            self, retcode=REQUEST_STATUS.SUCCESS, retmsg=retmsg, **kwargs)
 
 
 class TempResponse(Response):
@@ -156,19 +180,19 @@ def form_check(settings, var_name="safe_vars", strict_error=True,
     return new_deco
 
 
-def sign_and_encrypt_form_check(db, settings, var_name="safe_vars"):
+def api_sign_and_encrypt_form_check(db, settings, var_name="safe_vars"):
     def new_deco(old_handler):
         @wraps(old_handler)
         def new_handler(*args, **kwargs):
             cipher_data = request.values.get("cipher_data", None)
             if cipher_data is None:
-                return JsonErrorResponse(const.ERROR.DECRYPT_ERROR)
+                return ApiJsonErrorResponse(const.API_ERROR.DECRYPT_ERROR)
 
             # RSA解密
             try:
                 cipher_data = b64decode(cipher_data)
             except ValueError:
-                return JsonErrorResponse(const.ERROR.DECRYPT_ERROR)
+                return ApiJsonErrorResponse(const.API_ERROR.DECRYPT_ERROR)
 
             fenle_private_key = RSA.importKey(config.FENLE_PRIVATE_KEY)
             cipher = PKCS1_v1_5.new(fenle_private_key)
@@ -176,7 +200,7 @@ def sign_and_encrypt_form_check(db, settings, var_name="safe_vars"):
             message = util.pkcs_decrypt(cipher, cipher_data)
 
             if message is None:
-                return JsonErrorResponse(const.ERROR.DECRYPT_ERROR)
+                return ApiJsonErrorResponse(const.API_ERROR.DECRYPT_ERROR)
 
             # 参数检查
             params = urlparse.parse_qs(message)
@@ -195,7 +219,7 @@ def sign_and_encrypt_form_check(db, settings, var_name="safe_vars"):
                     v for v in checker.get_error_messages().values() if
                     v is not None
                 ]
-                return JsonErrorResponse(const.ERROR.PARAM_ERROR, error_msg)
+                return ApiJsonErrorResponse(const.API_ERROR.PARAM_ERROR, error_msg)
 
             valid_data = checker.get_valid_data()
 
@@ -207,7 +231,7 @@ def sign_and_encrypt_form_check(db, settings, var_name="safe_vars"):
                 check_sign_valid = dbl.check_sign_rsa(db, valid_data)
 
             if not check_sign_valid:
-                return JsonErrorResponse(const.ERROR.SIGN_INVALID)
+                return ApiJsonErrorResponse(const.API_ERROR.SIGN_INVALID)
 
             kwargs[var_name] = valid_data
             return old_handler(*args, **kwargs)

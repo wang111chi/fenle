@@ -16,8 +16,8 @@ from Crypto.Hash import SHA
 
 from base.framework import db_conn
 from base.framework import general
-from base.framework import JsonResponse, JsonErrorResponse
-from base.framework import sign_and_encrypt_form_check
+from base.framework import ApiJsonOkResponse
+from base.framework import api_sign_and_encrypt_form_check
 from base.xform import F_mobile, F_str, F_int
 from base import constant as const
 from base import logger
@@ -38,7 +38,7 @@ def index():
 
 @home.route("/cardpay/apply")
 @general("信用卡分期支付申请")
-@sign_and_encrypt_form_check(engine.connect(), {
+@api_sign_and_encrypt_form_check(engine.connect(), {
     "spid":
     (10 <= F_str("商户号") <= 10) & "strict" & "required",
 
@@ -64,8 +64,6 @@ def cardpay_apply(safe_vars):
         config.TEST_MERCHANT_PUB_KEY
     )
 
-    return JsonResponse(
-        retcode=0,
-        retmsg=u"成功",
+    return ApiJsonOkResponse(
         cipher_data=cipher_data
     )

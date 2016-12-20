@@ -6,6 +6,8 @@ import datetime
 from decimal import Decimal
 import operator
 import urllib
+import socket
+import struct
 from base64 import b64encode
 
 from Crypto.PublicKey import RSA
@@ -98,6 +100,32 @@ def encode_unicode(obj, encoding="utf8"):
                      for k, v in obj.iteritems()])
 
     return obj
+
+
+def safe_inet_ntoa(n):
+    """
+    Convert numerical ip to string ip(like: 2071801890 -> "123.125.48.34"),
+    return None if failed.
+    """
+    try:
+        ip = socket.inet_ntoa(struct.pack(">L", n))
+    except (struct.error, socket.error):
+        return None
+
+    return ip
+
+
+def safe_inet_aton(ip):
+    """
+    Convert string ip to numerical ip(like: "123.125.48.34" -> 2071801890),
+    return None if failed.
+    """
+    try:
+        n = struct.unpack(">L", socket.inet_pton(socket.AF_INET, ip))[0]
+    except (struct.error, socket.error, AttributeError):
+        return None
+
+    return n
 
 
 def pkcs_encrypt(cipher, message):
