@@ -15,18 +15,24 @@ class REQUEST_STATUS(object):
 
 
 class API_ERROR(object):
+    PARAM_ERROR = 207001
     MERCHANT_NOT_EXIST = 207200
     SPID_NOT_EXIST = 207201
     DECRYPT_ERROR = 207266
-    PARAM_ERROR = 207001
     SIGN_INVALID = 207267
+    
+    BANKCARD_NOT_EXIST = 207300
+    BANKCARD_FREEZED = 207301
+
     NAMES = {
+        PARAM_ERROR: u"参数格式错误",
         MERCHANT_NOT_EXIST: u"商户不存在",
         SPID_NOT_EXIST: u"mysql中不存在此商户号",
         DECRYPT_ERROR: u"解密失败",
 
-        PARAM_ERROR: u"参数格式错误",
         SIGN_INVALID: u"校验签名失败",
+        BANKCARD_NOT_EXIST : u"银行卡未注册",
+        BANKCARD_FREEZED : u"银行卡冻结",
     }
 
 

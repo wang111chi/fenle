@@ -9,7 +9,7 @@ import urllib
 from datetime import datetime
 
 from flask import Blueprint,request
-from sqlalchemy.sql import text
+from sqlalchemy.sql import text,select
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5
 from Crypto.Signature import PKCS1_v1_5 as sign_PKCS1_v1_5
@@ -40,24 +40,14 @@ def index():
 @home.route("/cardpay/apply")
 @general("信用卡分期支付申请")
 @api_sign_and_encrypt_form_check(engine.connect(), {
-    "spid":
-    (10 <= F_str("商户号") <= 10) & "strict" & "required",
-
-    "sign":
-    (F_str("签名") <= 1024) & "strict" & "required",
-
-    "encode_type":
-    (F_str("") <= 5) & "strict" & "required" & (
+    "spid": (10 <= F_str("商户号") <= 10) & "strict" & "required",
+    "sign": (F_str("签名") <= 1024) & "strict" & "required",
+    "encode_type": (F_str("") <= 5) & "strict" & "required" & (
         lambda v: (v in const.ENCODE_TYPE.ALL, v)),
-        
-    "sp_userid":
-    (F_str("用户号") <= 20) & "strict" & "required",
-    
-    "sp_tid": 
-    (F_str("支付订单号") <= 32) & "strict" & "required",
-    
+    "sp_userid": (F_str("用户号") <= 20) & "strict" & "required",
+    "sp_tid": (F_str("支付订单号") <= 32) & "strict" & "required",
     "money": (F_int("订单交易金额")) & "strict" & "required",
-    "cur_type":(F_int("币种类型")) & "strict" & "required",
+    "cur_type": (F_int("币种类型")) & "strict" & "required",
     "notify_url": (F_str("后台回调地址")<=255) & "strict" & "required",
     "errpage_url": (F_str("错误页面回调地址")<=255) & "strict" & "optional",
     "memo":(F_str("订单备注")<=255) & "strict" & "required", 
@@ -100,11 +90,27 @@ def cardpay_apply(safe_vars):
         modify_ip = '10.0.0.23',
     )
     
+    conn=engine.connect()
     fenle_bankroll_list = meta.tables['fenle_bankroll_list']
     sp_bankroll_list = meta.tables['sp_bankroll_list']
-    trans_list=meta.tables['trans_list']
-    ins=trans_list.insert().values(**saved_data)
-    conn=engine.connect()
+    trans_list = meta.tables['trans_list']
+    
+    #检查商户订单号是否已经存在
+    sel = select([trans_list.c.sp_tid]).where(trans_list.c.sp_tid==safe_vars['sp_tid'])
+    ret = conn.execute(sel)
+    if not ret.rowcount==0:
+        pass
+    else:#如果不存在就生成订单
+    #检查用户银行卡信息 user_bank
+        sel = select([user_bank.c.sp_tid]).where(trans_list.c.sp_tid==safe_vars['sp_tid'])
+        ret = conn.execute(sel)      
+  
+    #检查银行卡是否被冻结 user_bank
+    #检查银行渠道bank_channel
+    #检查合同信息
+    #fee_duty  计算手续费生成金额
+    ins = trans_list.insert().values(**saved_data)
+    
     with transaction(conn) as trans:
         #t=conn.execute(ins,**comput_data)
         #if xxxxx:
@@ -113,7 +119,6 @@ def cardpay_apply(safe_vars):
         # if you want to commit, you call:
         trans.finish()
     
-
 
     ret_data = {
         "spid": "1" * 10,

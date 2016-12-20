@@ -15,7 +15,7 @@ from Crypto.Hash import SHA
 import config
 from base import dblogic as dbl
 from base import logger
-from base.db import engine,meta,select
+from base.db import engine,meta
 from base import util
 from base.xform import FormChecker
 from base import constant as const

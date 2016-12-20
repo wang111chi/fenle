@@ -3,7 +3,6 @@
 
 from sqlalchemy import create_engine
 from sqlalchemy import MetaData
-from sqlalchemy.sql import select
 import config
 
 meta = MetaData()
