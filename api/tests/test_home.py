@@ -48,6 +48,7 @@ class TestCardpayApply(object):
 
     def test_cardpay_apply_md5(self, client):
         u"""MD5签名 + RSA加密."""
+
         # 分配给商户的key
         key = "654321"*3
 
@@ -111,3 +112,11 @@ def app():
 @pytest.fixture()
 def client(app):
     return app.test_client()
+
+@pytest.fixture()
+def db(app):
+    db = engine.connect()
+    # delete all tables
+
+    return db
+

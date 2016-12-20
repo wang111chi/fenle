@@ -226,18 +226,24 @@ def api_sign_and_encrypt_form_check(db, settings, var_name="safe_vars"):
             #从mysql检查商户spid是否存在
             valid_data = checker.get_valid_data()
             merchant_info= meta.tables['merchant_info']
-            s = select([merchant_info.c.spid,merchant_info.c.mer_key,merchant_info.c.rsa_pub_key]).where(merchant_info.c.spid==valid_data['spid'])
+            s = select([merchant_info.c.spid, 
+			merchant_info.c.mer_key, 
+			merchant_info.c.rsa_pub_key]
+		).where(merchant_info.c.spid == valid_data['spid'])
+
             conn = engine.connect()
             sel_result = conn.execute(s)
-            if sel_result.rowcount==0:    
-                return JsonErrorResponse(const.ERROR.SPID_NOT_EXIST)    
+            merchant_info = sel_result.first()
+
+            if merchant_info is None:    
+                return ApiJsonErrorResponse(const.API_ERROR.SPID_NOT_EXIST)
 
             # 验签
             encode_type = valid_data["encode_type"]
             if encode_type == const.ENCODE_TYPE.MD5:
-                check_sign_valid = util.check_sign_md5(sel_result.first().mer_key, valid_data)
+                check_sign_valid = util.check_sign_md5(merchant_info, mer_key, valid_data)
             elif encode_type == const.ENCODE_TYPE.RSA:
-                check_sign_valid = util.check_sign_rsa(sel_result.first().rsa_pub_key,valsd_data)
+                check_sign_valid = util.check_sign_rsa(merchant_info.rsa_pub_key, valsd_data)
                         
             if not check_sign_valid:
                 return ApiJsonErrorResponse(const.API_ERROR.SIGN_INVALID)
