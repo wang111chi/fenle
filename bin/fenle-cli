@@ -148,6 +148,38 @@ def callback_url_stop():
     subprocess.call("docker-compose stop callback_url", shell=True)
 
 
+@callback_url.group('test', invoke_without_command=True)
+@click.pass_context
+def callback_url_test(ctx):
+    u"""commands related to callback_url testing"""
+
+    os.chdir(os.path.join(root_path, 'callback_url', 'tests'))
+    os.environ['COMPOSE_PROJECT_NAME'] = 'fenle_callback_url_test'
+
+    if ctx.invoked_subcommand is not None:
+        return
+
+    subprocess.call("docker-compose run test", shell=True)
+
+
+@callback_url_test.command('compose', context_settings=dict(
+    ignore_unknown_options=True,
+))
+@click.argument('args', nargs=-1, type=click.UNPROCESSED)
+def callback_url_test_compose(args):
+    u"""a wrapper to docker-compose for callback_url testing"""
+
+    cmdline = ['docker-compose'] + list(args)
+    subprocess.call(cmdline)
+
+
+@callback_url_test.command('mysql')
+def callback_url_test_mysql():
+    u"""mysql console for callback_url testing"""
+
+    start_and_wait_mysql()
+
+
 @cli.group(invoke_without_command=True)
 @click.pass_context
 def test(ctx):

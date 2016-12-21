@@ -122,7 +122,7 @@ def safe_inet_aton(ip):
     """
     try:
         n = struct.unpack(">L", socket.inet_pton(socket.AF_INET, ip))[0]
-    except (struct.error, socket.error, AttributeError):
+    except (struct.error, socket.error, AttributeError, TypeError):
         return None
 
     return n
