@@ -9,7 +9,7 @@ import urllib
 from datetime import datetime
 
 from flask import Blueprint,request
-from sqlalchemy.sql import text,select
+from sqlalchemy.sql import text, select, and_, or_
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5
 from Crypto.Signature import PKCS1_v1_5 as sign_PKCS1_v1_5
@@ -18,12 +18,14 @@ from Crypto.Hash import SHA
 from base.framework import db_conn
 from base.framework import general
 from base.framework import ApiJsonOkResponse
-from base.framework import api_sign_and_encrypt_form_check, transaction
+from base.framework import api_sign_and_encrypt_form_check
+from base.framework import transaction
+from base.framework import ApiJsonErrorResponse
 from base.xform import F_mobile, F_str, F_int
 from base import constant as const
 from base import logger
 from base import util
-from base.db import engine,meta
+from base.db import *
 from base.xform import FormChecker
 import config
 
@@ -72,12 +74,64 @@ def cardpay_apply(safe_vars):
 
     other_field=(u'expiration_date',u'channel', u'money',u'rist_ctrl', u'expire_time',u'errpage_url', u'encode_type',u'sign',)
     
-    saved_data={}
+    saved_data = {}
     for k in abouted_field:
-        saved_data[k]=safe_vars[k]
-    	
+        saved_data[k] = safe_vars[k]	
+    
+    conn = engine.connect()
+    
+    #检查商户订单号是否已经存在
+    sel = select([t_trans_list.c.state]).where(and_(
+            t_trans_list.c.spid == safe_vars['spid'],    
+            t_trans_list.c.sp_tid == safe_vars['sp_tid']
+        ))
+    ret = conn.execute(sel).first()
+    if not ret is None:
+        pass
+    else: 
+        # 如果不存在就生成订单
+        # 检查用户银行卡信息 user_bank
+        sel = select([t_user_bank_card.c.lstate]).where(
+            t_user_bank_card.c.bank_card_no == safe_vars['acnt_bankno']
+            )
+        ret = conn.execute(sel).first()
+        if not ret is None:
+            #检查银行卡是否被冻结 user_bank 
+            if ret['lstate'] == 2:
+                return  ApiJsonErrorResponse(const.BANKCARD_FREEZED)
+        else:
+            user_bank_info = dict(
+                bank_card_no = safe_vars['acnt_bankno'],
+	        bank_card_type = 1,
+         	bank_card_attr = safe_vars['user_type'],
+        	bank_account_name = safe_vars['acnt_name'],
+        	bank_name = '',
+	        bank_sname = '',
+        	bank_branch = '',
+        	mobile = safe_vars['mobile'],
+        	state = 1,
+        	lstate = 1,
+        	create_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 
+	        update_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            )
+            conn.execute(t_user_bank_card.insert(), user_bank_info)
+                
+        #检查银行渠道bank_channel
+        sel = select([t_bank_channel.c.enable_flag, t_bank_channel.c.fenqi_fee]).where(
+                t_bank_channel.c.bank_type == safe_vars['bank_id']
+            )         
+        ret2 = conn.execute(sel).first()
+        if ret2 is None:
+            return  ApiJsonErrorResponse(const.API_ERROR.BANK_CHANNEL_UNABLE)
+        elif ret2['enable_flag'] == 0: # 冻结标志
+            return  ApiJsonErrorResponse(const.API_ERROR.BANK_CHANNEL_UNABLE)
+
+    #检查合同信息
+    #fee_duty  计算手续费生成金额
+    #if safe_vars['fee_duty'] == 2: # 商户付手续费
+    ins = trans_list.insert().values(**saved_data)
     comput_data=dict(
-	list_id=33,
+        list_id=33,
         bank_valicode = saved_data['pin_code'],
         valid_period='10',
         rsp_time='3',
@@ -89,28 +143,7 @@ def cardpay_apply(safe_vars):
         client_ip = '10.0.0.23',
         modify_ip = '10.0.0.23',
     )
-    
-    conn=engine.connect()
-    fenle_bankroll_list = meta.tables['fenle_bankroll_list']
-    sp_bankroll_list = meta.tables['sp_bankroll_list']
-    trans_list = meta.tables['trans_list']
-    
-    #检查商户订单号是否已经存在
-    sel = select([trans_list.c.sp_tid]).where(trans_list.c.sp_tid==safe_vars['sp_tid'])
-    ret = conn.execute(sel)
-    if not ret.rowcount==0:
-        pass
-    else:#如果不存在就生成订单
-    #检查用户银行卡信息 user_bank
-        sel = select([user_bank.c.sp_tid]).where(trans_list.c.sp_tid==safe_vars['sp_tid'])
-        ret = conn.execute(sel)      
-  
-    #检查银行卡是否被冻结 user_bank
-    #检查银行渠道bank_channel
-    #检查合同信息
-    #fee_duty  计算手续费生成金额
-    ins = trans_list.insert().values(**saved_data)
-    
+
     with transaction(conn) as trans:
         #t=conn.execute(ins,**comput_data)
         #if xxxxx:

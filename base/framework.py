@@ -11,6 +11,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5
 from Crypto.Signature import PKCS1_v1_5 as sign_PKCS1_v1_5
 from Crypto.Hash import SHA
+from sqlalchemy.sql import text,select
 
 import config
 from base import dblogic as dbl
@@ -225,7 +226,7 @@ def api_sign_and_encrypt_form_check(db, settings, var_name="safe_vars"):
 
             #从mysql检查商户spid是否存在
             valid_data = checker.get_valid_data()
-            merchant_info= meta.tables['merchant_info']
+            merchant_info = meta.tables['merchant_info']
             s = select([merchant_info.c.spid, 
 			merchant_info.c.mer_key, 
 			merchant_info.c.rsa_pub_key]
@@ -233,17 +234,17 @@ def api_sign_and_encrypt_form_check(db, settings, var_name="safe_vars"):
 
             conn = engine.connect()
             sel_result = conn.execute(s)
-            merchant_info = sel_result.first()
+            first_info = sel_result.first()
 
-            if merchant_info is None:    
+            if first_info is None:    
                 return ApiJsonErrorResponse(const.API_ERROR.SPID_NOT_EXIST)
 
             # 验签
             encode_type = valid_data["encode_type"]
             if encode_type == const.ENCODE_TYPE.MD5:
-                check_sign_valid = util.check_sign_md5(merchant_info, mer_key, valid_data)
+                check_sign_valid = util.check_sign_md5(first_info.mer_key, valid_data)
             elif encode_type == const.ENCODE_TYPE.RSA:
-                check_sign_valid = util.check_sign_rsa(merchant_info.rsa_pub_key, valsd_data)
+                check_sign_valid = util.check_sign_rsa(first_info.rsa_pub_key, valsd_data)
                         
             if not check_sign_valid:
                 return ApiJsonErrorResponse(const.API_ERROR.SIGN_INVALID)

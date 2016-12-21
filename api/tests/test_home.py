@@ -15,6 +15,7 @@ import pytest
 
 import wsgi_handler
 from base import util
+from base.db import *
 import config
 from base import logger
 
@@ -46,8 +47,41 @@ class TestCardpayApply(object):
         "rist_ctrl": "",
     })
 
-    def test_cardpay_apply_md5(self, client):
+    def insert_bank_and_merchant(self, conn):
+        # insert some test data to mysql table
+        sp_data = dict(
+            spid='1'*10,
+            uid='111',
+            agent_uid='112',
+            parent_uid='113',
+            sp_name='guazi',
+            mer_key='654321'*3,
+            rsa_pub_key="""\
+-----BEGIN PUBLIC KEY--@pytest.fix---
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDWXsFnKxKhPDofiexxxjmfYLWo
+4dkKzbuTSC0teqpQ4YmeCBJNcLDbGB+WuHRAKEd1xU6UrVSlfm/YWQ5ycimraeVi
+masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
+//kY7Csyw/s18GpS2wIDAQAB
+-----END PUBLIC KEY-----"""
+        )
+        ins = t_merchant_info.insert()
+        conn.execute(ins, sp_data)
+        
+        # bank_channel data
+        bank_data = dict(
+            bank_channel=1,
+            bank_type=1001,
+            enable_flag=1,
+            fenqi_fee=4,
+            rsp_time=10
+        )
+        conn.execute(t_bank_channel.insert(), bank_data)
+
+    def test_cardpay_apply_md5(self, client, db):
         u"""MD5签名 + RSA加密."""
+        
+        # 插入初始数据
+        self.insert_bank_and_merchant(db)
 
         # 分配给商户的key
         key = "654321"*3
@@ -115,8 +149,9 @@ def client(app):
 
 @pytest.fixture()
 def db(app):
-    db = engine.connect()
-    # delete all tables
-
-    return db
-
+    conn = engine.connect()
+    #clear all tables
+    for table in reversed(meta.sorted_tables):
+        conn.execute(table.delete()) 
+    return conn
+    

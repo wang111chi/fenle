@@ -23,6 +23,7 @@ class API_ERROR(object):
     
     BANKCARD_NOT_EXIST = 207300
     BANKCARD_FREEZED = 207301
+    BANK_CHANNEL_UNABLE  = 207310    
 
     NAMES = {
         PARAM_ERROR: u"参数格式错误",
@@ -33,6 +34,7 @@ class API_ERROR(object):
         SIGN_INVALID: u"校验签名失败",
         BANKCARD_NOT_EXIST : u"银行卡未注册",
         BANKCARD_FREEZED : u"银行卡冻结",
+        BANK_CHANNEL_UNABLE : u"银行渠道不可用"
     }
 
 
