@@ -19,13 +19,14 @@ from base import constant as const
 def main():
     db = engine.connect()
 
+    p = Pool(10)
+
     while True:
         stmt = t_callback_url.select(
             t_callback_url.c.status == const.CALLBACK_URL.STATUS.PENDING
         )
         result = db.execute(stmt)
 
-        p = Pool(10)
         p.map(retry_callback, result)
         gevent.sleep(1)
 
