@@ -6,6 +6,7 @@
 import importme
 
 import gevent
+import time
 
 def win():
     return 'You win!'
@@ -42,3 +43,21 @@ def test_spawn():
     print(loser.exception)
 
     assert True
+
+
+import time
+
+def echo(i):
+    time.sleep(0.001)
+    return i
+
+from gevent.pool import Pool
+
+def test_pool():
+    p = Pool(5)
+    run1 = [a for a in p.imap_unordered(echo, xrange(10))]
+    run2 = [a for a in p.imap_unordered(echo, xrange(10))]
+    run3 = [a for a in p.imap_unordered(echo, xrange(10))]
+    run4 = [a for a in p.imap_unordered(echo, xrange(10))]
+
+    assert(run1 == run2 == run3 == run4)

@@ -9,8 +9,9 @@ import gevent
 import requests
 
 from base.framework import general, db_conn, form_check, JsonOkResponse
-from base.db import t_callback_url
+from base.db import engine, t_callback_url
 from base import util
+from base import logic
 from base import logger
 from base.xform import F_str, F_int
 from base import constant as const
@@ -46,7 +47,7 @@ def callback(db, safe_vars):
 
     callback_id = db.execute(stmt).inserted_primary_key[0]
 
-    gevent.spawn(
+    t = gevent.spawn(
         do_callback, callback_id,
         safe_vars['mode'], safe_vars['url'],
         safe_vars['method'], safe_vars['body'])
@@ -57,28 +58,28 @@ def callback(db, safe_vars):
 def do_callback(callback_id, mode, url,
                 method=const.HTTP_METHOD.GET, body=None):
 
-    http_method = requests.get
+    now = datetime.datetime.now()
 
-    if method == const.HTTP_METHOD.POST:
-        http_method = requets.post
+    is_success, resp_code, resp_body = logic.callback_url(
+        callback_id, mode, url, method=method, body=body)
 
-    if body is None:
-        r = http_method(url)
+    if is_success:
+        status = const.CALLBACK_URL.STATUS.DONE
     else:
-        r = http_method(url, body)
+        status = const.CALLBACK_URL.STATUS.PENDING
 
-    is_success = check(r, mode)
+    db = engine.connect()
 
-    print r
+    stmt = t_callback_url.update().where(
+        t_callback_url.c.id == callback_id
+    ).values(
+        resp_code=resp_code,
+        resp_body=resp_body,
+        call_time=now,
+        is_call_success=const.BOOLEAN.TRUE if \
+        is_success else const.BOOLEAN.FALSE,
+        status=status
+    )
 
+    db.execute(stmt)
 
-def check(resp, mode):
-    if resp.status_code != 200:
-        return False
-
-    # TODO: judge according to mode
-    json_resp = resp.json()
-    if json_resp.get('retcode') == 0:
-        return True
-
-    return False

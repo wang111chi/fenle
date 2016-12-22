@@ -9,3 +9,11 @@ services:
     entrypoint: ../mysql/wait-for-mysql.py python ipython-entrypoint.py
     depends_on:
      - mysql
+  tools:
+    build:
+      context: .
+      dockerfile: tools/Dockerfile
+    volumes:
+     - .:/fenle
+    depends_on:
+     - mysql

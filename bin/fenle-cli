@@ -180,6 +180,18 @@ def callback_url_test_mysql():
     start_and_wait_mysql()
 
 
+@cli.command('tools', context_settings=dict(
+    ignore_unknown_options=True,
+))
+@click.argument('args', nargs=-1, type=click.UNPROCESSED)
+def tools(args):
+    u"""a wrapper to run scripts in tools"""
+
+    cmdline = ['docker-compose', "-f", "docker-compose.yml",
+               "-f", "docker-compose.adhoc.yml", "run", "tools"] + list(args)
+    subprocess.call(cmdline)
+
+
 @cli.group(invoke_without_command=True)
 @click.pass_context
 def test(ctx):
