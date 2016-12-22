@@ -97,8 +97,8 @@ def cardpay_apply(safe_vars):
         ret = conn.execute(sel).first()
         if not ret is None:
             #检查银行卡是否被冻结 user_bank 
-            if ret['lstate'] == 2:
-                return  ApiJsonErrorResponse(const.BANKCARD_FREEZED)
+            if ret['lstate'] == 2: # 冻结标志
+                return  ApiJsonErrorResponse(const.API_ERROR.BANKCARD_FREEZED)
         else:
             user_bank_info = dict(
                 bank_card_no = safe_vars['acnt_bankno'],
@@ -122,30 +122,39 @@ def cardpay_apply(safe_vars):
             )         
         ret2 = conn.execute(sel).first()
         if ret2 is None:
-            return  ApiJsonErrorResponse(const.API_ERROR.BANK_CHANNEL_UNABLE)
-        elif ret2['enable_flag'] == 0: # 冻结标志
+            return  ApiJsonErrorResponse(const.API_ERROR.BANK_NOT_EXIST)
+        elif ret2['enable_flag'] == 0: # 银行渠道不可用
             return  ApiJsonErrorResponse(const.API_ERROR.BANK_CHANNEL_UNABLE)
 
     #检查合同信息
-    #fee_duty  计算手续费生成金额
-    #if safe_vars['fee_duty'] == 2: # 商户付手续费
-    ins = trans_list.insert().values(**saved_data)
-    comput_data=dict(
-        list_id=33,
-        bank_valicode = saved_data['pin_code'],
-        valid_period='10',
-        rsp_time='3',
-        bank_channel='1',
-        state=1,
-        lstate =1,
-        create_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        modify_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        client_ip = '10.0.0.23',
-        modify_ip = '10.0.0.23',
+        #fee_duty  计算手续费生成金额
+        if safe_vars['fee_duty'] == 2: # 商户付手续费
+            fee = ret2['fenqi_fee']
+        # sel = select([t_bank_fee.c.])
+        # TODE 从数据库查手续费
+        fee = 0.02
+        bank_fee = 0.04    
+        ins = t_trans_list.insert().values(**saved_data)
+        comput_data=dict(
+            list_id=33,
+            bank_valicode = saved_data['pin_code'],
+            valid_period='10',
+            rsp_time='3',
+            bank_channel='1',
+            state=1,
+            lstate =1,
+            create_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            modify_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            client_ip = '10.0.0.23',
+            modify_ip = '10.0.0.23',
+            amount = safe_vars['money'],
+            bank_fee = bank_fee,
+            fee = fee,
+            pay_num = safe_vars['money']*(1 - fee - bank_fee)     
     )
 
     with transaction(conn) as trans:
-        #t=conn.execute(ins,**comput_data)
+        t=conn.execute(ins,**comput_data)
         #if xxxxx:
             # if you don't want to commit, you just not call trans.finish().
          #   return error_page("xxxxxx")

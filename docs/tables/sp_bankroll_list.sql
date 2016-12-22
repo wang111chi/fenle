@@ -24,7 +24,7 @@ CREATE TABLE sp_bankroll_list (
         `action_type` smallint comment '内部之间的帐务关系，及用户资金流动的动作记录',
         `modify_time_acc` datetime comment '帐务时间',
         `modify_time` datetime not null comment '最后修改时间',
-        `create_time` datetime not null comment '最后修改时间',
+        `create_time` datetime not null comment '创建时间',
         `rollback_time` datetime DEFAULT null comment '冲正时间',
         `explain` varchar(128) comment '说明信息，商户传入商品信息等',
         list_sign smallint comment '流水的标记：0 正常 1 被冲正 2 冲正',

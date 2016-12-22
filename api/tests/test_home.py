@@ -18,6 +18,7 @@ from base import util
 from base.db import *
 import config
 from base import logger
+from base.fixtures import * 
 
 class TestCardpayApply(object):
     # 测试参数模板
@@ -34,7 +35,7 @@ class TestCardpayApply(object):
         "expire_time": "",
         "attach": "wang",
         "bankcard_type": 1,
-        "bank_id": "1004",
+        "bank_id": "1001",
         "user_type": 1,
         "acnt_name": u"张三",
         "acnt_bankno": "1234567890123456",
@@ -72,7 +73,7 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
             bank_channel=1,
             bank_type=1001,
             enable_flag=1,
-            fenqi_fee=4,
+            fenqi_fee=0.04,
             rsp_time=10
         )
         conn.execute(t_bank_channel.insert(), bank_data)
@@ -135,23 +136,4 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
 
         # json_resp = json.loads(resp.data)
         # assert json_resp["retcode"] == 0
-
-
-@pytest.fixture()
-def app():
-    wsgi_handler.app.config["TESTING"] = True
-    return wsgi_handler.app
-
-
-@pytest.fixture()
-def client(app):
-    return app.test_client()
-
-@pytest.fixture()
-def db(app):
-    conn = engine.connect()
-    #clear all tables
-    for table in reversed(meta.sorted_tables):
-        conn.execute(table.delete()) 
-    return conn
-    
+   

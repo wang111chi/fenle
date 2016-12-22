@@ -16,7 +16,7 @@ from sqlalchemy.sql import text,select
 import config
 from base import dblogic as dbl
 from base import logger
-from base.db import engine,meta
+from base.db import engine, meta, t_merchant_info
 from base import util
 from base.xform import FormChecker
 from base import constant as const
@@ -226,25 +226,23 @@ def api_sign_and_encrypt_form_check(db, settings, var_name="safe_vars"):
 
             #从mysql检查商户spid是否存在
             valid_data = checker.get_valid_data()
-            merchant_info = meta.tables['merchant_info']
-            s = select([merchant_info.c.spid, 
-			merchant_info.c.mer_key, 
-			merchant_info.c.rsa_pub_key]
-		).where(merchant_info.c.spid == valid_data['spid'])
-
+            s = select([t_merchant_info.c.state,
+                        t_merchant_info.c.mer_key, 
+			t_merchant_info.c.rsa_pub_key]
+                ).where(t_merchant_info.c.spid == valid_data['spid'])
             conn = engine.connect()
-            sel_result = conn.execute(s)
-            first_info = sel_result.first()
-
-            if first_info is None:    
+            sel_result = conn.execute(s).first()          
+            if sel_result is None:    
                 return ApiJsonErrorResponse(const.API_ERROR.SPID_NOT_EXIST)
-
+            elif sel_result['state'] == 1 : # 判断是否被封禁
+                return ApiJsonErrorResponse(const.API_ERROR.MERCHANT_CLOSURED)
+            
             # 验签
             encode_type = valid_data["encode_type"]
             if encode_type == const.ENCODE_TYPE.MD5:
-                check_sign_valid = util.check_sign_md5(first_info.mer_key, valid_data)
+                check_sign_valid = util.check_sign_md5(sel_result.mer_key, valid_data)
             elif encode_type == const.ENCODE_TYPE.RSA:
-                check_sign_valid = util.check_sign_rsa(first_info.rsa_pub_key, valsd_data)
+                check_sign_valid = util.check_sign_rsa(sel_result.rsa_pub_key, valsd_data)
                         
             if not check_sign_valid:
                 return ApiJsonErrorResponse(const.API_ERROR.SIGN_INVALID)

@@ -9,6 +9,29 @@ class BOOLEAN(object):
     ALL = (FALSE, TRUE)
 
 
+class BANK_ID(object):
+    GDB = 1001
+    ICBC = 1002
+    ABC = 1003
+    BOC = 1004
+    CMBC = 1005
+    CMB = 1006
+    BCM = 1007
+    CEB = 1008
+    CIB = 1009 
+    
+    NAMES = {
+        GDB: u"GuangDong Development Bank广发银行",
+        ICBC: u"Industrial and Commercial Bank工商银行",
+        ABC: u"Agricultural Bank农业银行",
+        BOC: u"Bank Of China中国银行",
+        CMBC: u"中国民生银行",
+        CMB: u"China Merchant Bank招商银行",
+        BCM: u"Bank of Communications交通银行",
+        CEB: u"China Everbright Bank光大银行",
+        CIB: u"Industrial Bank兴业银行"
+    } 
+
 class REQUEST_STATUS(object):
     SUCCESS = 0                        # 请求成功
     FAIL = 1                           # 请求失败
@@ -16,25 +39,31 @@ class REQUEST_STATUS(object):
 
 class API_ERROR(object):
     PARAM_ERROR = 207001
-    MERCHANT_NOT_EXIST = 207200
-    SPID_NOT_EXIST = 207201
-    DECRYPT_ERROR = 207266
-    SIGN_INVALID = 207267
+
+    SPID_NOT_EXIST = 207200
+    MERCHANT_CLOSURED = 207201    
+
+    DECRYPT_ERROR = 207366
+    SIGN_INVALID = 207367
     
     BANKCARD_NOT_EXIST = 207300
     BANKCARD_FREEZED = 207301
-    BANK_CHANNEL_UNABLE  = 207310    
-
+    BANK_NOT_EXIST = 207310
+    BANK_CHANNEL_UNABLE  = 207311   
+     
     NAMES = {
-        PARAM_ERROR: u"参数格式错误",
-        MERCHANT_NOT_EXIST: u"商户不存在",
-        SPID_NOT_EXIST: u"mysql中不存在此商户号",
-        DECRYPT_ERROR: u"解密失败",
+        PARAM_ERROR : u"参数格式错误",
+        
+        SPID_NOT_EXIST : u"分乐不存在此商户号",
+        MERCHANT_CLOSURED : u"商户被封禁了",         
 
-        SIGN_INVALID: u"校验签名失败",
+        DECRYPT_ERROR : u"解密失败",
+        SIGN_INVALID : u"校验签名失败",
+        
         BANKCARD_NOT_EXIST : u"银行卡未注册",
         BANKCARD_FREEZED : u"银行卡冻结",
-        BANK_CHANNEL_UNABLE : u"银行渠道不可用"
+        BANK_NOT_EXIST : u"分乐暂不支持该银行",
+        BANK_CHANNEL_UNABLE : u"银行渠道不可用",
     }
 
 
@@ -76,7 +105,7 @@ class CALLBACK_URL(object):
   
 
 class CUR_TYPE(object):
-    RMB = 1
+    RMB = 1  #人民币
 	
 
 class CARD_TYPE(object):

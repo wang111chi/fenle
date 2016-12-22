@@ -24,6 +24,7 @@ def client(app):
 @pytest.fixture()
 def db():
     conn = engine.connect()
+    # alternative for table in reversed(meta.sorted_tables): 
     for table in meta.tables.values():
         conn.execute(table.delete())
     return conn
