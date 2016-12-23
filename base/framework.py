@@ -113,7 +113,8 @@ class ApiJsonErrorResponse(JsonResponse):
 class ApiJsonOkResponse(JsonResponse):
     def __init__(self, retmsg=u"成功", **kwargs):
         JsonResponse.__init__(
-            self, retcode=REQUEST_STATUS.SUCCESS, retmsg=retmsg, **kwargs)
+            self, retcode=const.REQUEST_STATUS.SUCCESS,
+            retmsg=retmsg, **kwargs)
 
 
 class TempResponse(Response):
@@ -219,7 +220,8 @@ def api_sign_and_encrypt_form_check(db, settings, var_name="safe_vars"):
                     v for v in checker.get_error_messages().values() if
                     v is not None
                 ]
-                return ApiJsonErrorResponse(const.API_ERROR.PARAM_ERROR, error_msg)
+                return ApiJsonErrorResponse(const.API_ERROR.PARAM_ERROR,
+                                            error_msg)
 
             valid_data = checker.get_valid_data()
 
@@ -241,9 +243,9 @@ def api_sign_and_encrypt_form_check(db, settings, var_name="safe_vars"):
 
 
 class Job(object):
-    """
-    A indicator to mark whether the job is finished.
-    """
+
+    """A indicator to mark whether the job is finished."""
+
     def __init__(self):
         self._finished = False
 
@@ -257,13 +259,16 @@ class Job(object):
 @contextmanager
 def transaction(conn):
     """
-    Automatic handle transaction COMMIT/ROLLBACK. You MUST call trans.finish(),
+    Automatic handle transaction COMMIT/ROLLBACK.
+
+    You MUST call trans.finish(),
     if you want to COMMIT; Otherwise(not call or exception occurs), ROLLBACK.
 
     >>> with transaction(conn) as trans:
     >>>     do something...
     >>>     if xxxxx:
-    >>>         # if you don't want to commit, you just not call trans.finish().
+    >>>         # if you don't want to commit,
+    >>>         # you just not call trans.finish().
     >>>         return error_page("xxxxxx")
     >>>     # if you want to commit, you call:
     >>>     trans.finish()

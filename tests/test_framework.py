@@ -14,10 +14,9 @@ def test_transaction():
     metadata = MetaData()
     metadata.bind = engine
     t_users = Table('test_users', metadata,
-                       Column('id', Integer, primary_key=True),
-                       Column('name', String(16)),
-                       Column('fullname', String(16)),
-    )
+                    Column('id', Integer, primary_key=True),
+                    Column('name', String(16)),
+                    Column('fullname', String(16)))
 
     t_users.create(engine, checkfirst=True)
 

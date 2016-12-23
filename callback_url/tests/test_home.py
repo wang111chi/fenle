@@ -10,6 +10,7 @@ from base.fixtures import *
 from base.db import t_callback_url
 from base import constant as const
 
+
 def test_callback_get(client, db):
     result = db.execute(t_callback_url.select())
     assert result.first() is None

@@ -30,7 +30,8 @@ class API_ERROR(object):
 
 
 class ENCODE_TYPE(object):
-    u"""签名类型"""
+
+    u"""签名类型."""
 
     MD5 = "MD5"
     RSA = "RSA"
@@ -39,7 +40,8 @@ class ENCODE_TYPE(object):
 
 
 class HTTP_METHOD(object):
-    u"""HTTP 请求方法"""
+
+    u"""HTTP 请求方法."""
 
     GET = 0
     POST = 1
@@ -47,7 +49,8 @@ class HTTP_METHOD(object):
 
 
 class CALLBACK_URL(object):
-    u"""URL回调相关常量"""
+
+    u"""URL回调相关常量."""
 
     class MODE(object):
         CARDPAY_APPLY_SUCCESS_NOTIFY = 1    # 分期支付API请求成功回调
@@ -57,7 +60,7 @@ class CALLBACK_URL(object):
         )
 
     class STATUS(object):
-        INIT = 0    # 待处理(还未回调过)
-        PENDING = 1 # 待重试(需要下一次重试)
-        DONE = 2    # 回调成功(不再需要重试)
-        FAIL = 3    # 回调失败(重试次数已达到，同样不再需要重试)
+        INIT = 0     # 待处理(还未回调过)
+        PENDING = 1  # 待重试(需要下一次重试)
+        DONE = 2     # 回调成功(不再需要重试)
+        FAIL = 3     # 回调失败(重试次数已达到，同样不再需要重试)

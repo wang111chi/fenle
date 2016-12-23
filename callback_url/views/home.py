@@ -18,6 +18,7 @@ from base import constant as const
 
 home = Blueprint("home", __name__)
 
+
 @home.route("/callback_url")
 @general("首页")
 @db_conn
@@ -25,7 +26,7 @@ home = Blueprint("home", __name__)
     # 请求URL，必填
     "url": (F_str("URL") <= 2000) & "strict" & "required",
     # 请求方法，默认为const.HTTP_METHOD.GET
-    "method": ((F_int("HTTP method", const.HTTP_METHOD.GET))  & "strict" &
+    "method": ((F_int("HTTP method", const.HTTP_METHOD.GET)) & "strict" &
                "required" & (lambda v: (v in const.HTTP_METHOD.ALL, v))),
     # 请求body，如果请求方法为const.HTTP_METHOD.GET，则忽略此参数
     "body": (F_str("HTTP body")) & "strict" & "optional",
@@ -47,7 +48,7 @@ def callback(db, safe_vars):
 
     callback_id = db.execute(stmt).inserted_primary_key[0]
 
-    t = gevent.spawn(
+    gevent.spawn(
         do_callback, callback_id,
         safe_vars['mode'], safe_vars['url'],
         safe_vars['method'], safe_vars['body'])
@@ -76,10 +77,9 @@ def do_callback(callback_id, mode, url,
         resp_code=resp_code,
         resp_body=resp_body,
         call_time=now,
-        is_call_success=const.BOOLEAN.TRUE if \
+        is_call_success=const.BOOLEAN.TRUE if
         is_success else const.BOOLEAN.FALSE,
         status=status
     )
 
     db.execute(stmt)
-

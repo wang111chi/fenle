@@ -13,7 +13,7 @@ def callback_url(callback_id,
                  method=const.HTTP_METHOD.GET,
                  body=None,
                  logger=logger.get("cgi-log")):
-    u"""回调URL
+    u"""回调URL.
 
     @param<callback_id>: 回调在数据库中的ID(对应的表为callback_url)
     @param<mode>: 回调模式，详见const.CALLBACK_URL.MODE
@@ -27,7 +27,6 @@ def callback_url(callback_id,
               resp_body,   # 回调的HTTP响应body
              )
     """
-
     http_method = requests.get
 
     if method == const.HTTP_METHOD.POST:
@@ -41,7 +40,7 @@ def callback_url(callback_id,
             r = http_method(url)
         else:
             r = http_method(url, body)
-    except Exception, e:
+    except Exception:
         logger.error("[callback request error]: "
                      "<callback_id>=><%s>, <url>=><%s>",
                      callback_id, url, exc_info=True)
@@ -55,12 +54,12 @@ def callback_url(callback_id,
 
 
 def callback_url_resp_check(resp, mode):
-    u"""回调URL的结果检查，根据响应确定回调是否成功
+    u"""回调URL的结果检查，根据响应确定回调是否成功.
 
-    @param resp: requests的响应(http://docs.python-requests.org/en/master/api/#requests.Response)
+    @param resp: requests的响应,
+                 http://docs.python-requests.org/en/master/api/#requests.Response # noqa
     @param mode: 回调URL的模式，详见const.CALLBACK_URL.MODE
     """
-
     if resp.status_code != 200:
         return False
 

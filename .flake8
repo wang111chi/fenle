@@ -1,0 +1,12 @@
+[flake8]
+ignore =
+       # Missing docstring in somewhere
+       D10,
+       # module level import not at top of file
+       E402,
+       # imported but unused
+       F401,
+       # import * used; unable to detect undefined names
+       F403
+
+exclude = base/xform.py

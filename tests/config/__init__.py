@@ -28,6 +28,7 @@ def deep_update(from_dict, to_dict):
         else:
             to_dict[key] = value
 
+
 modules = ["default"]
 env = os.environ.get("JIDUI_SETTINGS")
 if env:

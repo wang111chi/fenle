@@ -34,7 +34,8 @@ def safe_json_dumps(obj, encoding=None, silent=True):
     Encode a Python object to JSON formatted string.
 
     @params object: Python object
-    @params encoding: the character encoding for str instances, default is UTF-8.
+    @params encoding: the character encoding for str instances,
+                      default is UTF-8.
     @params silent: not raise error, default is True
 
     @return: a JSON formatted string if dumps success or None
@@ -55,7 +56,8 @@ def safe_json_dumps(obj, encoding=None, silent=True):
 
 
 def to_unicode(data, encoding="utf-8", only_str=False):
-    """convert data from some encoding to unicode
+    """convert data from some encoding to unicode.
+
     data could be string, list, tuple or dict
     that contains string as key or value
     """
@@ -88,9 +90,7 @@ def to_unicode(data, encoding="utf-8", only_str=False):
 
 
 def encode_unicode(obj, encoding="utf8"):
-    """translate unicode obj into local encoding
-    """
-
+    """translate unicode obj into local encoding."""
     if isinstance(obj, unicode):
         return obj.encode(encoding)
     elif isinstance(obj, list):
@@ -104,8 +104,9 @@ def encode_unicode(obj, encoding="utf8"):
 
 def safe_inet_ntoa(n):
     """
-    Convert numerical ip to string ip(like: 2071801890 -> "123.125.48.34"),
-    return None if failed.
+    Convert numerical ip to string ip.
+
+    (like: 2071801890 -> "123.125.48.34"), return None if failed.
     """
     try:
         ip = socket.inet_ntoa(struct.pack(">L", n))
@@ -117,8 +118,9 @@ def safe_inet_ntoa(n):
 
 def safe_inet_aton(ip):
     """
-    Convert string ip to numerical ip(like: "123.125.48.34" -> 2071801890),
-    return None if failed.
+    Convert string ip to numerical ip.
+
+    (like: "123.125.48.34" -> 2071801890), return None if failed.
     """
     try:
         n = struct.unpack(">L", socket.inet_pton(socket.AF_INET, ip))[0]
@@ -158,8 +160,7 @@ def pkcs_decrypt(cipher, ciphertext):
 
 
 def rsa_sign(message, private_key):
-    u"""用SHA1 hash后再用RSA签名"""
-
+    u"""用SHA1 hash后再用RSA签名."""
     h = SHA.new(message)
     private_key = RSA.importKey(private_key)
     signer = sign_PKCS1_v1_5.new(private_key)

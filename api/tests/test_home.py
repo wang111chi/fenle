@@ -47,8 +47,7 @@ class TestCardpayApply(object):
     })
 
     def test_cardpay_apply_md5(self, client):
-        u"""MD5签名 + RSA加密"""
-
+        u"""MD5签名 + RSA加密."""
         # 分配给商户的key
         key = "123456"
 
@@ -79,12 +78,11 @@ class TestCardpayApply(object):
 
         assert resp.status_code == 200
 
-        json_resp = json.loads(resp.data)
+        # json_resp = json.loads(resp.data)
         # assert json_resp["retcode"] == 0
 
     def test_cardpay_apply_rsa(self, client):
-        u"""RSA签名 + RSA加密"""
-
+        u"""RSA签名 + RSA加密."""
         params = self.params
 
         # RSA签名 + RSA加密
@@ -99,7 +97,7 @@ class TestCardpayApply(object):
 
         assert resp.status_code == 200
 
-        json_resp = json.loads(resp.data)
+        # json_resp = json.loads(resp.data)
         # assert json_resp["retcode"] == 0
 
 

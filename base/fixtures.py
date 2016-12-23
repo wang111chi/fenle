@@ -7,6 +7,7 @@ import pytest
 
 from base.db import engine, meta
 
+
 @pytest.fixture()
 def app():
     import wsgi_handler
@@ -26,4 +27,3 @@ def db():
     for table in meta.tables.values():
         conn.execute(table.delete())
     return conn
-

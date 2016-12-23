@@ -10,7 +10,8 @@ _log_config = [
 
 
 def init_log(log_config=None):
-    formater = logging.Formatter('%(name)-12s %(asctime)s %(levelname)-8s %(message)s',
+    formater = logging.Formatter(
+        '%(name)-12s %(asctime)s %(levelname)-8s %(message)s',
         '%a, %d %b %Y %H:%M:%S',)
 
     """

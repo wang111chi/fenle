@@ -12,9 +12,9 @@ import config as cfg
 from base import logger
 from base.db import engine
 from base import logic
-from base.db import engine
 from base.db import t_callback_url
 from base import constant as const
+
 
 def main():
     db = engine.connect()
@@ -69,7 +69,7 @@ def retry_callback(callback_url):
         resp_body=resp_body,
         call_time=now,
         retry_times=retry_times,
-        is_call_success=const.BOOLEAN.TRUE if \
+        is_call_success=const.BOOLEAN.TRUE if
         is_success else const.BOOLEAN.FALSE,
         status=status
     )
