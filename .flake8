@@ -9,4 +9,6 @@ ignore =
        # import * used; unable to detect undefined names
        F403
 
-exclude = base/xform.py
+exclude =
+        base/xform.py
+        .flake8
