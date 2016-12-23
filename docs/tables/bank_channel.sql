@@ -9,11 +9,14 @@ CREATE TABLE bank_channel (
     `bank_type`            int                       NOT NULL COMMENT '4位的银行编号如：1001 广发信用卡 ',
     `channel`              tinyint(6)   NOT NULL default '1' COMMENT '预留字段，默认1',
     `agent_bank`           varchar(256)                      COMMENT '代理银行,预留字段',
+    `singlepay_vmask`      int                               COMMENT '银行实时单笔联机接口判断参数掩码',
     `bank_valitype`        int     NOT NULL default '0' COMMENT '银行支持的客户验证模式: (掩码模式，设置该位表示强制验证)',
+    `bank_city` varchar(64) DEFAULT NULL COMMENT '市',
+    `bank_branch` varchar(10) DEFAULT NULL COMMENT '支行名称',
     `interface_mask`       smallint     NOT NULL default '0' COMMENT '接口功能掩码',
-    `bankacc_type`         smallint   NOT NULL default '0' COMMENT '银行帐户类型支持掩码',
-    `bankacc_attr`         smallint   NOT NULL default '0' COMMENT '对私 0x01 对公0x02',
-    `iterface_type`        tinyint(6)   NOT NULL default '0' COMMENT '接口类型:1单笔实时型',
+    `account_type`         smallint   NOT NULL default '0' COMMENT '银行帐户类型支持掩码',
+    `user_type`            smallint   NOT NULL default '0' COMMENT '对私 0x01 对公0x02',
+    `interface_type`       tinyint(6)   NOT NULL default '0' COMMENT '接口类型:1单笔实时型',
     `enable_flag`          tinyint(6)   NOT NULL default '0' COMMENT '该渠道是否可用',
     `fenqi_fee`            double       NOT NULL default '0' COMMENT '分期成本手续费,千分之',
     `jf_fee`               bigint       NOT NULL default '0' COMMENT '积分交易手续费',
@@ -31,8 +34,7 @@ CREATE TABLE bank_channel (
     `standby4`             varchar(64)           default NULL,
     `standby5`             varchar(256)          default NULL,
 
-     UNIQUE KEY `idx_bank_channel` ( `bank_channel` ),
-     KEY `idx_channel` ( `bank_type`)
+     UNIQUE KEY `idx_bank_type` ( `bank_type`)
     
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
