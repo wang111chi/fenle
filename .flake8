@@ -10,4 +10,6 @@ ignore =
        F403
 exclude =
         base/xform.py,
-        .flake8
+        .flake8,
+        docs
+
