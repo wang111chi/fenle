@@ -11,5 +11,4 @@ ignore =
 exclude =
         base/xform.py,
         .flake8,
-        docs
-
+	*.sql
