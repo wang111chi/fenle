@@ -18,8 +18,9 @@ CREATE TABLE bank_channel (
     `user_type`            smallint   NOT NULL default '0' COMMENT '对私 0x01 对公0x02',
     `interface_type`       tinyint(6)   NOT NULL default '0' COMMENT '接口类型:1单笔实时型',
     `enable_flag`          tinyint(6)   NOT NULL default '0' COMMENT '该渠道是否可用',
-    `fenqi_fee`            double       NOT NULL default '0' COMMENT '分期成本手续费,千分之',
-    `jf_fee`               bigint       NOT NULL default '0' COMMENT '积分交易手续费',
+    `fenqi_fee_percent` varchar(255) default null comment '分期手续费,万分之几',
+    `jifen_fee_percent` int default null comment '积分手续费',
+    `settle_type`    tinyint comment '日结与月结',                                       
     `timeout`              smallint     NOT NULL default '0' COMMENT '银行承诺的超时时间',
     `rsp_time`             varchar(32)  NOT NULL COMMENT '平均返回时间',
     `service_stime`      time default null COMMENT '日常服务可用开始时间(预留)',
@@ -33,7 +34,6 @@ CREATE TABLE bank_channel (
     `standby3`             datetime              default NULL,
     `standby4`             varchar(64)           default NULL,
     `standby5`             varchar(256)          default NULL,
-
      UNIQUE KEY `idx_bank_type` ( `bank_type`)
     
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

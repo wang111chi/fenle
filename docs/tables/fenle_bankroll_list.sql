@@ -27,7 +27,8 @@ CREATE TABLE fenle_bankroll_list (
     `pay_front_time` datetime  comment '付款前时间(相当创建订单时间)',
     `pay_time`       datetime  comment '付款时间（本地）',
     `account_time`   datetime  comment '付款时间（帐务时间）',
-    `bank_time`      datetime  comment '银行返回的时间戳',
+    `product_type`   tinyint   NOT NULL comment '分期或积分',
+	`bank_time`      datetime  comment '银行返回的时间戳',
     `modify_time`    datetime  comment '最后修改时间',
     `create_time`    datetime  comment '创建时间',
     `refund_time`    datetime  comment '退款时间',
@@ -38,4 +39,5 @@ CREATE TABLE fenle_bankroll_list (
     UNIQUE KEY `idx_bank_tid` (`bank_type`, `bank_tid`),
     index `idx_create_time` (`create_time`),
     index `idx_modify_time` (`modify_time`)
-)ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+)ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

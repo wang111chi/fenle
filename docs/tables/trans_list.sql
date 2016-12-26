@@ -1,4 +1,3 @@
-
 create database if not exists fenle_fenqi_db;
 use fenle_fenqi_db;
 
@@ -33,15 +32,16 @@ CREATE TABLE trans_list (
     `pay_type`            smallint(6)   NOT NULL default '0' COMMENT '支付方式 1 信用卡分期支付 2 信用积分支付',
     `trade_type`          smallint(6)   NOT NULL default '1' COMMENT '交易类型 默认1 b2c',
     `divided_term`        int           Not NULL COMMENT '分期期数6,12',
-    `memo`                varchar(256)     COMMENT '商户提交的备注信息',
+    `memo`                varchar(256)    COMMENT '商户提交的备注信息',
     `attach`              varchar(256)    COMMENT '商户自定义数据，伴随结果返回，包含数字字母下划线',
     `amount`              bigint        NOT NULL default '0' COMMENT '商户提交的交易金额',
     `paynum`              bigint        NOT NULL default '0' COMMENT '实际去银行支付金额 以分为单位',
-    `fee_duty`            smallint(6)    NOT NULL default '1'  COMMENT '付费手续费 1用户，2商户',
-    `fee`                 bigint        NOT NULL default '0' COMMENT '分乐收取的手续费',
+    `fee_duty`            smallint(6)   NOT NULL default '1'  COMMENT '付费手续费 1用户，2商户',
+    `product_type`        tinyint       NOT NULL comment '分期或积分'.
+	`fee`                 bigint        NOT NULL default '0' COMMENT '分乐收取的手续费',
     `bank_fee`            bigint        NOT NULL default '0' COMMENT '银行将要收的手续费',
     `token`               varchar(32)     comment '验证token。每一步都会生成一个token'   ,
-    `valid_count`           int           NOT NULL default '0'  COMMENT '交易验证数次',
+    `valid_count`           int         NOT NULL default '0'  COMMENT '交易验证数次',
     `sp_userid`           varchar(32)    COMMENT '商户侧的用户id',
     `state`               smallint(6)    NOT NULL  COMMENT '业务状态:见文档',
     `lstate`              smallint(6)    NOT NULL  COMMENT '物理状态1 有效 2 挂起 3 作废' ,

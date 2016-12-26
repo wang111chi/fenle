@@ -1,8 +1,8 @@
 create database if not exists fenle_fenqi_db;
 use fenle_fenqi_db;
 
-# DROP TABLE IF EXISTS `user_bank`;
-CREATE TABLE `user_bank` (
+# DROP TABLE IF EXISTS `user_balance`;
+CREATE TABLE `user_balance` (
   `tid` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键',
   `account_no` varchar(20) not null DEFAULT '' COMMENT '卡号',
   `account_type` smallint not null DEFAULT 0 COMMENT '卡种 1信用卡、2借计卡、3公司账号',

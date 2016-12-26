@@ -16,14 +16,14 @@ CREATE TABLE sp_bankroll_list (
         `freezing_balance` bigint NOT NULL DEFAULT 0 comment '冻结余额',
         `pay_num` bigint NOT NULL DEFAULT 0 comment '交易金额：支付时，是指用户需要去银行扣除的金额',
         `sp_num` bigint NOT NULL DEFAULT 0 comment '商户所得金额',
-        `freezing_num` bigint NOT NULL DEFAULT 0 comment '冻结金额',
         `bank_type` smallint not null comment '银行类型',
         `cur_type` smallint not null  DEFAULT 1 comment '币种 1人民币',
         `prove` varchar(32) DEFAULT null comment '入账凭证',
         `memo` varchar(128) comment '备注',
         `action_type` smallint comment '内部之间的帐务关系，及用户资金流动的动作记录',
         `account_time` datetime comment '帐务时间',
-        `modify_time` datetime not null comment '最后修改时间',
+        `product_type`   tinyint   NOT NULL comment '分期或积分',                    
+		`modify_time` datetime not null comment '最后修改时间',
         `create_time` datetime not null comment '创建时间',
         `rollback_time` datetime DEFAULT null comment '冲正时间',
         `explain` varchar(128) comment '说明信息，商户传入商品信息等',
@@ -33,3 +33,4 @@ CREATE TABLE sp_bankroll_list (
         KEY `idx_account_no_hash` (`sp_account_no_hash`),
         KEY `idx_modify_time` (`modify_time`)
         )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
