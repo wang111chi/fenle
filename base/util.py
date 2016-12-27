@@ -10,6 +10,7 @@ import socket
 import struct
 import hashlib
 from base64 import b64encode
+from base64 import b64decode
 
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5

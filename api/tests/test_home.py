@@ -15,16 +15,18 @@ import pytest
 
 import wsgi_handler
 from base import util
-from base.db import *
+from base.db import engine, meta
+from base.db import t_merchant_info
+from base.db import t_bank_channel
 import config
 from base import logger
-from base.fixtures import * 
+
 
 class TestCardpayApply(object):
     # 测试参数模板
     params = util.encode_unicode({
         "encode_type": "MD5",
-        "spid": "1"*9+'1',
+        "spid": "1" * 9 + '1',
         "sp_userid": "12345678",
         "sp_tid": "1234567",
         "money": 12345,
@@ -34,12 +36,12 @@ class TestCardpayApply(object):
         "memo": u"测试商品",
         "expire_time": "",
         "attach": "wang",
-        "bankcard_type": 1,
-        "bank_id": "1001",
-        "user_type": 1,
-        "acnt_name": u"张三",
-        "acnt_bankno": "1234567890123456",
-        "mobile": "13312345678",
+        "user_account_type": 1,
+        "user_account_attr": 1,
+        "user_account_no": "1234567890123456",
+        "user_name": u"张三",
+        "bank_type": "1001",
+        "user_mobile": "13312345678",
         "expiration_date": "2020-05",
         "pin_code": "9376",
         "divided_term": 6,
@@ -51,12 +53,12 @@ class TestCardpayApply(object):
     def insert_bank_and_merchant(self, conn):
         # insert some test data to mysql table
         sp_data = dict(
-            spid='1'*10,
+            spid='1' * 10,
             uid='111',
             agent_uid='112',
             parent_uid='113',
             sp_name='guazi',
-            mer_key='654321'*3,
+            mer_key='654321' * 3,
             rsa_pub_key="""\
 -----BEGIN PUBLIC KEY--@pytest.fix---
 MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDWXsFnKxKhPDofiexxxjmfYLWo
@@ -67,25 +69,25 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
         )
         ins = t_merchant_info.insert()
         conn.execute(ins, sp_data)
-        
+
         # bank_channel data
         bank_data = dict(
             bank_channel=1,
             bank_type=1001,
             enable_flag=1,
-            fenqi_fee=0.04,
+            fenqi_fee=4,
             rsp_time=10
         )
         conn.execute(t_bank_channel.insert(), bank_data)
 
     def test_cardpay_apply_md5(self, client, db):
         u"""MD5签名 + RSA加密."""
-        
+
         # 插入初始数据
         self.insert_bank_and_merchant(db)
 
         # 分配给商户的key
-        key = "654321"*3
+        key = "654321" * 3
 
         params = self.params.items()
         params = [(k, v) for k, v in params if
@@ -115,7 +117,7 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
         assert resp.status_code == 200
 
         json_resp = json.loads(resp.data)
-        print json_resp 
+        print json_resp
         assert json_resp["retcode"] == 0
 
     def test_cardpay_apply_rsa(self, client):
@@ -136,4 +138,23 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
 
         # json_resp = json.loads(resp.data)
         # assert json_resp["retcode"] == 0
-   
+
+
+@pytest.fixture()
+def app():
+    wsgi_handler.app.config["TESTING"] = True
+    return wsgi_handler.app
+
+
+@pytest.fixture()
+def client(app):
+    return app.test_client()
+
+
+@pytest.fixture()
+def db(app):
+    conn = engine.connect()
+    # clear all tables
+    for table in reversed(meta.sorted_tables):
+        conn.execute(table.delete())
+    return conn
