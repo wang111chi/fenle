@@ -21,6 +21,7 @@ CREATE TABLE sp_balance(
 	`modify_time`    datetime comment '资金变更时间',
     `create_time`    datetime comment '创建时间',
     `balance_time`   datetime comment '余额变化时间',
+    `arrearage`      bigint default '0' COMMENT '欠款金额',
 	`standby1`       int comment '预留字段',
 	`standby2`       int comment '',
 	`standby3`       int comment '',
