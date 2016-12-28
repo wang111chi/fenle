@@ -45,24 +45,24 @@ class HTTP_METHOD(object):
 
 class CUR_TYPE(object):
     RMB = 0     # 人民币
-    DOLLER = 1  # 美元
+    DOLLAR = 1  # 美元
+
+    ALL = (RMB, DOLLAR)
 
 
-class CARD_TYPE(object):
+class ACCOUNT_TYPE(object):
     u"""银行卡类型"""
 
-    QUASI_CREDIT_CARD = 1
-    DEBIT_CARD = 2
-    CREDIT_CARD = 3
+    CREDIT_CARD = 0
+    DEBIT_CARD = 1
 
     NAMES = {
-        QUASI_CREDIT_CARD: u"贷记卡",
         DEBIT_CARD: u"借记卡",
         CREDIT_CARD: u"信用卡"
     }
 
 
-class ACCOUNT_TYPE(object):
+class ACCOUNT_ATTR(object):
     u"""用户类型"""
 
     PERSONAL = 1

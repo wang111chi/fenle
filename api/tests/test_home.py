@@ -74,7 +74,8 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
         bank_data = dict(
             bank_channel=1,
             bank_type=1001,
-            enable_flag=1,
+            is_enable=1,
+            bank_valitype=0001,
             fenqi_fee=4,
             rsp_time=10
         )
