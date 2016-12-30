@@ -18,8 +18,10 @@ from base import util
 from base.db import engine, meta
 from base.db import t_merchant_info
 from base.db import t_bank_channel
+from base.db import t_sp_bank
 import config
 from base import logger
+from base import constant as const
 
 
 class TestCardpayApply(object):
@@ -51,12 +53,15 @@ class TestCardpayApply(object):
     })
 
     def insert_bank_and_merchant(self, conn):
-        # insert some test data to mysql table
-        sp_data = dict(
+        """ insert some test data to mysql table"""
+
+        # initial merchant_info
+        merchant_data = dict(
             spid='1' * 10,
             uid='111',
             agent_uid='112',
             parent_uid='113',
+            status=0,
             sp_name='guazi',
             mer_key='654321' * 3,
             rsa_pub_key="""\
@@ -68,17 +73,26 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
 -----END PUBLIC KEY-----"""
         )
         ins = t_merchant_info.insert()
-        conn.execute(ins, sp_data)
+        conn.execute(ins, merchant_data)
 
-        # bank_channel data
+        # initial sp_bank data
+        sp_bank_data = dict(
+            spid='1' * 10,
+            bank_type=1001,
+            fenqi_fee_percent=json.dumps({6: 500, 12: 600}),
+            divided_term='6,12',
+            settle_type=const.SETTLE_TYPE.DAY_SETTLE, )
+        conn.execute(t_sp_bank.insert(), sp_bank_data)
+
+        # initial bank_channel data
         bank_data = dict(
             bank_channel=1,
             bank_type=1001,
             is_enable=1,
-            bank_valitype=0001,
-            fenqi_fee=4,
-            rsp_time=10
-        )
+            bank_valitype=0x0002,
+            fenqi_fee_percent=json.dumps({6: 300, 12: 400}),
+            rsp_time=10,
+            settle_type=const.SETTLE_TYPE.DAY_SETTLE, )
         conn.execute(t_bank_channel.insert(), bank_data)
 
     def test_cardpay_apply_md5(self, client, db):

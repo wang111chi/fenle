@@ -226,7 +226,7 @@ def api_sign_and_encrypt_form_check(db, settings, var_name="safe_vars"):
 
             # 从mysql检查商户spid是否存在
             valid_data = checker.get_valid_data()
-            s = select([t_merchant_info.c.state,
+            s = select([t_merchant_info.c.status,
                         t_merchant_info.c.mer_key,
                         t_merchant_info.c.rsa_pub_key]).where(
                 t_merchant_info.c.spid == valid_data['spid'])
@@ -234,7 +234,7 @@ def api_sign_and_encrypt_form_check(db, settings, var_name="safe_vars"):
             sel_result = conn.execute(s).first()
             if sel_result is None:
                 return ApiJsonErrorResponse(const.API_ERROR.SPID_NOT_EXIST)
-            elif sel_result['state'] == 1:  # 判断是否被封禁
+            elif sel_result['status'] == 1:  # 判断是否被封禁
                 return ApiJsonErrorResponse(const.API_ERROR.MERCHANT_CLOSURED)
 
             # 验签

@@ -10,13 +10,13 @@ class BOOLEAN(object):
 
 
 class PRODUCT_TYPE(object):
-    FENQI = 1
-    JIFEN = 2
+    FENQI = 1  # 分期
+    JIFEN = 2  # 积分
 
 
 class SETTLE_TYPE(object):
-    DAY_CUT = 0
-    MONTH_CUT = 1
+    DAY_SETTLE = 1     # 日结
+    MONTH_SETTLE = 2   # 月结
 
 
 class REQUEST_STATUS(object):
@@ -51,6 +51,64 @@ class CUR_TYPE(object):
     ALL = (RMB, DOLLAR)
 
 
+class LSTATE(object):
+    VALID = 1  # 有效
+    HUNG = 2  # 挂起
+    INVALID = 3  # 作废
+
+
+class BANKROLL_TYPE(object):
+    IN = 1
+    OUT = 2
+    FREEZE = 3
+    DEFREEZE = 4
+
+
+class STATUS(object):
+    PAY_SUCCESS = 1
+    PAY_FALSE = 2
+    PAYING = 4
+    MOBILE_CHECKING = 3
+
+
+class MERCHANT_STATUS(object):
+    CLOSURED = 1  # 封禁
+    OPEN = 0  # 开放
+
+
+class LIST_SIGN:
+    u"""流水标记"""
+
+    WELL = 0  # 正常
+    RUSHED = 1  # 被冲正
+    RUSHING = 2  # 冲正
+
+
+class BANK_VALITYPE(object):
+    MOBILE_VALID = 0x0001
+
+
+class PAY_MASK(object):
+    u"""验证单笔接口参数掩码"""
+
+    ACCOUNT = 0x00000001
+    NAME = 0x00000002
+    IDCARD = 0x00000004
+    MOBILE = 0x00000008
+    PIN_CODE = 0x00000010
+    EXPIRATION = 0x00000020
+    IDCARD_NAME = 0x00000040
+
+    NAMES = {
+        ACCOUNT: u"验证银行账户有效性",
+        NAME: u"验证银行账户与姓名一致性",
+        IDCARD: u"验证银行账户与证件一致性",
+        MOBILE: u"验证银行账户与预留手机号一致性",
+        PIN_CODE: u"验证银行账户与安全码一致性",
+        EXPIRATION: u"验证银行账户与有效期一致性",
+        IDCARD_NAME: u"验证证件与姓名的一致性"}
+
+
 class ACCOUNT_TYPE(object):
 
     u"""银行卡类型."""
@@ -73,17 +131,22 @@ class ACCOUNT_ATTR(object):
 
     NAMES = {
         PERSONAL: u"个人",
-        ENTERPRISE: u"企业"
+        ENTERPRISE: u"企业",
     }
 
 
+class FENLE_ACCOUNT(object):
+    VIRTUAL = 3  # 虚拟第三方户
+    ACTUAL = 4   # 真实用户
+
+
 class FEE_DUTY(object):
-    CUSTOM = 1
-    BUSINESS = 2
+    BUSINESS = 1
+    CUSTOM = 2
 
     NAMES = {
+        BUSINESS: u"商户",
         CUSTOM: u"用户",
-        BUSINESS: u"商户"
     }
 
 
@@ -96,10 +159,18 @@ class API_ERROR(object):
     DECRYPT_ERROR = 207366
     SIGN_INVALID = 207367
 
-    BANKCARD_NOT_EXIST = 207300
-    BANKCARD_FREEZED = 207301
+    ACCOUNT_NOT_EXIST = 207300
+    ACCOUNT_FREEZED = 207301
     BANK_NOT_EXIST = 207310
     BANK_CHANNEL_UNABLE = 207311
+
+    MOBILE_NO_VALIDATA = 207400
+    NO_EXPIRATION_DATE = 207401
+    NO_PIN_CODE = 207402
+    NO_USER_NAME = 207403
+
+    NO_SP_BANK = 207504
+    DIVIDED_TERM_NOT_EXIST = 207505
 
     NAMES = {
         PARAM_ERROR: u"参数格式错误",
@@ -107,11 +178,16 @@ class API_ERROR(object):
         MERCHANT_CLOSURED: u"商户被封禁了",
         DECRYPT_ERROR: u"解密失败",
         SIGN_INVALID: u"校验签名失败",
-        BANKCARD_NOT_EXIST: u"银行卡未注册",
-        BANKCARD_FREEZED: u"银行卡冻结",
+        ACCOUNT_NOT_EXIST: u"银行卡未注册",
+        ACCOUNT_FREEZED: u"银行卡冻结",
         BANK_NOT_EXIST: u"分乐暂不支持该银行",
         BANK_CHANNEL_UNABLE: u"银行渠道不可用",
-    }
+        MOBILE_NO_VALIDATA: u"手机号验证码不存在",
+        NO_EXPIRATION_DATE: u"有效期需要验证",
+        NO_PIN_CODE: u"安全码需要验证",
+        NO_USER_NAME: u"用户姓名需要验证",
+        NO_SP_BANK: u"商家银行没有相关服务",
+        DIVIDED_TERM_NOT_EXIST: u"不存在这样的分期期数服务"}
 
 
 class BANK_ID(object):
