@@ -21,51 +21,50 @@ def cli():
 ))
 @click.argument('args', nargs=-1, type=click.UNPROCESSED)
 def compose(args):
-    u"""a wrapper to docker-compose for fenle"""
-
+    u"""a wrapper to docker-compose for fenle."""
     cmdline = ['docker-compose'] + list(args)
     subprocess.call(cmdline)
 
 
+@cli.command('redis')
+def redis():
+    u"""redis console for development."""
+    start_and_wait_redis()
+
+
 @cli.group('mysql')
 def mysql():
-    u"""commands related to mysql for development"""
-
+    u"""commands related to mysql for development."""
     pass
 
 
 @mysql.command('start')
 def mysql_start():
-    u"""start mysql server for development"""
-
+    u"""start mysql server for development."""
     subprocess.call("docker-compose up -d mysql", shell=True)
 
 
 @mysql.command('stop')
 def mysql_stop():
-    u"""stop mysql server for development"""
-
+    u"""stop mysql server for development."""
     subprocess.call("docker-compose stop mysql", shell=True)
 
 
 @mysql.command('console')
 def mysql_console():
-    u"""mysql console for development"""
-
+    u"""mysql console for development."""
     start_and_wait_mysql()
 
 
 @cli.group()
 def api():
-    u"""commands related to api"""
-
+    u"""commands related to api."""
     pass
 
 
 @api.command('start')
 def api_start():
-    u"""start api server"""
-
+    u"""start api server."""
     subprocess.call("docker-compose up -d api", shell=True)
     click.echo()
     click.echo("api server started! you can go to http://localhost:3032")
@@ -73,15 +72,13 @@ def api_start():
 
 @api.command('stop')
 def api_stop():
-    u"""stop api server"""
-
+    u"""stop api server."""
     subprocess.call("docker-compose stop api", shell=True)
 
 
 @api.command('repl')
 def api_repl():
-    u"""an ipython repl for api server"""
-
+    u"""an ipython repl for api server."""
     subprocess.call("docker-compose -f docker-compose.yml "
                     "-f docker-compose.adhoc.yml run api_repl", shell=True)
 
@@ -89,8 +86,7 @@ def api_repl():
 @api.group('test', invoke_without_command=True)
 @click.pass_context
 def api_test(ctx):
-    u"""commands related to api testing"""
-
+    u"""commands related to api testing."""
     os.chdir(os.path.join(root_path, 'api', 'tests'))
     os.environ['COMPOSE_PROJECT_NAME'] = 'fenle_api_test'
 
@@ -105,54 +101,54 @@ def api_test(ctx):
 ))
 @click.argument('args', nargs=-1, type=click.UNPROCESSED)
 def api_test_compose(args):
-    u"""a wrapper to docker-compose for api testing"""
-
+    u"""a wrapper to docker-compose for api testing."""
     cmdline = ['docker-compose'] + list(args)
     subprocess.call(cmdline)
 
 
 @api_test.command('mysql')
 def api_test_mysql():
-    u"""mysql console for api testing"""
-
+    u"""mysql console for api testing."""
     start_and_wait_mysql()
+
+
+@api_test.command('redis')
+def api_test_redis():
+    u"""redis console for api testing."""
+    start_and_wait_redis()
 
 
 @api_test.command('repl')
 def api_test_repl():
-    u"""an ipython repl for api testing"""
-
+    u"""an ipython repl for api testing."""
     subprocess.call("docker-compose run repl", shell=True)
 
 
 @cli.group()
 def callback_url():
-    u"""commands related to callback_url service"""
-
+    u"""commands related to callback_url service."""
     pass
 
 
 @callback_url.command('start')
 def callback_url_start():
-    u"""start callback_url service server"""
-
+    u"""start callback_url service server."""
     subprocess.call("docker-compose up -d callback_url", shell=True)
     click.echo()
-    click.echo("callback_url service started! you can go to http://localhost:3033")
+    click.echo("callback_url service started! you can go to "
+               "http://localhost:3033")
 
 
 @callback_url.command('stop')
 def callback_url_stop():
-    u"""stop callback_url service server"""
-
+    u"""stop callback_url service server."""
     subprocess.call("docker-compose stop callback_url", shell=True)
 
 
 @callback_url.group('test', invoke_without_command=True)
 @click.pass_context
 def callback_url_test(ctx):
-    u"""commands related to callback_url testing"""
-
+    u"""commands related to callback_url testing."""
     os.chdir(os.path.join(root_path, 'callback_url', 'tests'))
     os.environ['COMPOSE_PROJECT_NAME'] = 'fenle_callback_url_test'
 
@@ -167,16 +163,14 @@ def callback_url_test(ctx):
 ))
 @click.argument('args', nargs=-1, type=click.UNPROCESSED)
 def callback_url_test_compose(args):
-    u"""a wrapper to docker-compose for callback_url testing"""
-
+    u"""a wrapper to docker-compose for callback_url testing."""
     cmdline = ['docker-compose'] + list(args)
     subprocess.call(cmdline)
 
 
 @callback_url_test.command('mysql')
 def callback_url_test_mysql():
-    u"""mysql console for callback_url testing"""
-
+    u"""mysql console for callback_url testing."""
     start_and_wait_mysql()
 
 
@@ -185,8 +179,7 @@ def callback_url_test_mysql():
 ))
 @click.argument('args', nargs=-1, type=click.UNPROCESSED)
 def tools(args):
-    u"""a wrapper to run scripts in tools"""
-
+    u"""a wrapper to run scripts in tools."""
     cmdline = ['docker-compose', "-f", "docker-compose.yml",
                "-f", "docker-compose.adhoc.yml", "run", "tools"] + list(args)
     subprocess.call(cmdline)
@@ -195,8 +188,7 @@ def tools(args):
 @cli.group(invoke_without_command=True)
 @click.pass_context
 def test(ctx):
-    u"""commands related to testing"""
-
+    u"""commands related to testing."""
     os.chdir(os.path.join(root_path, 'tests'))
     os.environ['COMPOSE_PROJECT_NAME'] = 'fenle_test'
 
@@ -211,17 +203,21 @@ def test(ctx):
 ))
 @click.argument('args', nargs=-1, type=click.UNPROCESSED)
 def test_compose(args):
-    u"""a wrapper to docker-compose for testing"""
-
+    u"""a wrapper to docker-compose for testing."""
     cmdline = ['docker-compose'] + list(args)
     subprocess.call(cmdline)
 
 
 @test.command('mysql')
 def test_mysql():
-    u"""mysql console for testing"""
-
+    u"""mysql console for testing."""
     start_and_wait_mysql()
+
+
+@test.command('redis')
+def test_redis():
+    u"""redis console for testing."""
+    start_and_wait_redis()
 
 
 def start_and_wait_mysql():
@@ -249,6 +245,11 @@ def start_and_wait_mysql():
     subprocess.call(
         "docker-compose exec mysql mysql "
         "-uroot -p123456 fenle_fenqi_db", shell=True)
+
+
+def start_and_wait_redis():
+    subprocess.call("docker-compose up -d redis", shell=True)
+    subprocess.call("docker-compose exec redis redis-cli", shell=True)
 
 
 if __name__ == '__main__':

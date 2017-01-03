@@ -51,7 +51,8 @@ class CUR_TYPE(object):
 
 
 class ACCOUNT_TYPE(object):
-    u"""银行卡类型"""
+
+    u"""银行卡类型."""
 
     CREDIT_CARD = 0
     DEBIT_CARD = 1
@@ -63,7 +64,8 @@ class ACCOUNT_TYPE(object):
 
 
 class ACCOUNT_ATTR(object):
-    u"""用户类型"""
+
+    u"""用户类型."""
 
     PERSONAL = 1
     ENTERPRISE = 2

@@ -83,7 +83,6 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
 
     def test_cardpay_apply_md5(self, client, db):
         u"""MD5签名 + RSA加密."""
-
         # 插入初始数据
         self.insert_bank_and_merchant(db)
 

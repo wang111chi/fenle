@@ -10,6 +10,7 @@ services:
      - "3032:3031"
     depends_on:
      - mysql
+     - redis
   callback_url:
     build:
       context: .
@@ -24,4 +25,5 @@ services:
     extends:
       file: mysql/docker-compose.yml
       service: mysql
-
+  redis:
+    image: redis

@@ -8,6 +8,7 @@ services:
      - ../..:/fenle
     depends_on:
      - mysql
+     - redis
   repl:
     build:
       context: ../..
@@ -17,7 +18,11 @@ services:
     entrypoint: ../mysql/wait-for-mysql.py python ipython-entrypoint.py
     depends_on:
      - mysql
+     - redis
   mysql:
     extends:
       file: ../../mysql/docker-compose.yml
       service: mysql
+  redis:
+    image: redis
+    

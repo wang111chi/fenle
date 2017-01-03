@@ -7,8 +7,11 @@ ignore =
        # imported but unused
        F401,
        # import * used; unable to detect undefined names
-       F403
+       F403,
+       # First line should be in imperative mood
+       D401
 exclude =
         base/xform.py,
         .flake8,
-	*.sql
+	*.sql,
+        *.yml

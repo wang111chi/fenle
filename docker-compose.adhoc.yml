@@ -9,6 +9,7 @@ services:
     entrypoint: ../mysql/wait-for-mysql.py python ipython-entrypoint.py
     depends_on:
      - mysql
+     - redis
   tools:
     build:
       context: .

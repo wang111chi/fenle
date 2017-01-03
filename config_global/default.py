@@ -25,3 +25,9 @@ LOGGING_CONFIG = [
 CALLBACK_URL = {
     const.CALLBACK_URL.MODE.CARDPAY_APPLY_SUCCESS_NOTIFY: (1, 30, 90, 180)
 }
+
+REDIS = {
+    "host": "redis",
+    "port": 6379,
+    "db": 0,
+}

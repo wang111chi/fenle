@@ -16,6 +16,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5
 from Crypto.Signature import PKCS1_v1_5 as sign_PKCS1_v1_5
 from Crypto.Hash import SHA
+from base import db
 
 import config
 
@@ -227,3 +228,49 @@ def rsa_sign_and_encrypt_params(params, private_key, public_key):
     params_with_sign = handled_params + [("sign", sign)]
     urlencoded_params = urllib.urlencode(params_with_sign)
     return b64encode(rsa_encrypt(urlencoded_params, public_key))
+
+
+def _gen_seq_by_redis(key, expire):
+    lua = """
+      local current
+      current = redis.call("incr",KEYS[1])
+      if tonumber(current) == 1 then
+        redis.call("expire",KEYS[1],%d)
+      end
+      return current
+    """ % expire
+
+    redis = db.get_redis()
+    script = redis.register_script(lua)
+    return script(keys=[key], args=[])
+
+
+def gen_trans_list_id(spid, bank_type):
+    u"""生成交易单ID.
+
+    10位的spid+4位银行类型+8位日期+8位序列号
+
+    @param<spid>: 商户号
+    @param<bank_type>: 银行类型
+    """
+    key_prefix = "%s%s%s" % (spid,
+                             bank_type,
+                             datetime.date.today().strftime("%Y%m%d"))
+
+    key = "trans_list_id:%s" % key_prefix
+    return ("%s%08d" % (key_prefix,
+                        _gen_seq_by_redis(key, 60 * 60 * 24 + 60)))[:30]
+
+
+def gen_bank_tid(bank_spid):
+    u"""生成给银行的订单号.
+
+    15位的银行子商户号+8位日期+6位时间+6位自增序列号
+
+    @param<bank_spid>: 银行子商户号
+    """
+    key_prefix = "%s%s" % (bank_spid,
+                           datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
+
+    key = "bank_tid:%s" % key_prefix
+    return ("%s%06d" % (key_prefix, _gen_seq_by_redis(key, 1)))[:35]

@@ -8,7 +8,10 @@ services:
      - ..:/fenle
     depends_on:
      - mysql
+     - redis
   mysql:
     extends:
       file: ../mysql/docker-compose.yml
       service: mysql
+  redis:
+    image: redis

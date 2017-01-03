@@ -3,7 +3,12 @@
 
 from sqlalchemy import create_engine
 from sqlalchemy import MetaData
+from redis import StrictRedis
+
 import config
+
+
+# ############ mysql ################
 
 meta = MetaData()
 
@@ -21,3 +26,19 @@ t_sp_bankroll_list = meta.tables['sp_bankroll_list']
 t_sp_balance = meta.tables['sp_balance']
 t_fenle_balance = meta.tables['fenle_balance']
 t_callback_url = meta.tables['callback_url']
+
+
+# ########## redis #################
+
+def _redis_wrapper():
+    redis_cli = [None]
+
+    def _get_redis():
+        if redis_cli[0] is None:
+            redis_cli[0] = StrictRedis(**config.REDIS)
+        return redis_cli[0]
+
+    return _get_redis
+
+
+get_redis = _redis_wrapper()
