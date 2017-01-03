@@ -136,8 +136,8 @@ class ACCOUNT_ATTR(object):
 
 
 class FENLE_ACCOUNT(object):
-    VIRTUAL = 3  # 虚拟第三方户
-    ACTUAL = 4   # 真实用户
+    ACTUAL = 1  # 真实用户
+    VIRTUAL = 2  # 虚拟第三方户
 
 
 class FEE_DUTY(object):

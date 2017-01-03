@@ -208,7 +208,7 @@ def cardpay_apply(safe_vars):
         conn.execute(t_user_bank.insert(), user_bank_info)
     else:
         # 检查银行卡是否被冻结 user_bank
-        if user_bank_ret['lstate'] == 2:  # 冻结标志
+        if user_bank_ret['lstate'] == const.LSTATE.HUNG:  # 冻结标志
             return ApiJsonErrorResponse(const.API_ERROR.BANKCARD_FREEZED)
 
     # 检查合同信息
@@ -254,7 +254,7 @@ def cardpay_apply(safe_vars):
 
     if is_need_mobile:
         conn.execute(ins_trans_list, comput_data)
-        # TODO 调用银行接口，根据结果更新 bank_backid
+        # TODO 调用银行下发验证码，根据结果更新 bank_backid
         ret_data.update({
             "list_id": comput_data['list_id'],
             "result": const.STATUS.MOBILE_CHECKING, })
@@ -330,3 +330,36 @@ def cardpay_apply(safe_vars):
         return ApiJsonOkResponse(
             cipher_data=cipher_data,
             safe_vars=safe_vars, )
+
+
+@home.route("/cardpay/confirm")
+@general("信用卡分期支付确认")
+@api_sign_and_encrypt_form_check(engine.connect(), {
+    "spid": (10 <= F_str("商户号") <= 10) & "strict" & "required",
+    "sign": (F_str("签名") <= 1024) & "strict" & "required",
+    "encode_type": (F_str("") <= 5) & "strict" & "required" & (
+        lambda v: (v in const.ENCODE_TYPE.ALL, v)),
+    "sp_userid": (F_str("用户号") <= 20) & "strict" & "required",
+    "sp_tid": (F_str("支付订单号") <= 32) & "strict" & "required",
+    "money": (F_int("订单交易金额")) & "strict" & "required",
+    "cur_type": (F_int("币种类型")) & "strict" & "required",
+    "notify_url": (F_str("后台回调地址") <= 255) & "strict" & "required",
+    "errpage_url": (F_str("错误页面回调地址") <= 255) & "strict" & "optional",
+    "memo": (F_str("订单备注") <= 255) & "strict" & "required",
+    "expire_time": (F_int("订单有效时长")) & "strict" & "optional",
+    "attach": (F_str("附加数据") <= 255) & "strict" & "optional",
+    "user_account_type": (F_int("银行卡类型")) & "strict" & "required",
+    "user_account_attr": (F_int("用户类型")) & "strict" & "required",
+    "user_account_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
+    "user_name": (F_str("付款人姓名") <= 16) & "strict" & "optional",
+    "user_mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
+    "bank_type": (F_str("银行代号") <= 4) & "strict" & "required",
+    "expiration_date": (F_str("有效期") <= 11) & "strict" & "optional",
+    "pin_code": (F_str("cvv2") <= 11) & "strict" & "optional",
+    "divided_term": (F_int("分期期数")) & "strict" & "required",
+    "fee_duty": (F_int("手续费承担方")) & "strict" & "required",
+    "channel": (F_int("渠道类型")) & "strict" & "required",
+    "rist_ctrl": (F_str("风险控制数据") <= 10240) & "strict" & "optional",
+})
+def cardpay_confirm():
+    return
