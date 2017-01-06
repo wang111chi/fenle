@@ -7,6 +7,7 @@ import hashlib
 from base64 import b64encode
 import json
 
+from datetime import datetime
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5
 from Crypto.Signature import PKCS1_v1_5 as sign_PKCS1_v1_5
@@ -19,6 +20,8 @@ from base.db import engine, meta
 from base.db import t_merchant_info
 from base.db import t_bank_channel
 from base.db import t_sp_bank
+from base.db import t_sp_balance
+from base.db import t_fenle_balance
 import config
 from base import logger
 from base import constant as const
@@ -52,12 +55,15 @@ class TestCardpayApply(object):
         "rist_ctrl": "",
     })
 
+    spid = '1' * 10
+    bank_type = 1001
+
     def insert_bank_and_merchant(self, conn):
         """ insert some test data to mysql table"""
 
         # initial merchant_info
         merchant_data = dict(
-            spid='1' * 10,
+            spid=self.spid,
             uid='111',
             agent_uid='112',
             parent_uid='113',
@@ -77,8 +83,9 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
 
         # initial sp_bank data
         sp_bank_data = dict(
-            spid='1' * 10,
-            bank_type=1001,
+            spid=self.spid,
+            bank_spid=self.spid + '12345',
+            bank_type=self.bank_type,
             fenqi_fee_percent=json.dumps({6: 500, 12: 600}),
             divided_term='6,12',
             settle_type=const.SETTLE_TYPE.DAY_SETTLE, )
@@ -87,22 +94,84 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
         # initial bank_channel data
         bank_data = dict(
             bank_channel=1,
-            bank_type=1001,
+            bank_type=self.bank_type,
             is_enable=1,
-            bank_valitype=0x0002,
+            bank_valitype=const.BANK_VALITYPE.MOBILE_NOT_VALID,
             fenqi_fee_percent=json.dumps({6: 300, 12: 400}),
             rsp_time=10,
             settle_type=const.SETTLE_TYPE.DAY_SETTLE, )
         conn.execute(t_bank_channel.insert(), bank_data)
+        return bank_data['bank_valitype']
+
+    def init_balance(self, conn):
+        """ insert some test data to mysql table"""
+
+        now = datetime.now()
+        # initial sp_balance
+        sp_balance_data = dict(
+            spid=self.spid,
+            uid=self.spid,
+            balance=10000,
+            modify_time=now,
+            create_time=now)
+        conn.execute(t_sp_balance.insert(), sp_balance_data)
+
+        # initial fenle_balance
+        fenle_balance_data = dict(
+            account_no=config.FENLE_ACCOUNT_NO,
+            bank_type=config.FENLE_BANK_TYPE,
+            account_type=const.FENLE_ACCOUNT.VIRTUAL,
+            modify_time=now,
+            create_time=now)
+        conn.execute(t_fenle_balance.insert(), fenle_balance_data)
+
+    def cardpay_confirm(self, client, list_id, key):
+        u"""支付确认接口"""
+
+        data_dict = util.encode_unicode({
+            "encode_type": "MD5",
+            "list_id": list_id,
+            "user_mobile": self.params["user_mobile"],
+            "bank_valicode": "1234567",
+            "spid": self.spid})
+
+        data = data_dict.items()
+        data = [(k, v) for k, v in data if
+                v is not None and v != ""]
+        data = sorted(data, key=operator.itemgetter(0))
+        data_with_key = data + [("key", key)]
+
+        urlencoded_data = urllib.urlencode(data_with_key)
+        # MD5签名
+        m = hashlib.md5()
+        m.update(urlencoded_data)
+        sign = m.hexdigest()
+
+        # RSA加密
+        data_with_sign = data + [("sign", sign)]
+        urlencoded_data = urllib.urlencode(data_with_sign)
+
+        cipher_data = b64encode(
+            util.rsa_encrypt(urlencoded_data, config.FENLE_PUB_KEY))
+
+        final_data = {"cipher_data": cipher_data}
+        final_data = urllib.urlencode(final_data)
+
+        resp = client.get('/cardpay/confirm?%s' % final_data)
+
+        assert resp.status_code == 200
+
+        json_resp = json.loads(resp.data)
+        logger.debug(json_resp)
 
     def test_cardpay_apply_md5(self, client, db):
-        u"""MD5签名 + RSA加密."""
-        # 插入初始数据
+        u"""MD5签名 + RSA加密. """
+
         self.insert_bank_and_merchant(db)
+        bank_valitype = self.init_balance(db)
 
         # 分配给商户的key
         key = "654321" * 3
-
         params = self.params.items()
         params = [(k, v) for k, v in params if
                   v is not None and v != ""]
@@ -110,7 +179,6 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
         params_with_key = params + [("key", key)]
 
         urlencoded_params = urllib.urlencode(params_with_key)
-        logger.debug(urlencoded_params)
         # MD5签名
         m = hashlib.md5()
         m.update(urlencoded_params)
@@ -132,7 +200,13 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
 
         json_resp = json.loads(resp.data)
         print json_resp
+        logger.debug(json_resp)
+
+        list_id = json_resp['list_id']
         assert json_resp["retcode"] == 0
+
+        if bank_valitype == const.BANK_VALITYPE.MOBILE_VALID:
+            self.cardpay_confirm(client, list_id, key)
 
     def test_cardpay_apply_rsa(self, client):
         u"""RSA签名 + RSA加密."""

@@ -33,9 +33,9 @@ from base.db import t_sp_bank
 from base.db import t_bank_channel
 from base.db import t_fenle_bankroll_list
 from base.db import t_sp_bankroll_list
+from base.db import t_fenle_balance
+from base.db import t_sp_balance
 from base.db import t_merchant_info
-
-# from base.db import *
 from base.xform import FormChecker
 import config
 
@@ -215,6 +215,7 @@ def cardpay_apply(safe_vars):
 
     # 查 sp_bank 的 fenqi_fee_percent
     sel = select([t_sp_bank.c.fenqi_fee_percent,
+                  t_sp_bank.c.bank_spid,
                   t_sp_bank.c.divided_term]).where(and_(
                       t_sp_bank.c.spid == safe_vars['spid'],
                       t_sp_bank.c.bank_type == safe_vars['bank_type']))
@@ -231,11 +232,14 @@ def cardpay_apply(safe_vars):
         return ApiJsonErrorResponse(const.API_ERROR.DIVIDED_TERM_NOt_EXIST)
     fee_percent = fenqi_fee_percent[str(safe_vars['divided_term'])]
     comput_data.update({'fee': safe_vars['money'] * fee_percent / 10000})
+    bank_spid = sp_bank_ret['bank_spid']
 
     # 生成订单相关数据
     comput_data.update(dict(
-        list_id=33,   # 暂时拟定33
-        bank_tid='123',  # 暂时拟的
+        list_id=util.gen_trans_list_id(
+            safe_vars['spid'],
+            safe_vars['bank_type']),
+        bank_tid=util.gen_bank_tid(bank_spid),
         bank_backid='321',  # 暂时拟的
         status=const.STATUS.PAYING,  # 支付中
         lstate=const.LSTATE.VALID,  # 有效的
@@ -253,23 +257,25 @@ def cardpay_apply(safe_vars):
         # TODO 用户付手续费情形
 
     if is_need_mobile:
+        comput_data.update({'status': const.STATUS.MOBILE_CHECKING})
         conn.execute(ins_trans_list, comput_data)
         # TODO 调用银行下发验证码，根据结果更新 bank_backid
         ret_data.update({
             "list_id": comput_data['list_id'],
-            "result": const.STATUS.MOBILE_CHECKING, })
+            "result": comput_data['status'], })
         cipher_data = util.rsa_sign_and_encrypt_params(
             ret_data,
             config.FENLE_PRIVATE_KEY,
             merchant_pubkey)
         return ApiJsonOkResponse(
+            list_id=comput_data['list_id'],
             cipher_data=cipher_data,
             safe_vars=safe_vars)
     else:
         sp_bankroll_data = dict(
             list_id=comput_data['list_id'],
             spid=safe_vars['spid'],
-            bankroll_type=const.BANKROLL_TYPE.IN,
+            bankroll_type=const.SP_BANKROLL_TYPE.IN,
             status=const.STATUS.MOBILE_CHECKING,  # 支付中
             user_name=safe_vars['user_name'],
             cur_type=safe_vars['cur_type'],
@@ -282,7 +288,7 @@ def cardpay_apply(safe_vars):
         fenle_bankroll_data = dict(
             list_id=comput_data['list_id'],
             spid=safe_vars['spid'],
-            fenle_account_id=1234567890123123,
+            fenle_account_id=config.FENLE_ACCOUNT_NO,
             fenle_account_type=const.FENLE_ACCOUNT.VIRTUAL,  # 1真实，2虚拟
             status=const.STATUS.MOBILE_CHECKING,  # 支付中
             bank_type=safe_vars['bank_type'],
@@ -309,15 +315,45 @@ def cardpay_apply(safe_vars):
         with transaction(conn) as trans:
             conn.execute(ins_trans_list, comput_data)
             fenle_bankroll_data.update({
-                'bank_tid': '987654321', 'bank_backid': '0987654321'})
-            conn.execute(t_sp_bankroll_list.insert(), sp_bankroll_data)
+                'bank_tid': comput_data['bank_tid'],
+                'bank_backid': comput_data['bank_backid']})
+            ret = conn.execute(t_sp_bankroll_list.insert(), sp_bankroll_data)
+            last_id = ret._saved_cursor._last_insert_id
             conn.execute(t_fenle_bankroll_list.insert(), fenle_bankroll_data)
-            # TODO 调用银行支付请求接口
-            # if xxxxx:
-            #     if you don't want to commit,
-            #        you just not call trans.finish().
-            #     return error_page("xxxxxx")
-            # if you want to commit, you call:
+            trans.finish()
+
+        # TODO 调用银行支付请求接口,更新余额
+        udp_fenle_bankroll = t_fenle_bankroll_list.update().where(and_(
+            t_fenle_bankroll_list.c.bank_tid == comput_data['bank_tid'],
+            t_fenle_bankroll_list.c.bank_type == safe_vars['bank_type']))\
+            .values(status=const.STATUS.PAY_SUCCESS)
+
+        udp_fenle_balance = t_fenle_balance.update().where(and_(
+            t_fenle_balance.c.account_no == config.FENLE_ACCOUNT_NO,
+            t_fenle_balance.c.bank_type == config.FENLE_BANK_TYPE)).values(
+            balance=t_fenle_balance.c.balance +
+                comput_data['fee'] - comput_data['bank_fee'])
+
+        udp_sp_bankroll = t_sp_bankroll_list.update().where(
+            t_sp_bankroll_list.c.id == last_id).values(
+            status=const.STATUS.PAY_SUCCESS)
+
+        udp_sp_balance = t_sp_balance.update().where(and_(
+            t_sp_balance.c.spid == safe_vars['spid'],
+            t_sp_balance.c.cur_type == safe_vars['cur_type'])).values(
+            balance=t_sp_balance.c.balance +
+                comput_data['pay_num'] - comput_data['fee'])
+
+        udp_trans_list = t_trans_list.update().where(
+            t_trans_list.c.list_id == comput_data['list_id']).values(
+            status=const.STATUS.PAY_SUCCESS)
+
+        with transaction(conn) as trans:
+            conn.execute(udp_fenle_bankroll)
+            conn.execute(udp_fenle_balance)
+            conn.execute(udp_sp_bankroll)
+            conn.execute(udp_sp_balance)
+            conn.execute(udp_trans_list)
             trans.finish()
 
         ret_data.update({
@@ -328,6 +364,7 @@ def cardpay_apply(safe_vars):
             config.FENLE_PRIVATE_KEY,
             merchant_pubkey)
         return ApiJsonOkResponse(
+            list_id=comput_data['list_id'],
             cipher_data=cipher_data,
             safe_vars=safe_vars, )
 
@@ -339,27 +376,89 @@ def cardpay_apply(safe_vars):
     "sign": (F_str("签名") <= 1024) & "strict" & "required",
     "encode_type": (F_str("") <= 5) & "strict" & "required" & (
         lambda v: (v in const.ENCODE_TYPE.ALL, v)),
-    "sp_userid": (F_str("用户号") <= 20) & "strict" & "required",
-    "sp_tid": (F_str("支付订单号") <= 32) & "strict" & "required",
-    "money": (F_int("订单交易金额")) & "strict" & "required",
-    "cur_type": (F_int("币种类型")) & "strict" & "required",
-    "notify_url": (F_str("后台回调地址") <= 255) & "strict" & "required",
-    "errpage_url": (F_str("错误页面回调地址") <= 255) & "strict" & "optional",
-    "memo": (F_str("订单备注") <= 255) & "strict" & "required",
-    "expire_time": (F_int("订单有效时长")) & "strict" & "optional",
-    "attach": (F_str("附加数据") <= 255) & "strict" & "optional",
-    "user_account_type": (F_int("银行卡类型")) & "strict" & "required",
-    "user_account_attr": (F_int("用户类型")) & "strict" & "required",
-    "user_account_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
-    "user_name": (F_str("付款人姓名") <= 16) & "strict" & "optional",
+    "list_id": (F_str("支付订单号") <= 32) & "strict" & "required",
     "user_mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
-    "bank_type": (F_str("银行代号") <= 4) & "strict" & "required",
-    "expiration_date": (F_str("有效期") <= 11) & "strict" & "optional",
-    "pin_code": (F_str("cvv2") <= 11) & "strict" & "optional",
-    "divided_term": (F_int("分期期数")) & "strict" & "required",
-    "fee_duty": (F_int("手续费承担方")) & "strict" & "required",
-    "channel": (F_int("渠道类型")) & "strict" & "required",
-    "rist_ctrl": (F_str("风险控制数据") <= 10240) & "strict" & "optional",
+    "bank_valicode": (F_str("银行下发的验证码") <= 32) & "strict" & "required",
 })
-def cardpay_confirm():
-    return
+def cardpay_confirm(safe_vars):
+
+    conn = engine.connect()
+
+    # 检查订单状态
+    sel = select([t_trans_list.c.status,
+                  t_trans_list.c.user_mobile,
+                  t_trans_list.c.user_account_no,
+                  t_trans_list.c.bank_type,
+                  t_trans_list.c.spid,
+                  t_trans_list.c.cur_type,
+                  t_trans_list.c.paynum,
+                  t_trans_list.c.fee,
+                  t_trans_list.c.bank_tid,
+                  t_trans_list.c.bank_backid,
+                  t_trans_list.c.bank_fee]).where(
+        t_trans_list.c.list_id == safe_vars['list_id'])
+    list_ret = conn.execute(sel).first()
+    if list_ret is None:
+        return ApiJsonErrorResponse(const.API_ERROR.LIST_ID_NOT_EXIST)
+
+    if list_ret['status'] != const.STATUS.MOBILE_CHECKING:
+        return ApiJsonErrorResponse(const.API_ERROR.CONFIRM_STATUS_ERROR)
+
+    if list_ret['user_mobile'] == const.STATUS.MOBILE_CHECKING:
+        return ApiJsonErrorResponse(const.API_ERROR.CONFIRM_MOBILE_ERROR)
+
+    # TODO 用验证码调用银行接口
+    now = datetime.now()
+    sp_bankroll_data = dict(
+        list_id=safe_vars['list_id'],
+        spid=list_ret['spid'],
+        bankroll_type=const.SP_BANKROLL_TYPE.IN,
+        status=const.STATUS.MOBILE_CHECKING,  # 支付中
+        cur_type=list_ret['cur_type'],
+        bank_type=list_ret['bank_type'],
+        create_time=now,
+        modify_time=now,
+        product_type=const.PRODUCT_TYPE.FENQI,
+        list_sign=const.LIST_SIGN.WELL)
+
+    fenle_bankroll_data = dict(
+        list_id=safe_vars['list_id'],
+        spid=list_ret['spid'],
+        fenle_account_id=config.FENLE_ACCOUNT_NO,
+        fenle_account_type=const.FENLE_ACCOUNT.VIRTUAL,  # 1真实，2虚拟
+        status=const.STATUS.MOBILE_CHECKING,  # 支付中
+        bank_type=list_ret['bank_type'],
+        cur_type=list_ret['cur_type'],
+        bank_tid=list_ret['bank_tid'],
+        bank_backid=list_ret['bank_backid'],
+        create_time=now,
+        modify_time=now,
+        product_type=const.PRODUCT_TYPE.FENQI, )
+
+    # 根据银行返回信息更新余额及流水
+    udp_sp_balance = t_sp_balance.update().where(and_(
+        t_sp_balance.c.spid == list_ret['spid'],
+        t_sp_balance.c.cur_type == list_ret['cur_type'])).values(
+        balance=t_sp_balance.c.balance +
+            list_ret['paynum'] - list_ret['fee'])
+
+    udp_fenle_balance = t_fenle_balance.update().where(and_(
+        t_fenle_balance.c.account_no == config.FENLE_ACCOUNT_NO,
+        t_fenle_balance.c.bank_type == config.FENLE_BANK_TYPE)).values(
+        balance=t_fenle_balance.c.balance +
+            list_ret['fee'] - list_ret['bank_fee'])
+
+    udp_trans_list = t_trans_list.update().where(
+        t_trans_list.c.list_id == safe_vars['list_id']).values(
+        status=const.STATUS.PAY_SUCCESS)
+
+    with transaction(conn) as trans:
+        conn.execute(t_sp_bankroll_list.insert(), sp_bankroll_data)
+        conn.execute(t_fenle_bankroll_list.insert(), fenle_bankroll_data)
+
+        conn.execute(udp_sp_balance)
+        conn.execute(udp_fenle_balance)
+        conn.execute(udp_trans_list)
+        trans.finish()
+
+    return ApiJsonOkResponse({})

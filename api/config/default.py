@@ -3,6 +3,9 @@
 
 # put application's specific default settings here
 
+FENLE_ACCOUNT_NO = 6222011817002918231
+FENLE_BANK_TYPE = 1004
+
 FENLE_PRIVATE_KEY = """\
 -----BEGIN RSA PRIVATE KEY-----
 MIICXQIBAAKBgQDbCRxHke7BUsYxxihFh9zJFn92pgV80ZEaWR6g+JPjQeZaF8Px

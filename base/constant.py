@@ -57,11 +57,13 @@ class LSTATE(object):
     INVALID = 3  # 作废
 
 
-class BANKROLL_TYPE(object):
-    IN = 1
-    OUT = 2
-    FREEZE = 3
-    DEFREEZE = 4
+class SP_BANKROLL_TYPE(object):
+    IN = 1  # 入账
+    OUT = 2  # 出帐
+    FREEZE = 3  # 冻结
+    DEFREEZE = 4  # 解冻
+    ARREARS_IN = 5  # 欠款入
+    ARREARS_OUT = 6  # 欠款出
 
 
 class STATUS(object):
@@ -86,6 +88,7 @@ class LIST_SIGN:
 
 class BANK_VALITYPE(object):
     MOBILE_VALID = 0x0001
+    MOBILE_NOT_VALID = 0x0002
 
 
 class PAY_MASK(object):
@@ -172,6 +175,11 @@ class API_ERROR(object):
     NO_SP_BANK = 207504
     DIVIDED_TERM_NOT_EXIST = 207505
 
+    LIST_ID_NOT_EXIST = 207600
+    CONFIRM_STATUS_ERROR = 207601
+    CONFIRM_MOBILE_ERROR = 207602
+
+    INSERT_ERROR = 207701
     NAMES = {
         PARAM_ERROR: u"参数格式错误",
         SPID_NOT_EXIST: u"分乐不存在此商户号",
@@ -187,7 +195,11 @@ class API_ERROR(object):
         NO_PIN_CODE: u"安全码需要验证",
         NO_USER_NAME: u"用户姓名需要验证",
         NO_SP_BANK: u"商家银行没有相关服务",
-        DIVIDED_TERM_NOT_EXIST: u"不存在这样的分期期数服务"}
+        DIVIDED_TERM_NOT_EXIST: u"不存在这样的分期期数服务",
+        LIST_ID_NOT_EXIST: u"二次确认中订单号错误",
+        CONFIRM_STATUS_ERROR: u"二次确认状态错误",
+        CONFIRM_MOBILE_ERROR: u"二次确认手机号错误",
+        INSERT_ERROR: u"数据库插入异常"}
 
 
 class BANK_ID(object):
