@@ -96,7 +96,8 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
             bank_channel=1,
             bank_type=self.bank_type,
             is_enable=1,
-            bank_valitype=const.BANK_VALITYPE.MOBILE_NOT_VALID,
+            # 修改此处决定是否验证手机号
+            bank_valitype=const.BANK_VALITYPE.MOBILE_VALID,
             fenqi_fee_percent=json.dumps({6: 300, 12: 400}),
             rsp_time=10,
             settle_type=const.SETTLE_TYPE.DAY_SETTLE, )
