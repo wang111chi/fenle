@@ -21,6 +21,17 @@ services:
      - "3033:3031"
     depends_on:
      - mysql
+  wx_prog:
+    build:
+      context: .
+      dockerfile: wx_prog/Dockerfile
+    volumes:
+     - .:/fenle
+    ports:
+     - "3034:3031"
+    depends_on:
+     - mysql
+     - redis
   mysql:
     extends:
       file: mysql/docker-compose.yml

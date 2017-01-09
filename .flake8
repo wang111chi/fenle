@@ -11,6 +11,9 @@ ignore =
        # First line should be in imperative mood
        D401
 exclude =
+        Dockerfile,
+        uwsgi.ini,
+        .gitignore,
         base/xform.py,
         .flake8,
 	*.sql,
