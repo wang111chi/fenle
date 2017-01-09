@@ -153,3 +153,8 @@ class CALLBACK_URL(object):
         PENDING = 1  # 待重试(需要下一次重试)
         DONE = 2     # 回调成功(不再需要重试)
         FAIL = 3     # 回调失败(重试次数已达到，同样不再需要重试)
+
+
+class SESSION(object):
+    KEY_WX_PROG_SESSION_KEY = "wx_prog_session_key"
+    KEY_WX_PROG_OPENID = "wx_prog_openid"

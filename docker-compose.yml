@@ -25,6 +25,8 @@ services:
     build:
       context: .
       dockerfile: wx_prog/Dockerfile
+    environment:
+      FENLE_SETTINGS: local
     volumes:
      - .:/fenle
     ports:

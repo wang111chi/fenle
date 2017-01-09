@@ -24,6 +24,12 @@ from init_app import init
 app = Flask(__name__)
 init(app)
 
+from base import db
+from base.session import RedisSessionInterface
+
+# redis session
+app.session_interface = RedisSessionInterface(db.get_redis())
+
 # route setting
 import views
 
