@@ -65,6 +65,8 @@ def index():
     "memo": (F_str("订单备注") <= 255) & "strict" & "required",
     "expire_time": (F_int("订单有效时长")) & "strict" & "optional",
     "attach": (F_str("附加数据") <= 255) & "strict" & "optional",
+    # FIXME: review by liyuan:  user_account_type(attr)如果是枚举常量，
+    # 这里应该用lambda限制常量的范围
     "user_account_type": (F_int("银行卡类型")) & "strict" & "required",
     "user_account_attr": (F_int("用户类型")) & "strict" & "required",
     "user_account_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
@@ -75,12 +77,15 @@ def index():
     "pin_code": (F_str("cvv2") <= 11) & "strict" & "optional",
     "divided_term": (F_int("分期期数")) & "strict" & "required",
     "fee_duty": (F_int("手续费承担方")) & "strict" & "required",
+    # FIXME: review by liyuan:  channel如果是枚举常量，
+    # 这里应该用lambda限制常量的范围
     "channel": (F_int("渠道类型")) & "strict" & "required",
     "rist_ctrl": (F_str("风险控制数据") <= 10240) & "strict" & "optional",
 })
 def cardpay_apply(safe_vars):
     # 处理逻辑
 
+    # FIXME: review by liyuan:  conn统一用db_conn装饰器获取
     conn = engine.connect()
     # 从mysql检查商户spid是否存在
     s = select([t_merchant_info.c.status,
@@ -91,6 +96,7 @@ def cardpay_apply(safe_vars):
     if merchant_ret is None:
         return ApiJsonErrorResponse(const.API_ERROR.SPID_NOT_EXIST)
     elif merchant_ret['status'] == const.MERCHANT_STATUS.CLOSURED:  # 判断是否被封禁
+        # FIXME: review by liyuan:  CLOSURED命名不妥？没有这个单词
         return ApiJsonErrorResponse(const.API_ERROR.MERCHANT_CLOSURED)
     merchant_pubkey = merchant_ret['rsa_pub_key']
 
@@ -140,6 +146,7 @@ def cardpay_apply(safe_vars):
 
     comput_data = dict(
         rsp_time='3',
+        # FIXME: review by liyuan:  pay_type和product_type怎么都用的PRODUCT_TYPE？
         pay_type=const.PRODUCT_TYPE.FENQI,
         product_type=const.PRODUCT_TYPE.FENQI,)
 
@@ -159,6 +166,8 @@ def cardpay_apply(safe_vars):
 
     if channel_ret['singlepay_vmask'] is not None:
         # 验证有效期
+        # FIXME: review by liyuan:  这里不能用 not in来检查，optional的字段
+        # 依然会在safe_vars中，只是为None而已，下面的几个检查存在一样的问题
         if (channel_ret['singlepay_vmask'] & const.PAY_MASK.EXPIRATION) and \
            ('expiration_date' not in safe_vars):
             return ApiJsonErrorResponse(const.API_ERROR.NO_EXPIRATION_DATE)
@@ -180,6 +189,7 @@ def cardpay_apply(safe_vars):
         is_need_mobile = False
     bank_fee_percent = json.loads(channel_ret['fenqi_fee_percent'])
     if str(safe_vars['divided_term']) not in bank_fee_percent:
+        # FIXME @review by liyuan: Not_EXIST 笔误?
         return ApiJsonErrorResponse(const.API_ERROR.DIVIDED_TERM_NOt_EXIST)
     comput_data.update({
         'bank_channel': channel_ret['bank_channel'],
@@ -194,6 +204,7 @@ def cardpay_apply(safe_vars):
     if user_bank_ret is None:
         user_bank_info = dict(
             account_no=safe_vars['user_account_no'],
+            # FIXME: review by liyuan:  account_type和account_attr怎么一样？
             account_type=safe_vars['user_account_type'],
             account_attr=safe_vars['user_account_type'],
             user_name=safe_vars['user_name'],
@@ -201,6 +212,7 @@ def cardpay_apply(safe_vars):
             bank_sname='',
             bank_branch='',
             mobile=safe_vars['user_mobile'],
+            # FIXME: review by liyuan:  这里的state和lstate用了magic number
             state=1,
             lstate=1,
             create_time=now,
@@ -223,12 +235,15 @@ def cardpay_apply(safe_vars):
     if sp_bank_ret is None:
         return ApiJsonErrorResponse(const.API_ERROR.NO_SP_BANK)
 
+    # FIXME review by liyuan: 不要这样用，用 not in
     if not str(safe_vars['divided_term']) in \
             sp_bank_ret['divided_term'].split(','):
+        # FIXME reviwe by liyuan: 笔误
         return ApiJsonErrorResponse(const.API_ERROR.DIVIDED_TERM_NOt_EXIST)
 
     fenqi_fee_percent = json.loads(sp_bank_ret['fenqi_fee_percent'])
     if str(safe_vars['divided_term']) not in fenqi_fee_percent:
+        # FIXME reviwe by liyuan: 笔误
         return ApiJsonErrorResponse(const.API_ERROR.DIVIDED_TERM_NOt_EXIST)
     fee_percent = fenqi_fee_percent[str(safe_vars['divided_term'])]
     comput_data.update({'fee': safe_vars['money'] * fee_percent / 10000})
@@ -240,11 +255,15 @@ def cardpay_apply(safe_vars):
             safe_vars['spid'],
             safe_vars['bank_type']),
         bank_tid=util.gen_bank_tid(bank_spid),
+        # FIXME: review by liyuan: backid应该是银行返回时才有的数据，这里还没有，返回后再update
         bank_backid='321',  # 暂时拟的
         status=const.STATUS.PAYING,  # 支付中
         lstate=const.LSTATE.VALID,  # 有效的
         create_time=now,
         modify_time=now))
+
+    # FIXME: review by liyuan: saved_data在一开始就定义，在这里才用？上下文隔得太远，
+    # 完全可以放到这里再赋值
     ins_trans_list = t_trans_list.insert().values(**saved_data)
 
     # fee_duty  计算手续费生成金额
@@ -258,6 +277,9 @@ def cardpay_apply(safe_vars):
 
     if is_need_mobile:
         comput_data.update({'status': const.STATUS.MOBILE_CHECKING})
+        # FIXME: review by liyuan: 这里的语义很奇怪，上面已经存了saved_data，这里的意思是要
+        # 再更新comput_data？这样用确定没有问题？即使没有问题也不建议这样写，把要存的数据在一个
+        # 地方赋值不是更明确？要么在这里统一插，要么在insert().values里面统一插
         conn.execute(ins_trans_list, comput_data)
         # TODO 调用银行下发验证码，根据结果更新 bank_backid
         ret_data.update({
@@ -266,6 +288,7 @@ def cardpay_apply(safe_vars):
         cipher_data = util.rsa_sign_and_encrypt_params(
             ret_data,
             config.FENLE_PRIVATE_KEY,
+            # FIXME: review by liyuan: merchant_pubkey在很早定义了，这里才用，上下文了隔得太远
             merchant_pubkey)
         return ApiJsonOkResponse(
             list_id=comput_data['list_id'],
@@ -300,6 +323,7 @@ def cardpay_apply(safe_vars):
 
         # fee_duty  计算手续费生成金额
         if safe_vars['fee_duty'] == const.FEE_DUTY.BUSINESS:  # 商户付手续费
+            # FIXME: review by liyuan: 格式混乱
             sp_bankroll_data.update({
                 'pay_num': comput_data['pay_num'], 'sp_num':
                 comput_data['pay_num'] - comput_data['fee']})
@@ -323,6 +347,7 @@ def cardpay_apply(safe_vars):
             trans.finish()
 
         # TODO 调用银行支付请求接口,更新余额
+        # FIXME: review by liyuan: 下面这些修改要更新修改时间
         udp_fenle_bankroll = t_fenle_bankroll_list.update().where(and_(
             t_fenle_bankroll_list.c.bank_tid == comput_data['bank_tid'],
             t_fenle_bankroll_list.c.bank_type == safe_vars['bank_type']))\
@@ -338,6 +363,8 @@ def cardpay_apply(safe_vars):
             t_sp_bankroll_list.c.id == last_id).values(
             status=const.STATUS.PAY_SUCCESS)
 
+        # FIXME: review by liyuan: 商家余额可能还不存在(第一次)，这时需要插入新的，
+        # 可以用insert on duplidate update语法
         udp_sp_balance = t_sp_balance.update().where(and_(
             t_sp_balance.c.spid == safe_vars['spid'],
             t_sp_balance.c.cur_type == safe_vars['cur_type'])).values(
@@ -356,6 +383,8 @@ def cardpay_apply(safe_vars):
             conn.execute(udp_trans_list)
             trans.finish()
 
+        # FIXME: review by liyuan: 同样是上下文隔得太远，一是难以阅读，
+        # 二是定义得太早浪费性能，因为有可能提前返回了
         ret_data.update({
             "list_id": comput_data['list_id'],
             "result": const.STATUS.PAY_SUCCESS, })
@@ -381,7 +410,7 @@ def cardpay_apply(safe_vars):
     "bank_valicode": (F_str("银行下发的验证码") <= 32) & "strict" & "required",
 })
 def cardpay_confirm(safe_vars):
-
+    # FIXME: review by liyuan:  conn统一用db_conn装饰器获取
     conn = engine.connect()
 
     # 检查订单状态
@@ -404,6 +433,7 @@ def cardpay_confirm(safe_vars):
     if list_ret['status'] != const.STATUS.MOBILE_CHECKING:
         return ApiJsonErrorResponse(const.API_ERROR.CONFIRM_STATUS_ERROR)
 
+    # FIXME: review by liyuan:  这里逻辑错误?
     if list_ret['user_mobile'] == const.STATUS.MOBILE_CHECKING:
         return ApiJsonErrorResponse(const.API_ERROR.CONFIRM_MOBILE_ERROR)
 
@@ -452,6 +482,8 @@ def cardpay_confirm(safe_vars):
         t_trans_list.c.list_id == safe_vars['list_id']).values(
         status=const.STATUS.PAY_SUCCESS)
 
+    # FIXME: review by liyuan:  这里的逻辑有问题，在发请求前先开一个事务插入两个流水，
+    # 同时更新trans_list的状态，然后向银行发请求，请求返回后才是再开一个事务更新各流水和余额
     with transaction(conn) as trans:
         conn.execute(t_sp_bankroll_list.insert(), sp_bankroll_data)
         conn.execute(t_fenle_bankroll_list.insert(), fenle_bankroll_data)
@@ -461,4 +493,5 @@ def cardpay_confirm(safe_vars):
         conn.execute(udp_trans_list)
         trans.finish()
 
+    # FIXME: review by liyuan:  返回的数据为空？应该是跟第一步中的不需要验证码时的情况一致
     return ApiJsonOkResponse({})
