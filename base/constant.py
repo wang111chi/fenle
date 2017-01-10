@@ -22,6 +22,7 @@ class SETTLE_TYPE(object):
 class REQUEST_STATUS(object):
     SUCCESS = 0                        # 请求成功
     FAIL = 1                           # 请求失败
+    AUTH_ERROR = 2                     # 授权失败/未登录
 
 
 class ENCODE_TYPE(object):
