@@ -27,4 +27,4 @@ def index():
         return JsonErrorResponse("用户未登录",
                                  status=const.REQUEST_STATUS.AUTH_ERROR)
 
-    return JsonOkResponse(u"用户已登录，OpenID: %s" % open_id)
+    return JsonOkResponse(u"用户已登录，OpenID: %s" % (open_id, ))

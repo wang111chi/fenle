@@ -62,11 +62,14 @@ class RedisSessionInterface(SessionInterface):
 
         redis_exp = self.get_redis_expiration_time(app, session)
 
+        ttl = int(redis_exp.total_seconds())
+
         val = self.serializer.dumps(dict(session))
         self.redis.setex(self.prefix + session.sid,
-                         int(redis_exp.total_seconds()),
+                         ttl,
                          val)
 
         d = json.loads(response.get_data())
         d['session_id'] = session.sid
+        d['session_ttl'] = ttl
         response.set_data(json.dumps(d))
