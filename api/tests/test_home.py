@@ -127,55 +127,10 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
             create_time=now)
         conn.execute(t_fenle_balance.insert(), fenle_balance_data)
 
-    def cardpay_confirm(self, client, list_id, key):
-        u"""支付确认接口"""
-
-        data_dict = util.encode_unicode({
-            "encode_type": "MD5",
-            "list_id": list_id,
-            "user_mobile": self.params["user_mobile"],
-            "bank_valicode": "1234567",
-            "spid": self.spid})
-
-        data = data_dict.items()
-        data = [(k, v) for k, v in data if
-                v is not None and v != ""]
-        data = sorted(data, key=operator.itemgetter(0))
-        data_with_key = data + [("key", key)]
-
-        urlencoded_data = urllib.urlencode(data_with_key)
-        # MD5签名
-        m = hashlib.md5()
-        m.update(urlencoded_data)
-        sign = m.hexdigest()
-
-        # RSA加密
-        data_with_sign = data + [("sign", sign)]
-        urlencoded_data = urllib.urlencode(data_with_sign)
-
-        cipher_data = b64encode(
-            util.rsa_encrypt(urlencoded_data, config.FENLE_PUB_KEY))
-
-        final_data = {"cipher_data": cipher_data}
-        final_data = urllib.urlencode(final_data)
-
-        resp = client.get('/cardpay/confirm?%s' % final_data)
-
-        assert resp.status_code == 200
-
-        json_resp = json.loads(resp.data)
-        logger.debug(json_resp)
-
-    def test_cardpay_apply_md5(self, client, db):
+    def cardpay_apply_md5(self, key, params):
         u"""MD5签名 + RSA加密. """
 
-        self.insert_bank_and_merchant(db)
-        bank_valitype = self.init_balance(db)
-
-        # 分配给商户的key
-        key = "654321" * 3
-        params = self.params.items()
-        params = [(k, v) for k, v in params if
+        params = [(k, v) for k, v in params.items() if
                   v is not None and v != ""]
         params = sorted(params, key=operator.itemgetter(0))
         params_with_key = params + [("key", key)]
@@ -196,19 +151,54 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
         final_params = {"cipher_data": cipher_data}
         final_params = urllib.urlencode(final_params)
 
-        resp = client.get('/cardpay/apply?%s' % final_params)
+        return final_params
 
+    def test_cardpay_apply_md5(self, client, db):
+
+        self.insert_bank_and_merchant(db)
+        bank_valitype = self.init_balance(db)
+
+        # 分配给商户的key
+        key = "654321" * 3
+        # 支付请求
+        final_params = self.cardpay_apply_md5(key, self.params)
+        resp = client.get('/cardpay/apply?%s' % final_params)
         assert resp.status_code == 200
 
         json_resp = json.loads(resp.data)
         print json_resp
         logger.debug(json_resp)
-
         list_id = json_resp['list_id']
         assert json_resp["retcode"] == 0
 
+        # 支付确认
         if bank_valitype == const.BANK_VALITYPE.MOBILE_VALID:
-            self.cardpay_confirm(client, list_id, key)
+            confirm_data = util.encode_unicode({
+                "encode_type": "MD5",
+                "list_id": list_id,
+                "spid": self.spid,
+                "user_mobile": self.params["user_mobile"],
+                "bank_valicode": "1234567", })
+            final_data = self.cardpay_apply_md5(key, confirm_data)
+            rsp = client.get('/cardpay/confirm?%s' % final_data)
+
+            assert rsp.status_code == 200
+            json_rsp = json.loads(rsp.data)
+            logger.debug(json_rsp)
+
+        # 查询接口
+        qry_data = util.encode_unicode({
+            "encode_type": "MD5",
+            "list_id": list_id,
+            "spid": self.spid,
+            "channel": const.CHANNEL.API
+        })
+        final_data = self.cardpay_apply_md5(key, qry_data)
+        rsp = client.get('/query/single?%s' % final_data)
+
+        assert rsp.status_code == 200
+        json_rsp = json.loads(rsp.data)
+        logger.debug(json_rsp)
 
     def test_cardpay_apply_rsa(self, client):
         u"""RSA签名 + RSA加密."""

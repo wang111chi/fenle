@@ -235,7 +235,7 @@ def api_sign_and_encrypt_form_check(settings, var_name="safe_vars"):
             if sel_result is None:
                 return ApiJsonErrorResponse(const.API_ERROR.SPID_NOT_EXIST)
             elif sel_result['status'] == 1:  # 判断是否被封禁
-                return ApiJsonErrorResponse(const.API_ERROR.MERCHANT_CLOSURED)
+                return ApiJsonErrorResponse(const.API_ERROR.MERCHANT_FORBID)
 
             # 验签
             encode_type = valid_data["encode_type"]

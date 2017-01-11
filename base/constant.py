@@ -241,7 +241,7 @@ class BANK_ID(object):
     CIB = 1009
 
     NAMES = {
-        GDB: u"GuangDong Development Bank广发银行",
+        GDB: u"GuangDong Development Bank",
         ICBC: u"Industrial and Commercial Bank工商银行",
         ABC: u"Agricultural Bank农业银行",
         BOC: u"Bank Of China中国银行",

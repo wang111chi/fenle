@@ -67,8 +67,6 @@ def index():
     "memo": (F_str("订单备注") <= 255) & "strict" & "required",
     "expire_time": (F_int("订单有效时长")) & "strict" & "optional",
     "attach": (F_str("附加数据") <= 255) & "strict" & "optional",
-    # FIXME: review by liyuan:  user_account_type(attr)如果是枚举常量，
-    # 这里应该用lambda限制常量的范围
     "user_account_type": (F_int("银行卡类型")) & "strict" & "required" & (
         lambda v: (v in const.ACCOUNT_TYPE.ALL, v)),
     "user_account_attr": (F_int("用户类型")) & "strict" & "required" & (
@@ -82,8 +80,6 @@ def index():
     "divided_term": (F_int("分期期数")) & "strict" & "required",
     "fee_duty": (F_int("手续费承担方")) & "strict" & "required" & (
         lambda v: (v in const.FEE_DUTY.ALL, v)),
-    # FIXME: review by liyuan:  channel如果是枚举常量，
-    # 这里应该用lambda限制常量的范围
     "channel": (F_int("渠道类型")) & "strict" & "required" & (
         lambda v: (v in const.CHANNEL.ALL, v)),
     "rist_ctrl": (F_str("风险控制数据") <= 10240) & "strict" & "optional",
@@ -102,7 +98,7 @@ def cardpay_apply(db, safe_vars):
     elif merchant_ret['status'] == const.MERCHANT_STATUS.FORBID:  # 判断是否被封禁
         return ApiJsonErrorResponse(const.API_ERROR.MERCHANT_FORBID)
 
-    # 预备返回的参数
+    # 返回的参数
     ret_data = dict(
         spid=safe_vars['spid'],
         sp_tid=safe_vars['sp_tid'],
@@ -124,6 +120,7 @@ def cardpay_apply(db, safe_vars):
         ret_data.update({
             "list_id": list_ret['list_id'],
             "result": list_ret['status'], })
+        ret_data = util.encode_unicode(ret_data)
         cipher_data = util.rsa_sign_and_encrypt_params(
             ret_data,
             config.FENLE_PRIVATE_KEY,
@@ -250,7 +247,6 @@ def cardpay_apply(db, safe_vars):
             safe_vars['spid'],
             safe_vars['bank_type']),
         bank_tid=util.gen_bank_tid(bank_spid),
-        # FIXME: review by liyuan: backid应该是银行返回时才有的数据，这里还没有，返回后再update
         bank_backid='',  # 暂时拟的
         status=const.TRANS_STATUS.PAYING,  # 支付中
         lstate=const.LSTATE.VALID,  # 有效的
@@ -390,6 +386,7 @@ def cardpay_apply(db, safe_vars):
         ret_data.update({
             "list_id": comput_data['list_id'],
             "result": const.TRANS_STATUS.PAY_SUCCESS, })
+        ret_data = util.encode_unicode(ret_data)
         cipher_data = util.rsa_sign_and_encrypt_params(
             ret_data,
             config.FENLE_PRIVATE_KEY,
@@ -413,7 +410,6 @@ def cardpay_apply(db, safe_vars):
     "bank_valicode": (F_str("银行下发的验证码") <= 32) & "strict" & "required",
 })
 def cardpay_confirm(db, safe_vars):
-    # FIXME: review by liyuan:  conn统一用db_conn装饰器获取
 
     # 检查订单状态
     sel = select([t_trans_list.c.status,
@@ -527,8 +523,6 @@ def cardpay_confirm(db, safe_vars):
         status=const.TRANS_STATUS.PAY_SUCCESS,
         modify_time=now)
 
-    # FIXME: review by liyuan:  这里的逻辑有问题，在发请求前先开一个事务插入两个流水，
-    # 同时更新trans_list的状态，然后向银行发请求，请求返回后才是再开一个事务更新各流水和余额
     with transaction(db) as trans:
         db.execute(udp_sp_bankroll)
         db.execute(udp_fenle_bankroll)
@@ -542,7 +536,6 @@ def cardpay_confirm(db, safe_vars):
     s = select([t_merchant_info.c.rsa_pub_key]).where(
         t_merchant_info.c.spid == safe_vars['spid'])
     merchant_ret = db.execute(s).first()
-    # FIXME: review by liyuan:  返回的数据为空？应该是跟第一步中的不需要验证码时的情况一致
     ret_data = dict(
         spid=list_ret['spid'],
         sp_tid=list_ret['sp_tid'],
@@ -557,6 +550,7 @@ def cardpay_confirm(db, safe_vars):
     ret_data.update({
         "list_id": list_ret['list_id'],
         "result": list_ret['status'], })
+    ret_data = util.encode_unicode(ret_data)
     cipher_data = util.rsa_sign_and_encrypt_params(
         ret_data,
         config.FENLE_PRIVATE_KEY,
@@ -612,13 +606,13 @@ def single_query(db, safe_vars):
         "encode_type": safe_vars["encode_type"],
         "spid": safe_vars['spid'],
         "bank_name": const.BANK_ID.NAMES[list_ret["bank_type"]],
-        "result": list_ret["status"],
-    })
+        "result": list_ret["status"], })
+    ret_data = util.encode_unicode(ret_data)
 
     cipher_data = util.rsa_sign_and_encrypt_params(
         ret_data,
         config.FENLE_PRIVATE_KEY,
         merchant_ret['rsa_pub_key'])
-
     return ApiJsonOkResponse(
-        cipher_data=cipher_data, )
+        cipher_data=cipher_data,
+        safe_vars=safe_vars)
