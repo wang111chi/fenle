@@ -14,6 +14,15 @@ class PRODUCT_TYPE(object):
     JIFEN = 2  # 积分
 
 
+class CHANNEL(object):
+
+    API = 1
+    SP_SYSTEM = 2  # 商户系统
+    GATA = 3  # 网关
+
+    ALL = (API, SP_SYSTEM, GATA)
+
+
 class SETTLE_TYPE(object):
     DAY_SETTLE = 1     # 日结
     MONTH_SETTLE = 2   # 月结
@@ -51,12 +60,6 @@ class CUR_TYPE(object):
     ALL = (RMB, DOLLAR)
 
 
-class LSTATE(object):
-    VALID = 1  # 有效
-    HUNG = 2  # 挂起
-    INVALID = 3  # 作废
-
-
 class SP_BANKROLL_TYPE(object):
     IN = 1  # 入账
     OUT = 2  # 出帐
@@ -66,7 +69,19 @@ class SP_BANKROLL_TYPE(object):
     ARREARS_OUT = 6  # 欠款出
 
 
-class STATUS(object):
+class LSTATE(object):
+    VALID = 1  # 有效
+    HUNG = 2  # 挂起
+    INVALID = 3  # 作废
+
+
+class USER_BANK_STATUS(object):
+    INIT = 0  # 初始化
+    CERTIFIED = 1  # 经认证了的
+    LOG_OFF = 2  # 注销
+
+
+class TRANS_STATUS(object):
     PAY_SUCCESS = 1
     PAY_FALSE = 2
     PAYING = 4
@@ -74,7 +89,7 @@ class STATUS(object):
 
 
 class MERCHANT_STATUS(object):
-    CLOSURED = 1  # 封禁
+    FORBID = 1  # 封禁
     OPEN = 0  # 开放
 
 
@@ -119,6 +134,8 @@ class ACCOUNT_TYPE(object):
     CREDIT_CARD = 0
     DEBIT_CARD = 1
 
+    ALL = (CREDIT_CARD, DEBIT_CARD)
+
     NAMES = {
         DEBIT_CARD: u"借记卡",
         CREDIT_CARD: u"信用卡"
@@ -131,6 +148,8 @@ class ACCOUNT_ATTR(object):
 
     PERSONAL = 1
     ENTERPRISE = 2
+
+    ALL = (PERSONAL, ENTERPRISE)
 
     NAMES = {
         PERSONAL: u"个人",
@@ -147,6 +166,7 @@ class FEE_DUTY(object):
     BUSINESS = 1
     CUSTOM = 2
 
+    ALL = (BUSINESS, CUSTOM)
     NAMES = {
         BUSINESS: u"商户",
         CUSTOM: u"用户",
@@ -157,7 +177,7 @@ class API_ERROR(object):
     PARAM_ERROR = 207001
 
     SPID_NOT_EXIST = 207200
-    MERCHANT_CLOSURED = 207201
+    MERCHANT_FORBID = 207201
 
     DECRYPT_ERROR = 207366
     SIGN_INVALID = 207367
@@ -174,16 +194,20 @@ class API_ERROR(object):
 
     NO_SP_BANK = 207504
     DIVIDED_TERM_NOT_EXIST = 207505
+    SP_BALANCE_NOT_EXIST = 207506
+    FENLE_BALANCE_NOT_EXIST = 207507
 
     LIST_ID_NOT_EXIST = 207600
     CONFIRM_STATUS_ERROR = 207601
     CONFIRM_MOBILE_ERROR = 207602
 
-    INSERT_ERROR = 207701
+    NO_USER_PAY = 207701
+    INSERT_ERROR = 207702
+
     NAMES = {
         PARAM_ERROR: u"参数格式错误",
         SPID_NOT_EXIST: u"分乐不存在此商户号",
-        MERCHANT_CLOSURED: u"商户被封禁了",
+        MERCHANT_FORBID: u"商户被封禁了",
         DECRYPT_ERROR: u"解密失败",
         SIGN_INVALID: u"校验签名失败",
         ACCOUNT_NOT_EXIST: u"银行卡未注册",
@@ -196,9 +220,12 @@ class API_ERROR(object):
         NO_USER_NAME: u"用户姓名需要验证",
         NO_SP_BANK: u"商家银行没有相关服务",
         DIVIDED_TERM_NOT_EXIST: u"不存在这样的分期期数服务",
+        SP_BALANCE_NOT_EXIST: u"商户余额账户不存在",
+        FENLE_BALANCE_NOT_EXIST: u"分乐余额账户不存在",
         LIST_ID_NOT_EXIST: u"二次确认中订单号错误",
         CONFIRM_STATUS_ERROR: u"二次确认状态错误",
         CONFIRM_MOBILE_ERROR: u"二次确认手机号错误",
+        NO_USER_PAY: u"不支持用户付手续费情形",
         INSERT_ERROR: u"数据库插入异常"}
 
 

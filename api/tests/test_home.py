@@ -29,6 +29,7 @@ from base import constant as const
 
 class TestCardpayApply(object):
     # 测试参数模板
+
     params = util.encode_unicode({
         "encode_type": "MD5",
         "spid": "1" * 9 + '1',
@@ -54,7 +55,6 @@ class TestCardpayApply(object):
         "channel": 1,
         "rist_ctrl": "",
     })
-
     spid = '1' * 10
     bank_type = 1001
 
@@ -111,6 +111,7 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
         # initial sp_balance
         sp_balance_data = dict(
             spid=self.spid,
+            cur_type=self.params['cur_type'],
             uid=self.spid,
             balance=10000,
             modify_time=now,
