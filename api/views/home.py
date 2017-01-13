@@ -271,16 +271,9 @@ def cardpay_apply(db, safe_vars):
     ret_sp_bank = check_sp_bank(db, safe_vars)
     if not ret_sp_bank['is_ok']:
         return ApiJsonErrorResponse(ret_sp_bank['result'])
-    bank_spid = ret_sp_bank['bank_spid']
+    bank_spid = ret_sp_bank['result']['bank_spid']
     comput_data['fee']\
         = safe_vars['money'] * ret_sp_bank['result']['fee_percent'] / 10000
-
-    # 检查balance,为空是初始化
-    sel_fenle_balance = select([t_fenle_balance.c.id]).where(and_(
-        t_fenle_balance.c.account_no == config.FENLE_ACCOUNT_NO,
-        t_fenle_balance.c.bank_type == config.FENLE_BANK_TYPE))
-    if db.execute(sel_fenle_balance).first() is None:
-        return ApiJsonErrorResponse(const.API_ERROR.FENLE_BALANCE_NOT_EXIST)
 
     # 生成订单相关数据
     comput_data.update(dict(
