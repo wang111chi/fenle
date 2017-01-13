@@ -50,6 +50,120 @@ def index():
     return "What do you want?"
 
 
+# 提取函数返回结构{'is_ok':False, 'result':const.*.*}
+# 从mysql检查商户spid及状态信息
+def check_merchant(db, spid, cur_type):
+    sel_sp_balance = select([t_sp_balance.c.id]).where(and_(
+        t_sp_balance.c.spid == spid,
+        t_sp_balance.c.cur_type == cur_type))
+    ret = {'is_ok': False}
+    if db.execute(sel_sp_balance).first() is None:
+        ret['result'] = const.API_ERROR.SP_BALANCE_NOT_EXIST
+        return ret
+    s = select([t_merchant_info.c.status,
+                t_merchant_info.c.rsa_pub_key]).where(
+        t_merchant_info.c.spid == spid)
+    merchant_ret = db.execute(s).first()
+    if merchant_ret is None:
+        ret['result'] = const.API_ERROR.SPID_NOT_EXIST
+    elif merchant_ret['status'] == const.MERCHANT_STATUS.FORBID:  # 判断是否被封禁
+        ret['result'] = const.API_ERROR.MERCHANT_FORBID
+    else:
+        ret['is_ok'] = True
+        ret['result'] = {'merchant_pubkey': merchant_ret['rsa_pub_key']}
+    return ret
+
+
+# 检查银行渠道是否可用，是否验证手机号
+def check_bank_channel(db, safe_vars):
+    """
+    需要确保safe_vars包含以下字段:
+    bank_type, expiration_date, pin_code, user_name, divided_term
+    """
+    ret = {'is_ok': False}
+    if not set(('bank_type', 'divided_term', 'expiration_date',
+                'pin_code', 'user_name')) <= set(safe_vars.iterkeys()):
+        ret['result'] = const.API_ERROR.PARAM_ERROR
+        return ret
+
+    sel = select([t_bank_channel.c.is_enable,
+                  t_bank_channel.c.fenqi_fee_percent,
+                  t_bank_channel.c.bank_valitype,
+                  t_bank_channel.c.bank_channel,
+                  t_bank_channel.c.singlepay_vmask]).where(
+        t_bank_channel.c.bank_type == safe_vars['bank_type'])
+    channel_ret = db.execute(sel).first()
+    if channel_ret is None:
+        ret['result'] = const.API_ERROR.BANK_NOT_EXIST
+        return ret
+
+    if channel_ret['is_enable'] == const.BOOLEAN.FALSE:  # 银行渠道不可用
+        ret['result'] = const.API_ERROR.BANK_CHANNEL_UNABLE
+        return ret
+
+    if channel_ret['singlepay_vmask'] is not None:
+        # 验证有效期
+        if (channel_ret['singlepay_vmask'] & const.PAY_MASK.EXPIRATION) and \
+           (safe_vars['expiration_date'] is None):
+            ret['result'] = const.API_ERROR.NO_EXPIRATION_DATE
+            return ret
+
+        # 验证安全码
+        if (channel_ret['singlepay_vmask'] & const.PAY_MASK.PIN_CODE) and \
+           (safe_vars['pin_code'] is None):
+            ret['result'] = const.API_ERROR.NO_PIN_CODE
+            return ret
+
+        # 验证姓名
+        if (channel_ret['singlepay_vmask'] & const.PAY_MASK.NAME) and \
+           (safe_vars['user_name'] is None):
+            ret['result'] = const.API_ERROR.NO_USER_NAME
+            return ret
+
+    fenqi_fee_percent = json.loads(channel_ret['fenqi_fee_percent'])
+    if str(safe_vars['divided_term']) not in fenqi_fee_percent:
+        ret['result'] = const.API_ERROR.DIVIDED_TERM_NOT_EXIST
+        return ret
+
+    ret['is_ok'] = True
+    bank_fee_percent = fenqi_fee_percent[str(safe_vars['divided_term'])]
+    ret['result'] = {
+        'bank_fee_percent': bank_fee_percent,
+        'bank_channel': channel_ret['bank_channel']}
+    if channel_ret['bank_valitype'] == const.BANK_VALITYPE.MOBILE_VALID:
+        # 需要验证手机号
+        ret['result']['is_need_mobile'] = True
+    else:
+        ret['result']['is_need_mobile'] = False
+    return ret
+
+
+# 查 sp_bank 的 fenqi_fee_percent
+def check_sp_bank(db, safe_vars):
+    ret = {'is_ok': False}
+    if not (set(safe_vars.iterkeys()) >=
+            set(('spid', 'bank_type', 'divided_term'))):
+        ret['result'] = const.API_ERROR.PARAM_ERROR
+        return ret
+    sel = select([t_sp_bank.c.fenqi_fee_percent,
+                  t_sp_bank.c.bank_spid]).where(and_(
+                      t_sp_bank.c.spid == safe_vars['spid'],
+                      t_sp_bank.c.bank_type == safe_vars['bank_type']))
+    sp_bank_ret = db.execute(sel).first()
+    if sp_bank_ret is None:
+        ret['result'] = const.API_ERROR.NO_SP_BANK
+        return ret
+    fenqi_fee_percent = json.loads(sp_bank_ret['fenqi_fee_percent'])
+    if str(safe_vars['divided_term']) not in fenqi_fee_percent:
+        ret['result'] = const.API_ERROR.DIVIDED_TERM_NOT_EXIST
+        return ret
+    fee_percent = fenqi_fee_percent[str(safe_vars['divided_term'])]
+    ret['is_ok'] = True
+    ret['result'] = {'fee_percent': fee_percent,
+                     'bank_spid': sp_bank_ret['bank_spid']}
+    return ret
+
+
 @home.route("/cardpay/apply")
 @general("信用卡分期支付申请")
 @db_conn
@@ -87,35 +201,22 @@ def index():
 def cardpay_apply(db, safe_vars):
     # 处理逻辑
 
-    # 从mysql检查商户spid是否存在
-    s = select([t_merchant_info.c.status,
-                t_merchant_info.c.mer_key,
-                t_merchant_info.c.rsa_pub_key]).where(
-        t_merchant_info.c.spid == safe_vars['spid'])
-    merchant_ret = db.execute(s).first()
-    if merchant_ret is None:
-        return ApiJsonErrorResponse(const.API_ERROR.SPID_NOT_EXIST)
-    elif merchant_ret['status'] == const.MERCHANT_STATUS.FORBID:  # 判断是否被封禁
-        return ApiJsonErrorResponse(const.API_ERROR.MERCHANT_FORBID)
+    ret_merchant = check_merchant(db, safe_vars['spid'], safe_vars['cur_type'])
+    if not ret_merchant['is_ok']:
+        return ApiJsonErrorResponse(ret_merchant['result'])
 
     # 返回的参数
-    ret_data = dict(
-        spid=safe_vars['spid'],
-        sp_tid=safe_vars['sp_tid'],
-        money=safe_vars['money'],
-        cur_type=safe_vars['cur_type'],
-        divided_term=safe_vars['divided_term'],
-        fee_duty=safe_vars['fee_duty'],
-        pay_type=const.PRODUCT_TYPE.FENQI,
-        user_account_type=safe_vars['user_account_type'],
-        encode_type=safe_vars['encode_type'], )
+    ret_data = {'pay_type': const.PRODUCT_TYPE.FENQI}
+    for k in ('spid', 'sp_tid', 'money', 'cur_type', 'divided_term',
+              'fee_duty', 'user_account_type', 'encode_type'):
+        ret_data[k] = safe_vars[k]
 
     # 检查商户订单号是否已经存在
     sel = select([t_trans_list.c.status, t_trans_list.c.list_id]).where(and_(
         t_trans_list.c.spid == safe_vars['spid'],
         t_trans_list.c.sp_tid == safe_vars['sp_tid']))
     list_ret = db.execute(sel).first()
-    merchant_pubkey = merchant_ret['rsa_pub_key']
+    merchant_pubkey = ret_merchant['result']['merchant_pubkey']
     if list_ret is not None:   # 如果已经存在
         ret_data.update({
             "list_id": list_ret['list_id'],
@@ -134,50 +235,12 @@ def cardpay_apply(db, safe_vars):
         product_type=const.PRODUCT_TYPE.FENQI,)
 
     # 检查银行渠道是否可用，是否验证手机号
-    sel = select([t_bank_channel.c.is_enable,
-                  t_bank_channel.c.fenqi_fee_percent,
-                  t_bank_channel.c.bank_valitype,
-                  t_bank_channel.c.bank_channel,
-                  t_bank_channel.c.singlepay_vmask]).where(
-        t_bank_channel.c.bank_type == safe_vars['bank_type'])
-    channel_ret = db.execute(sel).first()
-    if channel_ret is None:
-        return ApiJsonErrorResponse(const.API_ERROR.BANK_NOT_EXIST)
-
-    if channel_ret['is_enable'] == const.BOOLEAN.FALSE:  # 银行渠道不可用
-        return ApiJsonErrorResponse(const.API_ERROR.BANK_CHANNEL_UNABLE)
-
-    if channel_ret['singlepay_vmask'] is not None:
-        # 验证有效期
-        # FIXME: review by liyuan:  这里不能用 not in来检查，optional的字段
-        # 依然会在safe_vars中，只是为None而已，下面的几个检查存在一样的问题
-        if (channel_ret['singlepay_vmask'] & const.PAY_MASK.EXPIRATION) and \
-           (safe_vars['expiration_date'] is None):
-            return ApiJsonErrorResponse(const.API_ERROR.NO_EXPIRATION_DATE)
-
-        # 验证安全码
-        if (channel_ret['singlepay_vmask'] & const.PAY_MASK.PIN_CODE) and \
-           (safe_vars['pin_code'] is None):
-            return ApiJsonErrorResponse(const.API_ERROR.NO_PIN_CODE)
-
-        # 验证姓名
-        if (channel_ret['singlepay_vmask'] & const.PAY_MASK.NAME) and \
-           (safe_vars['user_name'] is None):
-            return ApiJsonErrorResponse(const.API_ERROR.NO_USER_NAME)
-
-    if channel_ret['bank_valitype'] == const.BANK_VALITYPE.MOBILE_VALID:
-        # 需要验证手机号
-        is_need_mobile = True
-    else:
-        is_need_mobile = False
-    bank_fee_percent = json.loads(channel_ret['fenqi_fee_percent'])
-    if str(safe_vars['divided_term']) not in bank_fee_percent:
-        return ApiJsonErrorResponse(const.API_ERROR.DIVIDED_TERM_NOT_EXIST)
-    comput_data.update({
-        'bank_channel': channel_ret['bank_channel'],
-        'bank_fee': (bank_fee_percent[str(safe_vars['divided_term'])] *
-                     safe_vars['money'] / 10000)
-    })
+    ret_channel = check_bank_channel(db, safe_vars)
+    if not ret_channel['is_ok']:
+        return ApiJsonErrorResponse(ret_channel['result'])
+    comput_data['bank_channel'] = ret_channel['result']['bank_channel']
+    comput_data['bank_fee'] = safe_vars[
+        'money'] * ret_channel['result']['bank_fee_percent'] / 10000
 
     # 检查用户银行卡信息 user_bank
     now = datetime.now()
@@ -204,37 +267,15 @@ def cardpay_apply(db, safe_vars):
         if user_bank_ret['lstate'] == const.LSTATE.HUNG:  # 冻结标志
             return ApiJsonErrorResponse(const.API_ERROR.BANKCARD_FREEZED)
 
-    # 检查合同信息
-
-    # 查 sp_bank 的 fenqi_fee_percent
-    sel = select([t_sp_bank.c.fenqi_fee_percent,
-                  t_sp_bank.c.bank_spid,
-                  t_sp_bank.c.divided_term]).where(and_(
-                      t_sp_bank.c.spid == safe_vars['spid'],
-                      t_sp_bank.c.bank_type == safe_vars['bank_type']))
-    sp_bank_ret = db.execute(sel).first()
-    if sp_bank_ret is None:
-        return ApiJsonErrorResponse(const.API_ERROR.NO_SP_BANK)
-
-    if str(safe_vars['divided_term']) not in \
-            sp_bank_ret['divided_term'].split(','):
-        return ApiJsonErrorResponse(const.API_ERROR.DIVIDED_TERM_NOT_EXIST)
-
-    fenqi_fee_percent = json.loads(sp_bank_ret['fenqi_fee_percent'])
-    if str(safe_vars['divided_term']) not in fenqi_fee_percent:
-        return ApiJsonErrorResponse(const.API_ERROR.DIVIDED_TERM_NOT_EXIST)
-    fee_percent = fenqi_fee_percent[str(safe_vars['divided_term'])]
-    comput_data.update({'fee': safe_vars['money'] * fee_percent / 10000})
-    bank_spid = sp_bank_ret['bank_spid']
+    # 检查商户银行
+    ret_sp_bank = check_sp_bank(db, safe_vars)
+    if not ret_sp_bank['is_ok']:
+        return ApiJsonErrorResponse(ret_sp_bank['result'])
+    bank_spid = ret_sp_bank['bank_spid']
+    comput_data['fee']\
+        = safe_vars['money'] * ret_sp_bank['result']['fee_percent'] / 10000
 
     # 检查balance,为空是初始化
-    now = datetime.now()
-    sel_sp_balance = select([t_sp_balance.c.id]).where(and_(
-        t_sp_balance.c.spid == safe_vars['spid'],
-        t_sp_balance.c.cur_type == safe_vars['cur_type']))
-    if db.execute(sel_sp_balance).first() is None:
-        return ApiJsonErrorResponse(const.API_ERROR.SP_BALANCE_NOT_EXIST)
-
     sel_fenle_balance = select([t_fenle_balance.c.id]).where(and_(
         t_fenle_balance.c.account_no == config.FENLE_ACCOUNT_NO,
         t_fenle_balance.c.bank_type == config.FENLE_BANK_TYPE))
@@ -271,9 +312,9 @@ def cardpay_apply(db, safe_vars):
         u'divided_term', u'pin_code', u'fee_duty', u'channel'))
     ''' other_field = (u'expiration_date', u'money', u'rist_ctrl',
     u'expire_time', u'errpage_url', u'encode_type', u'sign',)'''
-    solid_data = dict((k, v) for k, v in safe_vars.items() if k in solid_field)
+    solid_data = dict((k, safe_vars[k]) for k in solid_field)
 
-    if is_need_mobile:
+    if ret_channel['result']['is_need_mobile']:
         comput_data.update({'status': const.TRANS_STATUS.MOBILE_CHECKING})
         db.execute(t_trans_list.insert(), dict(chain(
             comput_data.iteritems(), solid_data.iteritems())))

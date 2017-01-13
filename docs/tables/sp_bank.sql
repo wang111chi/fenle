@@ -12,7 +12,6 @@ CREATE TABLE `sp_bank` (
   `status` int(11) NOT NULL DEFAULT '0' COMMENT '状态',
   `fenqi_fee_percent` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '分期手续费,万分之几，json字符串，分期期数作为键',
   `jifen_fee_percent` int(11) DEFAULT NULL COMMENT '积分手续费',
-  `divided_term` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '分期期数6,12逗号分隔',
   `settle_type` tinyint(4) NOT NULL COMMENT '日结与月结',
   PRIMARY KEY (`id`),
   UNIQUE KEY `spid_banktype` (`spid`,`bank_type`)
