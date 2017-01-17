@@ -30,7 +30,7 @@ from base import constant as const
 class TestCardpayApply(object):
     # 测试参数模板
 
-    params = util.encode_unicode({
+    params = {
         "encode_type": "MD5",
         "spid": "1" * 9 + '1',
         "sp_userid": "12345678",
@@ -54,13 +54,12 @@ class TestCardpayApply(object):
         "fee_duty": 1,
         "channel": 1,
         "rist_ctrl": "",
-    })
+    }
     spid = '1' * 10
     bank_type = 1001
 
     def insert_bank_and_merchant(self, conn):
-        """ insert some test data to mysql table"""
-
+        """insert some test data to mysql table."""
         # initial merchant_info
         merchant_data = dict(
             spid=self.spid,
@@ -105,8 +104,7 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
         return bank_data['bank_valitype']
 
     def init_balance(self, conn):
-        """ insert some test data to mysql table"""
-
+        """insert some test data to mysql table."""
         now = datetime.now()
         # initial sp_balance
         sp_balance_data = dict(
@@ -128,28 +126,27 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
         conn.execute(t_fenle_balance.insert(), fenle_balance_data)
 
     def cardpay_apply_md5(self, key, params):
-        u"""MD5签名 + RSA加密. """
-
+        u"""MD5签名 + RSA加密."""
         params = [(k, v) for k, v in params.items() if
                   v is not None and v != ""]
         params = sorted(params, key=operator.itemgetter(0))
         params_with_key = params + [("key", key)]
 
-        urlencoded_params = urllib.urlencode(params_with_key)
+        urlencoded_params = urllib.parse.urlencode(params_with_key)
         # MD5签名
         m = hashlib.md5()
-        m.update(urlencoded_params)
+        m.update(urlencoded_params.encode('utf8'))
         sign = m.hexdigest()
 
         # RSA加密
         params_with_sign = params + [("sign", sign)]
-        urlencoded_params = urllib.urlencode(params_with_sign)
+        urlencoded_params = urllib.parse.urlencode(params_with_sign)
 
         cipher_data = b64encode(
             util.rsa_encrypt(urlencoded_params, config.FENLE_PUB_KEY))
 
         final_params = {"cipher_data": cipher_data}
-        final_params = urllib.urlencode(final_params)
+        final_params = urllib.parse.urlencode(final_params)
 
         return final_params
 
@@ -166,7 +163,7 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
         assert resp.status_code == 200
 
         json_resp = json.loads(resp.data)
-        print json_resp
+        print(json_resp)
         logger.debug(json_resp)
         list_id = json_resp['list_id']
         assert json_resp["retcode"] == 0
@@ -187,12 +184,12 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
             logger.debug(json_rsp)
 
         # 查询接口
-        qry_data = util.encode_unicode({
+        qry_data = {
             "encode_type": "MD5",
             "list_id": list_id,
             "spid": self.spid,
             "channel": const.CHANNEL.API
-        })
+        }
         final_data = self.cardpay_apply_md5(key, qry_data)
         rsp = client.get('/query/single?%s' % final_data)
 
@@ -211,7 +208,7 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
             config.FENLE_PUB_KEY
         )
 
-        final_params = urllib.urlencode({"cipher_data": cipher_data})
+        final_params = urllib.parse.urlencode({"cipher_data": cipher_data})
         resp = client.get('/cardpay/apply?%s' % final_params)
 
         assert resp.status_code == 200

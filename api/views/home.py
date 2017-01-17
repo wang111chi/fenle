@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from base64 import b64decode
-import urlparse
 import operator
 import hashlib
 import urllib
@@ -82,7 +81,7 @@ def check_bank_channel(db, safe_vars):
     """
     ret = {'is_ok': False}
     if not set(('bank_type', 'divided_term', 'expiration_date',
-                'pin_code', 'user_name')) <= set(safe_vars.iterkeys()):
+                'pin_code', 'user_name')) <= set(safe_vars.keys()):
         ret['result'] = const.API_ERROR.PARAM_ERROR
         return ret
 
@@ -141,7 +140,7 @@ def check_bank_channel(db, safe_vars):
 # 查 sp_bank 的 fenqi_fee_percent
 def check_sp_bank(db, safe_vars):
     ret = {'is_ok': False}
-    if not (set(safe_vars.iterkeys()) >=
+    if not (set(safe_vars.keys()) >=
             set(('spid', 'bank_type', 'divided_term'))):
         ret['result'] = const.API_ERROR.PARAM_ERROR
         return ret
@@ -310,7 +309,7 @@ def cardpay_apply(db, safe_vars):
     if ret_channel['result']['is_need_mobile']:
         comput_data.update({'status': const.TRANS_STATUS.MOBILE_CHECKING})
         db.execute(t_trans_list.insert(), dict(chain(
-            comput_data.iteritems(), solid_data.iteritems())))
+            comput_data.items(), solid_data.items())))
 
         # TODO 调用银行下发验证码，根据结果更新 bank_backid
         ret_data.update({
@@ -641,7 +640,6 @@ def single_query(db, safe_vars):
         "spid": safe_vars['spid'],
         "bank_name": const.BANK_ID.NAMES[list_ret["bank_type"]],
         "result": list_ret["status"], })
-    ret_data = util.encode_unicode(ret_data)
 
     cipher_data = util.rsa_sign_and_encrypt_params(
         ret_data,

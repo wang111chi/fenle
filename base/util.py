@@ -33,11 +33,11 @@ def check_sign_md5(key, params):
     params = sorted(params, key=operator.itemgetter(0))
     params_with_key = params + [("key", key)]
 
-    urlencoded_params = urllib.urlencode(params_with_key)
+    urlencoded_params = urllib.parse.urlencode(params_with_key)
 
     # MD5签名
     m = hashlib.md5()
-    m.update(urlencoded_params)
+    m.update(urlencoded_params.encode())
     computed_sign = m.hexdigest()
 
     return sign == computed_sign
@@ -52,7 +52,7 @@ def check_sign_rsa(pub_key, params):
               v is not None and v != "" and k != "sign"]
 
     params = sorted(params, key=operator.itemgetter(0))
-    urlencoded_params = urllib.urlencode(params)
+    urlencoded_params = urllib.parse.urlencode(params)
 
     # TODO: 从数据库获取
     merchant_public_key = RSA.importKey(pub_key)
@@ -129,8 +129,9 @@ def safe_inet_aton(ip):
 
 
 def pkcs_encrypt(cipher, message):
+    message = message.encode()
     handled = 0
-    ciphertext = ""
+    ciphertext = b""
     while len(message[handled:]) > 0:
         part = message[handled:handled + 117]
         ciphertext += cipher.encrypt(part)
@@ -141,7 +142,7 @@ def pkcs_encrypt(cipher, message):
 def pkcs_decrypt(cipher, ciphertext):
     e = Exception()
     handled = 0
-    message = ""
+    message = b""
     while len(ciphertext[handled:]) > 0:
         part = ciphertext[handled:handled + 128]
         try:
@@ -154,11 +155,12 @@ def pkcs_decrypt(cipher, ciphertext):
 
         message += m
         handled += len(part)
-    return message
+    return message.decode()
 
 
 def rsa_sign(message, private_key):
     u"""用SHA1 hash后再用RSA签名."""
+    message = message.encode()
     h = SHA.new(message)
     private_key = RSA.importKey(private_key)
     signer = sign_PKCS1_v1_5.new(private_key)
@@ -177,9 +179,10 @@ def rsa_sign_and_encrypt_params(params, private_key, public_key):
               v is not None and v != ""]
     handled_params = sorted(params, key=operator.itemgetter(0))
 
-    sign = b64encode(rsa_sign(urllib.urlencode(handled_params), private_key))
+    sign = b64encode(rsa_sign(urllib.parse.urlencode(handled_params),
+                              private_key))
     params_with_sign = handled_params + [("sign", sign)]
-    urlencoded_params = urllib.urlencode(params_with_sign)
+    urlencoded_params = urllib.parse.urlencode(params_with_sign)
     return b64encode(rsa_encrypt(urlencoded_params, public_key))
 
 
