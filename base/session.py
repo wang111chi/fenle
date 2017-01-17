@@ -36,8 +36,8 @@ class RedisSessionInterface(SessionInterface):
 
     def generate_sid(self):
         # return str(uuid4())
-        chars = string.letters + string.digits + "_-"
-        return "".join([chars[ord(i) % len(chars)] for i in os.urandom(40)])
+        chars = string.ascii_letters + string.digits + "_-"
+        return "".join([chars[i % len(chars)] for i in os.urandom(40)])
 
     def get_redis_expiration_time(self, app, session):
         if session.permanent:
