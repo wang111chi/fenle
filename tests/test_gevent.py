@@ -1,9 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # remember to import me at first!
 
-import importme
+from . import importme
 
 import gevent
 import time
@@ -58,9 +58,9 @@ from gevent.pool import Pool
 
 def test_pool():
     p = Pool(5)
-    run1 = [a for a in p.imap_unordered(echo, xrange(10))]
-    run2 = [a for a in p.imap_unordered(echo, xrange(10))]
-    run3 = [a for a in p.imap_unordered(echo, xrange(10))]
-    run4 = [a for a in p.imap_unordered(echo, xrange(10))]
+    run1 = [a for a in p.imap_unordered(echo, range(10))]
+    run2 = [a for a in p.imap_unordered(echo, range(10))]
+    run3 = [a for a in p.imap_unordered(echo, range(10))]
+    run4 = [a for a in p.imap_unordered(echo, range(10))]
 
     assert(run1 == run2 == run3 == run4)

@@ -1,8 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # remember to import me at first!
-import importme
+from . import importme
 
 from base.framework import transaction
 from base.db import engine

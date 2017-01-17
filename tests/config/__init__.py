@@ -20,7 +20,7 @@ from config_global import *
 
 
 def deep_update(from_dict, to_dict):
-    for (key, value) in from_dict.iteritems():
+    for (key, value) in from_dict.items():
         if key in to_dict.keys() and \
                 isinstance(to_dict[key], dict) and \
                 isinstance(value, dict):
@@ -39,7 +39,7 @@ for module_name in modules:
     try:
         module = getattr(__import__(current, globals(), locals(),
                                     [module_name]), module_name)
-    except AttributeError, e:
+    except AttributeError:
         continue
 
     module_fg = {}

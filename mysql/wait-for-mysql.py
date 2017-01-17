@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import os
@@ -17,14 +17,14 @@ while True:
                                       password='123456')
     except mysql.connector.Error:
         if not msg_printed:
-            print "wait for mysql to be ready ..."
+            print("wait for mysql to be ready ...")
             msg_printed = True
         time.sleep(1)
     else:
         cnx.close()
         break
 
-print "mysql connected."
+print("mysql connected.")
 
 cmd = sys.argv[1]
 args = sys.argv[1:]
