@@ -31,7 +31,6 @@ class SETTLE_TYPE(object):
 class REQUEST_STATUS(object):
     SUCCESS = 0                        # 请求成功
     FAIL = 1                           # 请求失败
-    AUTH_ERROR = 2                     # 授权失败/未登录
 
 
 class ENCODE_TYPE(object):
@@ -269,8 +268,3 @@ class CALLBACK_URL(object):
         PENDING = 1  # 待重试(需要下一次重试)
         DONE = 2     # 回调成功(不再需要重试)
         FAIL = 3     # 回调失败(重试次数已达到，同样不再需要重试)
-
-
-class SESSION(object):
-    KEY_WX_PROG_SESSION_KEY = "wx_prog_session_key"
-    KEY_WX_PROG_OPENID = "wx_prog_openid"
