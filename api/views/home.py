@@ -299,7 +299,6 @@ def cardpay_apply(db, safe_vars):
             safe_vars['bank_type']),
         'bank_tid': util.gen_bank_tid(bank_spid),
         'bank_backid': '',  # 暂时拟的
-        'status': const.TRANS_STATUS.PAYING,  # 支付中
         'lstate': const.LSTATE.VALID,  # 有效的
         'create_time': now,
         'modify_time': now})
@@ -361,9 +360,7 @@ def cardpay_apply(db, safe_vars):
         if safe_vars['fee_duty'] == const.FEE_DUTY.BUSINESS:  # 商户付手续费
             sp_bankroll_data.update({
                 'pay_num': comput_data['pay_num'],
-                'sp_num': (comput_data['pay_num'] -
-                           comput_data['fee'])
-            })
+                'sp_num': comput_data['pay_num'] - comput_data['fee']})
             fenle_bankroll_data.update({
                 'pay_num': comput_data['pay_num'],
                 'fact_amount': (comput_data['pay_num'] -
@@ -431,26 +428,24 @@ def cardpay_confirm(db, safe_vars):
     # TODO 用验证码调用银行接口
     list_ret = ret_check[1]
     now = datetime.now()
-    sp_bankroll_data = {
+    sp_bankroll_data = dict((k, list_ret[k]) for k in (
+        'spid', 'bank_type', 'cur_type'))
+    sp_bankroll_data['create_time'] = now
+    sp_bankroll_data['modify_time'] = now
+    sp_bankroll_data['list_id'] = safe_vars['list_id']
+    fenle_bankroll_data = sp_bankroll_data.copy()
+
+    sp_bankroll_data.update({
         'bankroll_type': const.SP_BANKROLL_TYPE.IN,
         'product_type': const.PRODUCT_TYPE.FENQI,
-        'list_sign': const.LIST_SIGN.WELL,
-        'create_time': now,
-        'modify_time': now,
-        'list_id': safe_vars['list_id'],
-        'spid': list_ret['spid'],
-        'cur_type': list_ret['cur_type'],
-        'bank_type': list_ret['bank_type']}
+        'list_sign': const.LIST_SIGN.WELL})
 
-    fenle_bankroll_data = dict((k, list_ret[k]) for k in (
-        'spid', 'bank_type', 'cur_type', 'bank_tid', 'bank_backid'))
     fenle_bankroll_data.update({
         'product_type': const.PRODUCT_TYPE.FENQI,
         'fenle_account_id': config.FENLE_ACCOUNT_NO,
         'fenle_account_type': const.FENLE_ACCOUNT.VIRTUAL,  # 1真实，2虚拟
-        'create_time': now,
-        'modify_time': now,
-        'list_id': safe_vars['list_id']})
+        'bank_tid': list_ret['bank_tid'],
+        'bank_backid': list_ret['bank_backid']})
 
     # fee_duty  计算手续费生成金额
     if list_ret['fee_duty'] == const.FEE_DUTY.BUSINESS:  # 商户付手续费
