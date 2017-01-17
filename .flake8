@@ -17,4 +17,5 @@ exclude =
         base/xform.py,
         .flake8,
 	*.sql,
-        *.yml
+        *.yml,
+        requirements.txt

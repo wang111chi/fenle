@@ -1,19 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import util
-
-
 """
 input_form = {
     'name': (8 <= F_str('abc', 'default-xxx') <= 32) & 'optional',
     'age': (10 <= F_int() & 'optional' <= 100),
     'choices': ((1 <= F_int() <= 10) & 'C' & 'required'
         & (lambda v: v % 2 == 0)),
-    'email': ((2 <= F_email(u'邮箱地址') <= 32) & 'optional' & {
-            'default': u'%(name)s 正确格式是: xxxx@xxx.com',
+    'email': ((2 <= F_email('邮箱地址') <= 32) & 'optional' & {
+            'default': '%(name)s 正确格式是: xxxx@xxx.com',
         }),
-    'url': (8 <= F_str(u'链接', format=r'http://[\w./&?+~]+') <= 1024) & 'optional',
+    'url': (8 <= F_str('链接', format=r'http://[\w./&?+~]+') <= 1024) & 'optional',
 }
 
 fc = FormChecker(req, input_form, err_msg_encoding='utf-8')
@@ -38,14 +35,14 @@ __all__ = [
 
 _default_encoding = 'utf8'
 _default_messages = {
-    'max': u'%(name)s 的最大值为%(max)s',
-    'min': u'%(name)s 最小值为%(min)s',
-    'max_len': u'%(name)s 最大长度为%(max_len)s个字符',
-    'min_len': u'%(name)s 最小长度为%(min_len)s个字符',
-    'blank': u'%(name)s 不能为空',
-    'callback': u'%(name)s 输入出错了',
-    'format': u'%(name)s 格式有错',
-    'default': u'%(name)s 格式有错',
+    'max': '%(name)s 的最大值为%(max)s',
+    'min': '%(name)s 最小值为%(min)s',
+    'max_len': '%(name)s 最大长度为%(max_len)s个字符',
+    'min_len': '%(name)s 最小长度为%(min_len)s个字符',
+    'blank': '%(name)s 不能为空',
+    'callback': '%(name)s 输入出错了',
+    'format': '%(name)s 格式有错',
+    'default': '%(name)s 格式有错',
 }
 
 
@@ -69,7 +66,7 @@ class Input(object):
         self._messages = {}
         self._messages.update(_default_messages)
         self._message_vars = {
-            'name': util.to_unicode(field_name),
+            'name': field_name,
         }
         if default_value is not None:
             self._default_value = default_value
@@ -238,7 +235,7 @@ class F_str(Input):
         self._format = format
 
     def _check(self, value):
-        if not self._check_mm(len(util.to_unicode(value))):
+        if not self._check_mm(len(value)):
             message = self._messages[self._message_key + '_len']
             return False, message
 
@@ -251,7 +248,7 @@ class F_str(Input):
 
 class F_email(F_str):
     def _check(self, value):
-        if not self._check_mm(len(util.to_unicode(value))):
+        if not self._check_mm(len(value)):
             message = self._messages[self._message_key + '_len']
             return False, message
         return self.is_email(value)
@@ -276,7 +273,7 @@ class F_urs(F_email):
             self._min = self._min_urs_length
             self._message_vars['min_len'] = self._min
 
-        if not self._check_mm(len(util.to_unicode(value))):
+        if not self._check_mm(len(value)):
             message = self._messages[self._message_key + '_len']
             return False, message
 
@@ -297,7 +294,7 @@ class F_idnum(Input):
 
 class F_phone(Input):
     def _check(self, value):
-        if not self._check_mm(len(util.to_unicode(value))):
+        if not self._check_mm(len(value)):
             message = self._messages[self._message_key + '_len']
             return False, message
 
@@ -314,7 +311,7 @@ class F_mobile(Input):
         valid = (value and
                 value.startswith('1') and
                 value.isdigit() and
-                len(util.to_unicode(value)) == 11)
+                len(value) == 11)
         if valid:
             data = value
         else:
@@ -333,7 +330,7 @@ class F_datetime(Input):
         from time import strptime
         try:
             return True, datetime(*strptime(value, self._format)[0:6])
-        except ValueError, e:
+        except ValueError:
             return False, self._messages['format']
 
 

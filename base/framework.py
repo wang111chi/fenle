@@ -3,7 +3,7 @@
 
 from functools import wraps
 from base64 import b64decode
-import urlparse
+import urllib
 from contextlib import contextmanager, closing
 
 from flask import make_response, render_template, redirect, request
@@ -62,10 +62,10 @@ class Response(object):
     def output(self):
         resp = make_response(self._output())
 
-        for k, v in self._ext_header.iteritems():
+        for k, v in self._ext_header.items():
             resp.headers[k] = v
 
-        for k, v in self._ext_cookie.iteritems():
+        for k, v in self._ext_cookie.items():
             resp.set_cookie(k, v[0], **v[1])
 
         return resp
@@ -148,7 +148,7 @@ def form_check(settings, var_name="safe_vars", strict_error=True,
         @wraps(old_handler)
         def new_handler(*args, **kwargs):
             req_data = {}
-            for k, v in settings.iteritems():
+            for k, v in settings.items():
                 if v.multiple:
                     req_data[k] = request.values.getlist(k)
                 else:
@@ -206,10 +206,10 @@ def api_sign_and_encrypt_form_check(settings, var_name="safe_vars"):
                 return ApiJsonErrorResponse(const.API_ERROR.DECRYPT_ERROR)
 
             # 参数检查
-            params = urlparse.parse_qs(message)
+            params = urllib.parse.parse_qs(message)
 
             req_data = {}
-            for k, v in settings.iteritems():
+            for k, v in settings.items():
                 param = params.get(k, None)
                 if v.multiple:
                     req_data[k] = [] if param is None else param

@@ -39,7 +39,7 @@ for module_name in modules:
     try:
         module = getattr(__import__(current, globals(), locals(),
                                     [module_name]), module_name)
-    except AttributeError, e:
+    except AttributeError:
         continue
 
     module_fg = {}
