@@ -126,6 +126,11 @@ class PAY_MASK(object):
         IDCARD_NAME: u"验证证件与姓名的一致性"}
 
 
+class ACCOUNT_CLASS(object):
+    B = 1
+    C = 2
+
+
 class ACCOUNT_TYPE(object):
 
     u"""银行卡类型."""

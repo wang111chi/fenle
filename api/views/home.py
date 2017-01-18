@@ -51,7 +51,7 @@ def index():
 
 # 从mysql检查商户spid及状态信息
 def check_merchant(db, spid, cur_type):
-    sel_sp_balance = select([t_sp_balance.c.id]).where(and_(
+    sel_sp_balance = select([t_sp_balance.c.uid]).where(and_(
         t_sp_balance.c.spid == spid,
         t_sp_balance.c.cur_type == cur_type))
     if db.execute(sel_sp_balance).first() is None:
@@ -271,11 +271,12 @@ def cardpay_apply(db, safe_vars):
     user_bank_ret = db.execute(sel).first()
     if user_bank_ret is None:
         user_bank_info = dict((k, safe_vars[k]) for k in (
-            'user_account_no', 'user_account_type', 'user_account_attr',
-            'user_name', 'bank_type', 'user_mobile'))
+            'user_account_no', 'user_name', 'bank_type', 'user_mobile'))
         user_bank_info.update({
-            'state': const.USER_BANK_STATUS.INIT,
+            'status': const.USER_BANK_STATUS.INIT,
             'lstate': const.LSTATE.VALID,
+            'account_type': safe_vars['user_account_type'],
+            'account_attr': safe_vars['user_account_attr'],
             'create_time': now,
             'modify_time': now})
         db.execute(t_user_bank.insert(), user_bank_info)
@@ -299,6 +300,7 @@ def cardpay_apply(db, safe_vars):
             safe_vars['bank_type']),
         'bank_tid': util.gen_bank_tid(bank_spid),
         'bank_backid': '',  # 暂时拟的
+        'status': const.TRANS_STATUS.PAYING,  # 支付中
         'lstate': const.LSTATE.VALID,  # 有效的
         'create_time': now,
         'modify_time': now})
@@ -322,6 +324,7 @@ def cardpay_apply(db, safe_vars):
     solid_data = dict((k, safe_vars[k]) for k in solid_field)
 
     if ret_channel[1]['is_need_mobile']:
+        comput_data.update({'status': const.TRANS_STATUS.MOBILE_CHECKING})
         db.execute(t_trans_list.insert(), dict(chain(
             comput_data.items(), solid_data.items())))
 
@@ -338,6 +341,9 @@ def cardpay_apply(db, safe_vars):
             cipher_data=cipher_data,
             safe_vars=safe_vars)
     else:
+        db.execute(t_trans_list.insert(), dict(chain(
+            comput_data.iteritems(), solid_data.iteritems())))
+
         # TODO 调用银行支付请求接口,更新余额
         now = datetime()
         sp_bankroll_data = dict((k, safe_vars[k]) for k in (
@@ -350,7 +356,8 @@ def cardpay_apply(db, safe_vars):
         sp_bankroll_data.update({
             'product_type': const.PRODUCT_TYPE.FENQI,
             'bankroll_type': const.SP_BANKROLL_TYPE.IN,
-            'list_sign': const.LIST_SIGN.WELL})
+            'list_sign': const.LIST_SIGN.WELL,
+            'account_class': const.ACCOUNT_CLASS.B})
 
         fenle_bankroll_data.update({
             'fenle_account_id': config.FENLE_ACCOUNT_NO,
@@ -386,9 +393,12 @@ def cardpay_apply(db, safe_vars):
             b_balance=t_sp_balance.c.b_balance +
                 comput_data['pay_num'] - comput_data['fee'])
 
+        udp_trans_list = t_trans_list.update().where(
+            t_trans_list.c.list_id == comput_data['list_id']).values(
+            status=const.TRANS_STATUS.PAY_SUCCESS)
+
         with transaction(db) as trans:
-            db.execute(t_trans_list.insert(), dict(chain(
-                comput_data.iteritems(), solid_data.iteritems())))
+            db.execute(udp_trans_list)
             db.execute(t_sp_bankroll_list.insert(), sp_bankroll_data)
             db.execute(udp_sp_balance)
             db.execute(t_fenle_bankroll_list.insert(), fenle_bankroll_data)
@@ -421,7 +431,8 @@ def cardpay_apply(db, safe_vars):
     "bank_valicode": (F_str("银行下发的验证码") <= 32) & "strict" & "required",
 })
 def cardpay_confirm(db, safe_vars):
-    ret_check = check_list(db, safe_vars['user_mobile'])
+    ret_check = check_list(
+        db, safe_vars['list_id'], safe_vars['user_mobile'])
     if not ret_check[0]:
         return ApiJsonErrorResponse(ret_check[1])
 
@@ -438,7 +449,8 @@ def cardpay_confirm(db, safe_vars):
     sp_bankroll_data.update({
         'bankroll_type': const.SP_BANKROLL_TYPE.IN,
         'product_type': const.PRODUCT_TYPE.FENQI,
-        'list_sign': const.LIST_SIGN.WELL})
+        'list_sign': const.LIST_SIGN.WELL,
+        'account_class': const.ACCOUNT_CLASS.B})
 
     fenle_bankroll_data.update({
         'product_type': const.PRODUCT_TYPE.FENQI,
@@ -546,7 +558,7 @@ def single_query(db, safe_vars):
     sp_pubkey = get_sp_pubkey(db, safe_vars['spid'])
     if not sp_pubkey[0]:
         return ApiJsonErrorResponse(sp_pubkey[1])
-    ret_data = dict(list_ret.copy())
+    ret_data = dict(list_ret).copy()
     ret_data.pop('paynum')
     ret_data.update({
         "sign": safe_vars["sign"],

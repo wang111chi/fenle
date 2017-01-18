@@ -7,6 +7,7 @@ use fenle_fenqi_db;
 CREATE TABLE `sp_bankroll_list` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `list_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '交易单的ID号',
+  `account_class` tinyint(4) NOT NULL COMMENT '账户类型B,C', 
   `spid` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户号',
   `bankroll_type` tinyint(4) DEFAULT NULL COMMENT '借贷类型： 3-冻结 4-解冻 5-欠款入,6-欠款出',
   `sp_account_no_hash` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '卡号hash值',

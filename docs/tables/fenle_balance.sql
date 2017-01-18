@@ -8,6 +8,7 @@ CREATE TABLE `fenle_balance` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `account_no` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '账户号码',
   `account_type` int(11) NOT NULL COMMENT '1真实的银行账号：如中国银行2 虚拟账号(收入，支付都是经过第三方支付公司)，如广发银行',
+  `status` tinyint(4) DEFAULT NULL COMMENT '正常/冻结',
   `bank_name` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '银行名称-以后用于加锁',
   `bank_type` int(11) NOT NULL COMMENT '银行4位代号',
   `true_name` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '开户姓名',

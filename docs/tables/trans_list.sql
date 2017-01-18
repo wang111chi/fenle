@@ -44,6 +44,7 @@ CREATE TABLE `trans_list` (
   `token` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '验证token。每一步都会生成一个token',
   `valid_count` int(11) NOT NULL DEFAULT '0' COMMENT '交易验证数次',
   `sp_userid` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '商户侧的用户id',
+  `status` tinyint(4) NOT NULL COMMENT '业务状态:见文档',
   `lstate` tinyint(4) NOT NULL COMMENT '物理状态1 有效 2 挂起 3 作废',
   `adjust_flag` tinyint(4) NOT NULL DEFAULT '1' COMMENT '调账标志 １正常（default）2 调账 3 同步查询状态未返回 4 不补单设置失败 5 超过补单时间设置失败 6待冲正 7 冲正完成(明确知道银行原交易失败/交易不存在、交易成功但冲正也成功)',
   `interface_type` smallint(6) NOT NULL DEFAULT '1' COMMENT '接口类型(预留)默认1',

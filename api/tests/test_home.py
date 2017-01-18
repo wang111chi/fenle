@@ -111,11 +111,10 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
             spid=self.spid,
             cur_type=self.params['cur_type'],
             uid=self.spid,
-            balance=10000,
+            b_balance=0,
             modify_time=now,
             create_time=now)
         conn.execute(t_sp_balance.insert(), sp_balance_data)
-
         # initial fenle_balance
         fenle_balance_data = dict(
             account_no=config.FENLE_ACCOUNT_NO,
@@ -152,8 +151,8 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
 
     def test_cardpay_apply_md5(self, client, db):
 
-        self.insert_bank_and_merchant(db)
-        bank_valitype = self.init_balance(db)
+        bank_valitype = self.insert_bank_and_merchant(db)
+        self.init_balance(db)
 
         # 分配给商户的key
         key = "654321" * 3
@@ -170,12 +169,12 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
 
         # 支付确认
         if bank_valitype == const.BANK_VALITYPE.MOBILE_VALID:
-            confirm_data = util.encode_unicode({
+            confirm_data = {
                 "encode_type": "MD5",
                 "list_id": list_id,
                 "spid": self.spid,
                 "user_mobile": self.params["user_mobile"],
-                "bank_valicode": "1234567", })
+                "bank_valicode": "1234567", }
             final_data = self.cardpay_apply_md5(key, confirm_data)
             rsp = client.get('/cardpay/confirm?%s' % final_data)
 
