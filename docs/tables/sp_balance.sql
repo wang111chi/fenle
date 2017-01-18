@@ -5,7 +5,6 @@ use fenle_fenqi_db;
 # DROP TABLE IF EXISTS sp_balance;
  
 CREATE TABLE `sp_balance` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `uid` int(11) NOT NULL COMMENT '商户内部编号',
   `cur_type` tinyint(4) NOT NULL DEFAULT '0' COMMENT '现金类型',
   `spid` varchar(16) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -25,7 +24,6 @@ CREATE TABLE `sp_balance` (
   `modify_time` datetime NOT NULL COMMENT '资金变更时间',
   `create_time` datetime NOT NULL COMMENT '创建时间',
   `balance_time` datetime DEFAULT NULL COMMENT '余额变化时间',
-  PRIMARY KEY (`id`),
   UNIQUE KEY `uid_cur_type` (`uid`,`cur_type`),
   KEY `create_time` (`create_time`),
   KEY `spid` (`spid`)
