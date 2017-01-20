@@ -222,11 +222,11 @@ def api_sign_and_encrypt_form_check(settings, var_name="safe_vars"):
                     v for v in checker.get_error_messages().values() if
                     v is not None
                 ]
-                return ApiJsonErrorResponse(const.API_ERROR.PARAM_ERROR,
-                                            error_msg)
+                return ApiJsonErrorResponse(
+                    const.API_ERROR.PARAM_ERROR, error_msg)
 
-            # 从mysql检查商户spid是否存在
             valid_data = checker.get_valid_data()
+            # 从mysql检查商户spid是否存在
             s = select([t_merchant_info.c.status,
                         t_merchant_info.c.mer_key,
                         t_merchant_info.c.rsa_pub_key]).where(

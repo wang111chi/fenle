@@ -60,12 +60,16 @@ class CUR_TYPE(object):
 
 
 class SP_BANKROLL_TYPE(object):
-    IN = 1  # 入账
-    OUT = 2  # 出帐
-    FREEZE = 3  # 冻结
-    DEFREEZE = 4  # 解冻
-    ARREARS_IN = 5  # 欠款入
-    ARREARS_OUT = 6  # 欠款出
+    TRANS = 1  # 交易
+    REFUND = 2  # 退款
+    B2C = 3  # 结算
+    C2B = 4  # 反结算
+    DEPOSIT = 5  # 充值
+    DRAW_CASH = 6  # 提现
+    FREEZE = 7  # 冻结
+    DEFREEZE = 8  # 解冻
+    ARREARS_IN = 9  # 欠款入
+    ARREARS_OUT = 10  # 欠款出
 
 
 class LSTATE(object):

@@ -5,6 +5,7 @@ import urllib
 import operator
 import hashlib
 from base64 import b64encode
+from base64 import b64decode
 import json
 
 from datetime import datetime
@@ -12,6 +13,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5
 from Crypto.Signature import PKCS1_v1_5 as sign_PKCS1_v1_5
 from Crypto.Hash import SHA
+from sqlalchemy.sql import text, select
 import pytest
 
 import wsgi_handler
@@ -25,6 +27,8 @@ from base.db import t_fenle_balance
 import config
 from base import logger
 from base import constant as const
+from base.framework import ApiJsonErrorResponse
+from base.framework import api_sign_and_encrypt_form_check
 
 
 class TestCardpayApply(object):
@@ -57,71 +61,65 @@ class TestCardpayApply(object):
     }
     spid = '1' * 10
     bank_type = 1001
+    sp_private_key = config.TEST_MERCHANT_PRIVATE_KEY
 
     def insert_bank_and_merchant(self, conn):
         """insert some test data to mysql table."""
         # initial merchant_info
-        merchant_data = dict(
-            spid=self.spid,
-            uid='111',
-            agent_uid='112',
-            parent_uid='113',
-            status=0,
-            sp_name='guazi',
-            mer_key='654321' * 3,
-            rsa_pub_key="""\
------BEGIN PUBLIC KEY--@pytest.fix---
-MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDWXsFnKxKhPDofiexxxjmfYLWo
-4dkKzbuTSC0teqpQ4YmeCBJNcLDbGB+WuHRAKEd1xU6UrVSlfm/YWQ5ycimraeVi
-masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
-//kY7Csyw/s18GpS2wIDAQAB
------END PUBLIC KEY-----"""
-        )
+        merchant_data = {
+            'spid': self.spid,
+            'uid': '111',
+            'mer_key': '654321' * 3,
+            'agent_uid': '112',
+            'parent_uid': '113',
+            'status': 0,
+            'sp_name': 'guazi',
+            'rsa_pub_key': config.TEST_MERCHANT_PUB_KEY}
         ins = t_merchant_info.insert()
         conn.execute(ins, merchant_data)
 
         # initial sp_bank data
-        sp_bank_data = dict(
-            spid=self.spid,
-            bank_spid=self.spid + '12345',
-            bank_type=self.bank_type,
-            fenqi_fee_percent=json.dumps({6: 500, 12: 600}),
-            divided_term='6,12',
-            settle_type=const.SETTLE_TYPE.DAY_SETTLE, )
+        sp_bank_data = {
+            'spid': self.spid,
+            'bank_spid': self.spid + '12345',
+            'bank_type': self.bank_type,
+            'fenqi_fee_percent': json.dumps({6: 500, 12: 600}),
+            'divided_term': '6,12',
+            'settle_type': const.SETTLE_TYPE.DAY_SETTLE}
         conn.execute(t_sp_bank.insert(), sp_bank_data)
 
         # initial bank_channel data
-        bank_data = dict(
-            bank_channel=1,
-            bank_type=self.bank_type,
-            is_enable=1,
+        bank_data = {
+            'bank_channel': 1,
+            'bank_type': self.bank_type,
+            'is_enable': 1,
             # 修改此处决定是否验证手机号
-            bank_valitype=const.BANK_VALITYPE.MOBILE_VALID,
-            fenqi_fee_percent=json.dumps({6: 300, 12: 400}),
-            rsp_time=10,
-            settle_type=const.SETTLE_TYPE.DAY_SETTLE, )
+            'bank_valitype': const.BANK_VALITYPE.MOBILE_VALID,
+            'fenqi_fee_percent': json.dumps({6: 300, 12: 400}),
+            'rsp_time': 10,
+            'settle_type': const.SETTLE_TYPE.DAY_SETTLE}
         conn.execute(t_bank_channel.insert(), bank_data)
-        return bank_data['bank_valitype']
+        return bank_data['bank_valitype'],
 
     def init_balance(self, conn):
         """insert some test data to mysql table."""
         now = datetime.now()
         # initial sp_balance
-        sp_balance_data = dict(
-            spid=self.spid,
-            cur_type=self.params['cur_type'],
-            uid=self.spid,
-            b_balance=0,
-            modify_time=now,
-            create_time=now)
+        sp_balance_data = {
+            'spid': self.spid,
+            'cur_type': self.params['cur_type'],
+            'uid': self.spid,
+            'b_balance': 0,
+            'modify_time': now,
+            'create_time': now}
         conn.execute(t_sp_balance.insert(), sp_balance_data)
         # initial fenle_balance
-        fenle_balance_data = dict(
-            account_no=config.FENLE_ACCOUNT_NO,
-            bank_type=config.FENLE_BANK_TYPE,
-            account_type=const.FENLE_ACCOUNT.VIRTUAL,
-            modify_time=now,
-            create_time=now)
+        fenle_balance_data = {
+            'account_no': config.FENLE_ACCOUNT_NO,
+            'bank_type': config.FENLE_BANK_TYPE,
+            'account_type': const.FENLE_ACCOUNT.VIRTUAL,
+            'modify_time': now,
+            'create_time': now}
         conn.execute(t_fenle_balance.insert(), fenle_balance_data)
 
     def cardpay_apply_md5(self, key, params):
@@ -154,18 +152,22 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
         bank_valitype = self.insert_bank_and_merchant(db)
         self.init_balance(db)
 
-        # 分配给商户的key
+        # 分配给商户的key, 用于MD5 签名
         key = "654321" * 3
         # 支付请求
         final_params = self.cardpay_apply_md5(key, self.params)
         resp = client.get('/cardpay/apply?%s' % final_params)
-        assert resp.status_code == 200
 
+        assert resp.status_code == 200
         json_resp = json.loads(resp.data)
-        print(json_resp)
-        logger.debug(json_resp)
-        list_id = json_resp['list_id']
-        assert json_resp["retcode"] == 0
+
+        if json_resp["retcode"] == 0:
+            params = util.rsa_decrypt(
+                json_resp['cipher_data'],
+                config.TEST_MERCHANT_PRIVATE_KEY)
+            list_id = params['list_id'][0]
+        else:
+            return json_resp
 
         # 支付确认
         if bank_valitype == const.BANK_VALITYPE.MOBILE_VALID:
@@ -180,20 +182,29 @@ masD9WDizyvKgNMUWBZoa7TgDRJ4SLPq/Fb1skKagUlrWtaDCqfoCHZ73RPcjeQK
 
             assert rsp.status_code == 200
             json_rsp = json.loads(rsp.data)
-            logger.debug(json_rsp)
+            assert json_rsp["retcode"] == 0
+            print(json_rsp["retcode"])
+            if json_rsp["retcode"] == 0:
+                confirm_ret = util.rsa_decrypt(
+                    json_rsp['cipher_data'],
+                    config.TEST_MERCHANT_PRIVATE_KEY)
+                listid = confirm_ret['list_id'][0]
+                print(listid)
+            else:
+                return json_rsp
 
         # 查询接口
         qry_data = {
             "encode_type": "MD5",
             "list_id": list_id,
             "spid": self.spid,
-            "channel": const.CHANNEL.API
-        }
+            "channel": const.CHANNEL.API}
+
         final_data = self.cardpay_apply_md5(key, qry_data)
         rsp = client.get('/query/single?%s' % final_data)
-
         assert rsp.status_code == 200
         json_rsp = json.loads(rsp.data)
+        assert json_resp["retcode"] == 0
         logger.debug(json_rsp)
 
     def test_cardpay_apply_rsa(self, client):

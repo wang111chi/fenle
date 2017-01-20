@@ -19,6 +19,7 @@ from Crypto.Hash import SHA
 from base import db
 
 import config
+from base import constant as const
 
 
 def check_sign_md5(key, params):
@@ -173,6 +174,21 @@ def rsa_encrypt(message, public_key):
     return pkcs_encrypt(cipher, message)
 
 
+def rsa_decrypt(cipher_data, private_key):
+    """ RSA解密 """
+    try:
+        safe_data = b64decode(cipher_data)
+    except ValueError:
+        return const.API_ERROR.DECRYPT_ERROR
+    merchant_private_key = RSA.importKey(private_key)
+    cipher = PKCS1_v1_5.new(merchant_private_key)
+    message = pkcs_decrypt(cipher, safe_data)
+    if message is None:
+        return const.API_ERROR.DECRYPT_ERROR
+    params = urllib.parse.parse_qs(message)
+    return params
+
+
 def rsa_sign_and_encrypt_params(params, private_key, public_key):
     params = params.items()
     params = [(k, v) for k, v in params if
@@ -183,7 +199,7 @@ def rsa_sign_and_encrypt_params(params, private_key, public_key):
                               private_key))
     params_with_sign = handled_params + [("sign", sign)]
     urlencoded_params = urllib.parse.urlencode(params_with_sign)
-    return b64encode(rsa_encrypt(urlencoded_params, public_key))
+    return b64encode(rsa_encrypt(urlencoded_params, public_key)).decode()
 
 
 def _gen_seq_by_redis(key, expire):
