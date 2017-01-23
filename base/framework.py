@@ -186,7 +186,6 @@ def api_sign_and_encrypt_form_check(settings, var_name="safe_vars"):
     def new_deco(old_handler):
         @wraps(old_handler)
         def new_handler(*args, **kwargs):
-            conn = kwargs['db']
             cipher_data = request.values.get("cipher_data", None)
             if cipher_data is None:
                 return ApiJsonErrorResponse(const.API_ERROR.DECRYPT_ERROR)
@@ -231,6 +230,7 @@ def api_sign_and_encrypt_form_check(settings, var_name="safe_vars"):
                         t_merchant_info.c.mer_key,
                         t_merchant_info.c.rsa_pub_key]).where(
                 t_merchant_info.c.spid == valid_data['spid'])
+            conn = engine.connect()
             sel_result = conn.execute(s).first()
             if sel_result is None:
                 return ApiJsonErrorResponse(const.API_ERROR.SPID_NOT_EXIST)

@@ -132,7 +132,7 @@ class TestCardpayApply(object):
         urlencoded_params = urllib.parse.urlencode(params_with_key)
         # MD5签名
         m = hashlib.md5()
-        m.update(urlencoded_params.encode('utf8'))
+        m.update(urlencoded_params.encode())
         sign = m.hexdigest()
 
         # RSA加密
@@ -142,32 +142,26 @@ class TestCardpayApply(object):
         cipher_data = b64encode(
             util.rsa_encrypt(urlencoded_params, config.FENLE_PUB_KEY))
 
-        final_params = {"cipher_data": cipher_data}
-        final_params = urllib.parse.urlencode(final_params)
-
-        return final_params
+        return {"cipher_data": cipher_data}
 
     def test_cardpay_apply_md5(self, client, db):
-
         bank_valitype = self.insert_bank_and_merchant(db)
         self.init_balance(db)
 
         # 分配给商户的key, 用于MD5 签名
         key = "654321" * 3
         # 支付请求
-        final_params = self.cardpay_apply_md5(key, self.params)
-        resp = client.get('/cardpay/apply?%s' % final_params)
+        query_params = self.cardpay_apply_md5(key, self.params)
+        resp = client.get('/cardpay/apply', query_string=query_params)
 
         assert resp.status_code == 200
         json_resp = json.loads(resp.data)
 
-        if json_resp["retcode"] == 0:
-            params = util.rsa_decrypt(
-                json_resp['cipher_data'],
-                config.TEST_MERCHANT_PRIVATE_KEY)
-            list_id = params['list_id'][0]
-        else:
-            return json_resp
+        assert json_resp["retcode"] == 0
+        params = util.rsa_decrypt(
+            json_resp['cipher_data'],
+            config.TEST_MERCHANT_PRIVATE_KEY)
+        list_id = params['list_id'][0]
 
         # 支付确认
         if bank_valitype == const.BANK_VALITYPE.MOBILE_VALID:
@@ -177,21 +171,17 @@ class TestCardpayApply(object):
                 "spid": self.spid,
                 "user_mobile": self.params["user_mobile"],
                 "bank_valicode": "1234567", }
-            final_data = self.cardpay_apply_md5(key, confirm_data)
-            rsp = client.get('/cardpay/confirm?%s' % final_data)
+            query_params = self.cardpay_apply_md5(key, confirm_data)
+            rsp = client.get('/cardpay/confirm?%s', query_string=query_params)
 
             assert rsp.status_code == 200
             json_rsp = json.loads(rsp.data)
             assert json_rsp["retcode"] == 0
-            print(json_rsp["retcode"])
-            if json_rsp["retcode"] == 0:
-                confirm_ret = util.rsa_decrypt(
-                    json_rsp['cipher_data'],
-                    config.TEST_MERCHANT_PRIVATE_KEY)
-                listid = confirm_ret['list_id'][0]
-                print(listid)
-            else:
-                return json_rsp
+            confirm_ret = util.rsa_decrypt(
+                json_rsp['cipher_data'],
+                config.TEST_MERCHANT_PRIVATE_KEY)
+            listid = confirm_ret['list_id'][0]
+            print(listid)
 
         # 查询接口
         qry_data = {
@@ -200,8 +190,8 @@ class TestCardpayApply(object):
             "spid": self.spid,
             "channel": const.CHANNEL.API}
 
-        final_data = self.cardpay_apply_md5(key, qry_data)
-        rsp = client.get('/query/single?%s' % final_data)
+        query_params = self.cardpay_apply_md5(key, qry_data)
+        rsp = client.get('/query/single', query_string=query_params)
         assert rsp.status_code == 200
         json_rsp = json.loads(rsp.data)
         assert json_resp["retcode"] == 0
@@ -218,8 +208,8 @@ class TestCardpayApply(object):
             config.FENLE_PUB_KEY
         )
 
-        final_params = urllib.parse.urlencode({"cipher_data": cipher_data})
-        resp = client.get('/cardpay/apply?%s' % final_params)
+        query_params = {"cipher_data": cipher_data}
+        resp = client.get('/cardpay/apply', query_string=query_params)
 
         assert resp.status_code == 200
 

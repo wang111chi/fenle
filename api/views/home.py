@@ -86,8 +86,9 @@ def index():
 def cardpay_apply(db, safe_vars):
     # 处理逻辑
 
-    is_ok, ret_merchant \
-        = _check_merchant(db, safe_vars['spid'], safe_vars['cur_type'])
+    is_ok, ret_merchant = _check_merchant(db,
+                                          safe_vars['spid'],
+                                          safe_vars['cur_type'])
     if not is_ok:
         return ApiJsonErrorResponse(ret_merchant)
 
