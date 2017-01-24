@@ -19,7 +19,7 @@ from Crypto.Hash import SHA
 from base.framework import db_conn
 from base.framework import general
 from base.framework import ApiJsonOkResponse
-from base.framework import api_sign_and_encrypt_form_check
+from base.framework import api_form_check
 from base.framework import transaction
 from base.framework import ApiJsonErrorResponse
 from base.xform import F_mobile, F_str, F_int
@@ -52,7 +52,7 @@ def index():
 @home.route("/cardpay/apply")
 @general("信用卡分期支付申请")
 @db_conn
-@api_sign_and_encrypt_form_check({
+@api_form_check({
     "spid": (10 <= F_str("商户号") <= 10) & "strict" & "required",
     "sign": (F_str("签名") <= 1024) & "strict" & "required",
     "encode_type": (F_str("") <= 5) & "strict" & "required" & (
@@ -276,7 +276,7 @@ def cardpay_apply(db, safe_vars):
 @home.route("/cardpay/confirm")
 @general("信用卡分期支付确认")
 @db_conn
-@api_sign_and_encrypt_form_check({
+@api_form_check({
     "spid": (10 <= F_str("商户号") <= 10) & "strict" & "required",
     "sign": (F_str("签名") <= 1024) & "strict" & "required",
     "encode_type": (F_str("") <= 5) & "strict" & "required" & (
@@ -381,7 +381,7 @@ def cardpay_confirm(db, safe_vars):
 @home.route("/query/single")
 @general("单笔查询接口")
 @db_conn
-@api_sign_and_encrypt_form_check({
+@api_form_check({
     "sign": (F_str("签名") <= 1024) & "strict" & "required",
     "encode_type": (F_str("") <= 5) & "strict" & "required" & (
         lambda v: (v in const.ENCODE_TYPE.ALL, v)),

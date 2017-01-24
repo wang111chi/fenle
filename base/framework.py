@@ -182,31 +182,34 @@ def form_check(settings, var_name="safe_vars", strict_error=True,
     return new_deco
 
 
-def api_sign_and_encrypt_form_check(settings, var_name="safe_vars"):
+def api_form_check(settings, is_encrypted=True, var_name="safe_vars"):
     def new_deco(old_handler):
         @wraps(old_handler)
         def new_handler(*args, **kwargs):
-            cipher_data = request.values.get("cipher_data", None)
-            if cipher_data is None:
-                return ApiJsonErrorResponse(const.API_ERROR.DECRYPT_ERROR)
+            if is_encrypted:
+                cipher_data = request.values.get("cipher_data", None)
+                if cipher_data is None:
+                    return ApiJsonErrorResponse(const.API_ERROR.DECRYPT_ERROR)
 
-            # RSA解密
-            try:
-                cipher_data = b64decode(cipher_data)
-            except ValueError:
-                return ApiJsonErrorResponse(const.API_ERROR.DECRYPT_ERROR)
+                # RSA解密
+                try:
+                    cipher_data = b64decode(cipher_data)
+                except ValueError:
+                    return ApiJsonErrorResponse(const.API_ERROR.DECRYPT_ERROR)
 
-            fenle_private_key = RSA.importKey(config.FENLE_PRIVATE_KEY)
-            cipher = PKCS1_v1_5.new(fenle_private_key)
+                fenle_private_key = RSA.importKey(config.FENLE_PRIVATE_KEY)
+                cipher = PKCS1_v1_5.new(fenle_private_key)
 
-            message = util.pkcs_decrypt(cipher, cipher_data)
+                message = util.pkcs_decrypt(cipher, cipher_data)
 
-            if message is None:
-                return ApiJsonErrorResponse(const.API_ERROR.DECRYPT_ERROR)
+                if message is None:
+                    return ApiJsonErrorResponse(const.API_ERROR.DECRYPT_ERROR)
+
+                params = urllib.parse.parse_qs(message)
+            else:
+                params = request.values.to_dict(flat=False)
 
             # 参数检查
-            params = urllib.parse.parse_qs(message)
-
             req_data = {}
             for k, v in settings.items():
                 param = params.get(k, None)
