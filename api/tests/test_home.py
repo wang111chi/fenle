@@ -58,6 +58,7 @@ class TestCardpayApply(object):
         "fee_duty": 1,
         "channel": 1,
         "rist_ctrl": "",
+        "useless": "what",
     }
     spid = '1' * 10
     bank_type = 1001

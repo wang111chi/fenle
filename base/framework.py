@@ -242,11 +242,11 @@ def api_sign_and_encrypt_form_check(settings, var_name="safe_vars"):
             if encode_type == const.ENCODE_TYPE.MD5:
                 check_sign_valid = util.check_sign_md5(
                     sel_result.mer_key,
-                    valid_data)
+                    params)
             else:  # encode_type == const.ENCODE_TYPE.RSA:
                 check_sign_valid = util.check_sign_rsa(
                     sel_result.rsa_pub_key,
-                    valid_data)
+                    params)
 
             if not check_sign_valid:
                 return ApiJsonErrorResponse(const.API_ERROR.SIGN_INVALID)

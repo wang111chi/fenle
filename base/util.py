@@ -25,11 +25,10 @@ from base import constant as const
 def check_sign_md5(key, params):
     # 分配给商户的key
 
-    sign = params["sign"]
+    sign = params.pop("sign")[0]
 
     params = params.items()
-    params = [(k, v) for k, v in params if
-              v is not None and v != "" and k != "sign"]
+    params = ((k, v) for k, vs in params for v in vs if v != "")
 
     params = sorted(params, key=operator.itemgetter(0))
     params_with_key = params + [("key", key)]
@@ -45,17 +44,15 @@ def check_sign_md5(key, params):
 
 
 def check_sign_rsa(pub_key, params):
-    sign = params["sign"]
+    sign = params.pop("sign")[0]
     sign = b64decode(sign)
 
     params = params.items()
-    params = [(k, v) for k, v in params if
-              v is not None and v != "" and k != "sign"]
+    params = ((k, v) for k, vs in params for v in vs if v != "")
 
     params = sorted(params, key=operator.itemgetter(0))
     urlencoded_params = urllib.parse.urlencode(params)
 
-    # TODO: 从数据库获取
     merchant_public_key = RSA.importKey(pub_key)
     verifier = sign_PKCS1_v1_5.new(merchant_public_key)
 
