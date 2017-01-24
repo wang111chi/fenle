@@ -245,7 +245,6 @@ def test_api_form_check_not_encrypted(db):
     json_resp = json.loads(resp.data)
     assert json_resp['retcode'] == const.API_ERROR.PARAM_ERROR
 
-    # ############# 签名无效 ###################
     merchant_data = {
         'spid': '1' * 10,
         'uid': '111',
@@ -258,6 +257,7 @@ def test_api_form_check_not_encrypted(db):
     ins = t_merchant_info.insert()
     db.execute(ins, merchant_data)
 
+    # ############# 签名无效 ###################
     resp = app.test_client().get(
         '/test',
         query_string={
@@ -289,6 +289,36 @@ def test_api_form_check_not_encrypted(db):
     resp = app.test_client().get(
         '/test',
         query_string=raw_params)
+    assert resp.status_code == 200
+    assert resp.data == b"whatever"
+
+
+def test_api_form_check_trusted_ip(db):
+    app = Flask(__name__)
+    config.CLIENT_IP_WHITELIST = ("127.0.0.1", )
+
+    # ############# 定义测试handler ###################
+    @app.route("/test")
+    @general("test")
+    @api_form_check({
+        "spid": (10 <= F_str("商户号") <= 10) & "strict" & "required"})
+    def test_handler(safe_vars):
+        return "whatever"
+
+    merchant_data = {
+        'spid': '1' * 10,
+        'uid': '111',
+        'mer_key': '654321' * 3,
+        'agent_uid': '112',
+        'parent_uid': '113',
+        'status': 0,
+        'sp_name': 'guazi',
+        'rsa_pub_key': config.TEST_MERCHANT_PUB_KEY}
+    ins = t_merchant_info.insert()
+    db.execute(ins, merchant_data)
+
+    resp = app.test_client().get(
+        '/test', query_string={'spid': '1' * 10})
     assert resp.status_code == 200
     assert resp.data == b"whatever"
 

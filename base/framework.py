@@ -186,7 +186,14 @@ def api_form_check(settings, is_encrypted=True, var_name="safe_vars"):
     def new_deco(old_handler):
         @wraps(old_handler)
         def new_handler(*args, **kwargs):
-            if is_encrypted:
+            trusted_ip = False
+
+            ip = request.remote_addr
+            logger.debug(ip)
+            if ip in config.CLIENT_IP_WHITELIST:
+                trusted_ip = True
+
+            if not trusted_ip and is_encrypted:
                 cipher_data = request.values.get("cipher_data", None)
                 if cipher_data is None:
                     return ApiJsonErrorResponse(const.API_ERROR.DECRYPT_ERROR)
@@ -228,6 +235,7 @@ def api_form_check(settings, is_encrypted=True, var_name="safe_vars"):
                     const.API_ERROR.PARAM_ERROR, error_msg)
 
             valid_data = checker.get_valid_data()
+
             # 从mysql检查商户spid是否存在
             s = select([t_merchant_info.c.status,
                         t_merchant_info.c.mer_key,
@@ -240,19 +248,20 @@ def api_form_check(settings, is_encrypted=True, var_name="safe_vars"):
             elif sel_result['status'] == 1:  # 判断是否被封禁
                 return ApiJsonErrorResponse(const.API_ERROR.MERCHANT_FORBID)
 
-            # 验签
-            encode_type = valid_data["encode_type"]
-            if encode_type == const.ENCODE_TYPE.MD5:
-                check_sign_valid = util.check_sign_md5(
-                    sel_result.mer_key,
-                    params)
-            else:  # encode_type == const.ENCODE_TYPE.RSA:
-                check_sign_valid = util.check_sign_rsa(
-                    sel_result.rsa_pub_key,
-                    params)
+            if not trusted_ip:
+                # 验签
+                encode_type = valid_data["encode_type"]
+                if encode_type == const.ENCODE_TYPE.MD5:
+                    check_sign_valid = util.check_sign_md5(
+                        sel_result.mer_key,
+                        params)
+                else:  # encode_type == const.ENCODE_TYPE.RSA:
+                    check_sign_valid = util.check_sign_rsa(
+                        sel_result.rsa_pub_key,
+                        params)
 
-            if not check_sign_valid:
-                return ApiJsonErrorResponse(const.API_ERROR.SIGN_INVALID)
+                if not check_sign_valid:
+                    return ApiJsonErrorResponse(const.API_ERROR.SIGN_INVALID)
 
             kwargs[var_name] = valid_data
             return old_handler(*args, **kwargs)
