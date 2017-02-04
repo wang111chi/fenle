@@ -5,3 +5,5 @@ reload
 .cache/
 __pycache__/
 *.swp
+.coverage
+htmlcov

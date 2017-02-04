@@ -13,4 +13,4 @@ RUN pip install \
     -r /fenle/requirements.txt
 
 WORKDIR /fenle/api/
-CMD ["/fenle/mysql/wait-for-mysql.py", "pytest"]
+CMD ["/fenle/mysql/wait-for-mysql.py", "pytest", "--cov-report", "term-missing", "--cov-report", "html", "--cov=views"]

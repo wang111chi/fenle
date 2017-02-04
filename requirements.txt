@@ -7,4 +7,6 @@ pytest
 sqlalchemy
 pycrypto
 Click
+coverage
+pytest-cov
 https://cdn.mysql.com//Downloads/Connector-Python/mysql-connector-python-2.1.5.tar.gz
