@@ -42,11 +42,13 @@ import config
 home = Blueprint("home", __name__)
 
 
+"""
 @home.route("/")
 @general("首页")
 # @db_conn
 def index():
     return "What do you want?"
+"""
 
 
 @home.route("/cardpay/apply")
@@ -54,9 +56,6 @@ def index():
 @db_conn
 @api_form_check({
     "spid": (10 <= F_str("商户号") <= 10) & "strict" & "required",
-    "sign": (F_str("签名") <= 1024) & "strict" & "required",
-    "encode_type": (F_str("") <= 5) & "strict" & "required" & (
-        lambda v: (v in const.ENCODE_TYPE.ALL, v)),
     "sp_userid": (F_str("用户号") <= 20) & "strict" & "required",
     "sp_tid": (F_str("支付订单号") <= 32) & "strict" & "required",
     "money": (F_int("订单交易金额")) & "strict" & "required",
@@ -81,6 +80,9 @@ def index():
         lambda v: (v in const.FEE_DUTY.ALL, v)),
     "channel": (F_int("渠道类型")) & "strict" & "required" & (
         lambda v: (v in const.CHANNEL.ALL, v)),
+    "sign": (F_str("签名") <= 1024) & "strict" & "required",
+    "encode_type": (F_str("") <= 5) & "strict" & "required" & (
+        lambda v: (v in const.ENCODE_TYPE.ALL, v)),
     "rist_ctrl": (F_str("风险控制数据") <= 10240) & "strict" & "optional",
 })
 def cardpay_apply(db, safe_vars):
@@ -286,19 +288,18 @@ def cardpay_apply(db, safe_vars):
     "bank_valicode": (F_str("银行下发的验证码") <= 32) & "strict" & "required",
 })
 def cardpay_confirm(db, safe_vars):
-    ret_check = _check_list(
+    is_ok, list_ret = _check_list(
         db, safe_vars['list_id'], safe_vars['user_mobile'])
-    if not ret_check[0]:
-        return ApiJsonErrorResponse(ret_check[1])
+    if not is_ok:
+        return ApiJsonErrorResponse(list_ret)
 
     # TODO 用验证码调用银行接口
-    list_ret = ret_check[1]
     now = datetime.now()
     sp_bankroll_data = dict((k, list_ret[k]) for k in (
         'spid', 'bank_type', 'cur_type'))
     sp_bankroll_data['create_time'] = now
     sp_bankroll_data['modify_time'] = now
-    sp_bankroll_data['product_type'] = const.PRODUCT_TYPE.FENQI,
+    sp_bankroll_data['product_type'] = const.PRODUCT_TYPE.FENQI
     sp_bankroll_data['list_id'] = safe_vars['list_id']
     fenle_bankroll_data = sp_bankroll_data.copy()
 
@@ -362,18 +363,19 @@ def cardpay_confirm(db, safe_vars):
     s = select([t_merchant_info.c.rsa_pub_key]).where(
         t_merchant_info.c.spid == safe_vars['spid'])
     merchant_ret = db.execute(s).first()
+    ret_merchant = merchant_ret['rsa_pub_key']
     ret_data = dict((k, list_ret[k]) for k in (
         'spid', 'sp_tid', 'paynum', 'cur_type', 'divided_term',
         'fee_duty', 'user_account_type'))
     ret_data.update({
         'pay_type': const.PRODUCT_TYPE.FENQI,
         'encode_type': safe_vars['encode_type'],
-        "list_id": list_ret['list_id'],
+        "list_id": safe_vars['list_id'],
         "result": list_ret['status'], })
     cipher_data = util.rsa_sign_and_encrypt_params(
         ret_data,
         config.FENLE_PRIVATE_KEY,
-        merchant_ret)
+        ret_merchant)
 
     return ApiJsonOkResponse(cipher_data=cipher_data)
 
@@ -551,7 +553,7 @@ def _check_list(db, list_id, user_mobile):
     if list_ret['status'] != const.TRANS_STATUS.MOBILE_CHECKING:
         return False, const.API_ERROR.CONFIRM_STATUS_ERROR
 
-    if list_ret['user_mobile'] == user_mobile:
+    if list_ret['user_mobile'] != user_mobile:
         return False, const.API_ERROR.CONFIRM_MOBILE_ERROR
     return True, list_ret
 
