@@ -38,5 +38,10 @@ services:
     extends:
       file: mysql/docker-compose.yml
       service: mysql
+    volumes:
+     - "db-data:/var/lib/mysql"
   redis:
     image: redis
+
+volumes:
+    db-data:
