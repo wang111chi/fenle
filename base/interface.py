@@ -17,3 +17,14 @@ def pack_params(params):
     data = len(encoded_params).to_bytes(4, byteorder='big')
     data += encoded_params
     return data
+
+
+def recv_all(s):
+    chunks = []
+    while True:
+        chunk = s.recv(2048)
+        if chunk == b'':
+            break
+        chunks.append(chunk)
+
+    return b''.join(chunks)
