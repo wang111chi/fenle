@@ -105,7 +105,9 @@ class TestCardpayApply(object):
         ins = t_merchant_info.insert()
         conn.execute(ins, merchant_data)
 
-    def insert_channel(self, conn, valitype, is_enable):
+    def insert_channel(
+        self, conn, valitype, is_enable, singlepay_vmask=None
+    ):
         # initial bank_channel data
         bank_data = {
             'bank_channel': 1,
@@ -113,6 +115,7 @@ class TestCardpayApply(object):
             'is_enable': is_enable,
             # 修改此处决定是否验证手机号
             'bank_valitype': valitype,
+            'singlepay_vmask': singlepay_vmask,
             'fenqi_fee_percent': json.dumps({6: 300, 12: 400}),
             'rsp_time': 10,
             'settle_type': const.SETTLE_TYPE.DAY_SETTLE}
@@ -184,7 +187,7 @@ class TestCardpayApply(object):
             client, self.params,
             const.API_ERROR.SP_BALANCE_NOT_EXIST)
 
-    def test_merchant_check(self, client, db):
+    def test_merchant_spid_check(self, client, db):
         self.init_balance(db)
         self.cardpay_apply(
             client, self.params,
@@ -213,6 +216,54 @@ class TestCardpayApply(object):
         self.cardpay_apply(
             client, self.params,
             const.API_ERROR.BANK_CHANNEL_UNABLE)
+
+    def test_channel_expiration_check(self, client, db):
+        self.init_balance(db)
+        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_NOT_VALID,
+            const.BOOLEAN.TRUE, const.PAY_MASK.EXPIRATION)
+        params = self.params.copy()
+        params.pop('expiration_date')
+        self.cardpay_apply(
+            client, params,
+            const.API_ERROR.NO_EXPIRATION_DATE)
+
+    def test_channel_pincode_check(self, client, db):
+        self.init_balance(db)
+        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_NOT_VALID,
+            const.BOOLEAN.TRUE, const.PAY_MASK.PIN_CODE)
+        params = self.params.copy()
+        params.pop('pin_code')
+        self.cardpay_apply(
+            client, params,
+            const.API_ERROR.NO_PIN_CODE)
+
+    def test_channel_uname_check(self, client, db):
+        self.init_balance(db)
+        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_NOT_VALID,
+            const.BOOLEAN.TRUE, const.PAY_MASK.NAME)
+        params = self.params.copy()
+        params.pop('user_name')
+        self.cardpay_apply(
+            client, params,
+            const.API_ERROR.NO_USER_NAME)
+
+    def test_channel_divided_check(self, client, db):
+        self.init_balance(db)
+        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_NOT_VALID,
+            const.BOOLEAN.TRUE)
+        params = self.params.copy()
+        params['divided_term'] = 8
+        self.cardpay_apply(
+            client, params,
+            const.API_ERROR.DIVIDED_TERM_NOT_EXIST)
 
     def test_userbank_check(self, client, db):
         self.init_balance(db)
