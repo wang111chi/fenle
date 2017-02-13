@@ -260,19 +260,6 @@ class TestCardpayApply(object):
             client, params,
             const.API_ERROR.NO_USER_PAY)
 
-    def test_feeduty_novalid_check(self, client, db):
-        self.init_balance(db)
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
-        self.insert_channel(
-            db, const.BANK_VALITYPE.MOBILE_NOT_VALID,
-            const.BOOLEAN.TRUE)
-        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
-        params = self.params.copy()
-        params.update({'fee_duty': const.FEE_DUTY.CUSTOM})
-        self.cardpay_apply(
-            client, params,
-            const.API_ERROR.NO_USER_PAY)
-
     def test_cardpay_apply_md5(self, client, db):
         self.init_balance(db)
         self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
@@ -299,7 +286,61 @@ class TestCardpayApply(object):
         self.init_balance(db)
     """
 
-    def test_cardpay_confirm_md5(self, client, db):
+    def cardpay_confirm(self, client, confirm_info, predict_ret):
+        confirm_data = {
+            "encode_type": "MD5",
+            "spid": self.spid,
+            "bank_valicode": "1234567"}
+        confirm_data.update(confirm_info)
+        query_params = self.cardpay_apply_md5(self.key, confirm_data)
+        confirm_rsp = client.get(
+            '/cardpay/confirm', query_string=query_params)
+        assert confirm_rsp.status_code == 200
+        json_confirm_rsp = json.loads(confirm_rsp.data)
+        assert json_confirm_rsp["retcode"] == predict_ret
+        if predict_ret == 0:
+            confirm_ret = util.rsa_decrypt(
+                json_confirm_rsp['cipher_data'],
+                config.TEST_MERCHANT_PRIVATE_KEY)
+            return confirm_ret['list_id'][0]
+
+    def test_confirm_listid_check(self, client, db):
+        """ 测试支付确认 """
+        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        confirm_info = {
+            "list_id": "543223",  # 给一个不存在的list_id
+            "sp_tid": self.params["sp_tid"],
+            "user_mobile": self.params["user_mobile"],
+            "user_account_no": self.params["user_account_no"]}
+        self.cardpay_confirm(
+            client, confirm_info,
+            const.API_ERROR.LIST_ID_NOT_EXIST)
+
+    def test_confirm_status_check(self, client, db):
+        self.init_balance(db)
+        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_channel(
+            # 不验证手机号会有状态错误
+            db, const.BANK_VALITYPE.MOBILE_NOT_VALID,
+            const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+
+        # 测试不验证手机号的支付请求
+        list_id = self.cardpay_apply(
+            client, self.params,
+            const.REQUEST_STATUS.SUCCESS)
+
+        # 测试支付确认
+        confirm_info = {
+            "list_id": list_id,
+            "sp_tid": self.params["sp_tid"],
+            "user_mobile": self.params["user_mobile"],
+            "user_account_no": self.params["user_account_no"]}
+        self.cardpay_confirm(
+            client, confirm_info,
+            const.API_ERROR.CONFIRM_STATUS_ERROR)
+
+    def test_confirm_mobile_check(self, client, db):
         self.init_balance(db)
         self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
         self.insert_channel(
@@ -313,30 +354,115 @@ class TestCardpayApply(object):
             const.REQUEST_STATUS.SUCCESS)
 
         # 测试支付确认
-        confirm_data = {
-            "encode_type": "MD5",
+        confirm_info = {
             "list_id": list_id,
-            "spid": self.spid,
+            "sp_tid": self.params["sp_tid"],
+            "user_mobile": 12345678901,  # 给一个不存在的mobile
+            "user_account_no": self.params["user_account_no"]}
+        self.cardpay_confirm(
+            client, confirm_info,
+            const.API_ERROR.CONFIRM_MOBILE_ERROR)
+
+    def test_confirm_accountNo_check(self, client, db):
+        self.init_balance(db)
+        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_VALID,
+            const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+
+        # 测试验证手机号的支付请求
+        list_id = self.cardpay_apply(
+            client, self.params,
+            const.REQUEST_STATUS.SUCCESS)
+
+        # 测试支付确认
+        confirm_info = {
+            "list_id": list_id,
             "sp_tid": self.params["sp_tid"],
             "user_mobile": self.params["user_mobile"],
-            "user_account_no": self.params["user_account_no"],
-            "bank_valicode": "1234567", }
-        query_params = self.cardpay_apply_md5(self.key, confirm_data)
-        confirm_rsp = client.get(
-            '/cardpay/confirm', query_string=query_params)
-        assert confirm_rsp.status_code == 200
-        json_confirm_rsp = json.loads(confirm_rsp.data)
-        assert json_confirm_rsp["retcode"] == 0
-        confirm_ret = util.rsa_decrypt(
-            json_confirm_rsp['cipher_data'],
-            config.TEST_MERCHANT_PRIVATE_KEY)
-        list_id = confirm_ret['list_id'][0]
+            # 给一个不存在的 user_account_no
+            "user_account_no": "1234567890654321"}
+        self.cardpay_confirm(
+            client, confirm_info,
+            const.API_ERROR.CONFIRM_ACCOUNT_NO_ERROR)
 
-        # 测试正确的查询
+    def test_confirm_sptid_check(self, client, db):
+        self.init_balance(db)
+        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_VALID,
+            const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+
+        # 测试验证手机号的支付请求
+        list_id = self.cardpay_apply(
+            client, self.params,
+            const.REQUEST_STATUS.SUCCESS)
+
+        # 测试支付确认
+        confirm_info = {
+            "list_id": list_id,
+            # 给一个不存在的 sp_tid
+            "sp_tid": "7654321",
+            "user_mobile": self.params["user_mobile"],
+            "user_account_no": self.params["user_account_no"]}
+        self.cardpay_confirm(
+            client, confirm_info,
+            const.API_ERROR.CONFIRM_SPTID_ERROR)
+
+    def test_confirm_check(self, client, db):
+        self.init_balance(db)
+        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_VALID,
+            const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+
+        # 测试验证手机号的支付请求
+        list_id = self.cardpay_apply(
+            client, self.params,
+            const.REQUEST_STATUS.SUCCESS)
+
+        # 测试支付确认
+        confirm_info = {
+            "list_id": list_id,
+            "sp_tid": self.params["sp_tid"],
+            "user_mobile": self.params["user_mobile"],
+            "user_account_no": self.params["user_account_no"]}
+        self.cardpay_confirm(
+            client, confirm_info,
+            const.REQUEST_STATUS.SUCCESS)
+
+    def test_query_listid_check(self, client):
+        """测试错误list_id的查询"""
+        qry_data = {
+            "encode_type": "MD5",
+            "list_id": "543223",  # 给一个不存在的list_id
+            "spid": self.spid,
+            "channel": const.CHANNEL.API}
+        query_params = self.cardpay_apply_md5(self.key, qry_data)
+        rsp = client.get('/cardpay/query', query_string=query_params)
+        assert rsp.status_code == 200
+        json_rsp = json.loads(rsp.data)
+        assert json_rsp["retcode"] == const.API_ERROR.LIST_ID_NOT_EXIST
+
+    def test_query_spid_check(self, client, db):
+        self.init_balance(db)
+        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_VALID,
+            const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+
+        # 测试验证手机号的支付请求
+        list_id = self.cardpay_apply(
+            client, self.params,
+            const.REQUEST_STATUS.SUCCESS)
         qry_data = {
             "encode_type": "MD5",
             "list_id": list_id,
-            "spid": self.spid,
+            "spid": "56" * 5,  # 给一个不存在的 spid
             "channel": const.CHANNEL.API}
 
         query_params = self.cardpay_apply_md5(self.key, qry_data)
@@ -344,34 +470,36 @@ class TestCardpayApply(object):
             '/cardpay/query', query_string=query_params)
         assert qry_rsp.status_code == 200
         json_qry_rsp = json.loads(qry_rsp.data)
-        assert json_qry_rsp["retcode"] == 0
-        params = util.rsa_decrypt(
-            json_qry_rsp['cipher_data'],
-            config.TEST_MERCHANT_PRIVATE_KEY)
-        logger.debug(params)
+        assert json_qry_rsp["retcode"] == const.API_ERROR.SPID_NOT_EXIST
 
-        # 测试错误spid的查询
-        qry_data.update({'spid': '65' * 5})  # 将spid改为错误的
+    def test_query_check(self, client, db):
+        self.init_balance(db)
+        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_VALID,
+            const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+
+        # 测试验证手机号的支付请求
+        list_id = self.cardpay_apply(
+            client, self.params,
+            const.REQUEST_STATUS.SUCCESS)
+        # 测试正确的查询
+        qry_data = {
+            "encode_type": "MD5",
+            "list_id": list_id,
+            "spid": self.spid,
+            "channel": const.CHANNEL.API}
         query_params = self.cardpay_apply_md5(self.key, qry_data)
         spid_qry = client.get(
             '/cardpay/query', query_string=query_params)
         assert spid_qry.status_code == 200
         json_spid_qry = json.loads(spid_qry.data)
-        assert json_spid_qry["retcode"] == const.API_ERROR.SPID_NOT_EXIST
-
-    def test_single_query(self, client):
-        """测试错误的查询"""
-        qry_data = {
-            "encode_type": "MD5",
-            "list_id": "543223",  # 给一个不存在的list_id
-            "spid": self.spid,
-            "channel": const.CHANNEL.API}
-
-        query_params = self.cardpay_apply_md5(self.key, qry_data)
-        rsp = client.get('/cardpay/query', query_string=query_params)
-        assert rsp.status_code == 200
-        json_rsp = json.loads(rsp.data)
-        assert json_rsp["retcode"] == const.API_ERROR.LIST_ID_NOT_EXIST
+        assert json_spid_qry["retcode"] == const.REQUEST_STATUS.SUCCESS
+        params = util.rsa_decrypt(
+            json_spid_qry['cipher_data'],
+            config.TEST_MERCHANT_PRIVATE_KEY)
+        logger.debug(params)
 
     def test_cardpay_apply_rsa(self, client):
         u"""RSA签名 + RSA加密."""

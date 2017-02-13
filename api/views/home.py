@@ -223,18 +223,14 @@ def cardpay_apply(db, safe_vars):
             'fenle_account_type': const.FENLE_ACCOUNT.VIRTUAL})  # 1真实，2虚拟
 
         # fee_duty  计算手续费生成金额
-        if safe_vars['fee_duty'] == const.FEE_DUTY.BUSINESS:  # 商户付手续费
-            sp_bankroll_data.update({
-                'pay_num': comput_data['pay_num'],
-                'sp_num': comput_data['pay_num'] - comput_data['fee']})
-            fenle_bankroll_data.update({
-                'pay_num': comput_data['pay_num'],
-                'fact_amount': (comput_data['pay_num'] -
-                                comput_data['bank_fee']),
-                'income_num': comput_data['fee'] - comput_data['bank_fee']})
-        else:
-            # 用户付手续费情形
-            return ApiJsonErrorResponse(const.API_ERROR.NO_USER_PAY)
+        sp_bankroll_data.update({
+            'pay_num': comput_data['pay_num'],
+            'sp_num': comput_data['pay_num'] - comput_data['fee']})
+        fenle_bankroll_data.update({
+            'pay_num': comput_data['pay_num'],
+            'fact_amount': (comput_data['pay_num'] -
+                            comput_data['bank_fee']),
+            'income_num': comput_data['fee'] - comput_data['bank_fee']})
 
         fenle_bankroll_data.update({
             'bank_tid': comput_data['bank_tid'],
@@ -318,17 +314,13 @@ def cardpay_confirm(db, safe_vars):
         'bank_backid': list_ret['bank_backid']})
 
     # fee_duty  计算手续费生成金额
-    if list_ret['fee_duty'] == const.FEE_DUTY.BUSINESS:  # 商户付手续费
-        sp_bankroll_data.update({
-            'pay_num': list_ret['paynum'],
-            'sp_num': list_ret['paynum'] - list_ret['fee']})
-        fenle_bankroll_data.update({
-            'pay_num': list_ret['paynum'],
-            'fact_amount': list_ret['paynum'] - list_ret['bank_fee'],
-            'income_num': list_ret['fee'] - list_ret['bank_fee']})
-    else:
-        # 用户付手续费情形
-        return ApiJsonErrorResponse(const.API_ERROR.NO_USER_PAY)
+    sp_bankroll_data.update({
+        'pay_num': list_ret['paynum'],
+        'sp_num': list_ret['paynum'] - list_ret['fee']})
+    fenle_bankroll_data.update({
+        'pay_num': list_ret['paynum'],
+        'fact_amount': list_ret['paynum'] - list_ret['bank_fee'],
+        'income_num': list_ret['fee'] - list_ret['bank_fee']})
 
     fenle_bankroll_data.update({
         'bank_tid': list_ret['bank_tid'],
@@ -448,7 +440,6 @@ def _check_merchant(db, spid, cur_type):
     if merchant_ret is None:
         return False, const.API_ERROR.SPID_NOT_EXIST
     if merchant_ret['status'] == const.MERCHANT_STATUS.FORBID:  # 判断是否被封禁
-        assert False
         return False, const.API_ERROR.MERCHANT_FORBID
     return True, merchant_ret['rsa_pub_key']
 
