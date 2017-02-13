@@ -15,5 +15,5 @@ requests==2.13.0
 SQLAlchemy==1.1.5
 uWSGI==2.0.14
 Werkzeug==0.11.15
-#https://cdn.mysql.com//Downloads/Connector-Python/mysql-connector-python-1.1.5.tar.gz
-http://ftp.ntu.edu.tw/MySQL/Downloads/Connector-Python/mysql-connector-python-2.1.5.tar.gz
+https://cdn.mysql.com/Downloads/Connector-Python/mysql-connector-python-2.1.5.tar.gz
+#http://ftp.ntu.edu.tw/MySQL/Downloads/Connector-Python/mysql-connector-python-2.1.5.tar.gz
