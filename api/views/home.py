@@ -395,7 +395,7 @@ def cardpay_confirm(db, safe_vars):
         lambda v: (v in const.CHANNEL.ALL, v)),
     "rist_ctrl": (F_str("风险控制数据") <= 10240) & "strict" & "optional",
 })
-def single_query(db, safe_vars):
+def cardpay_query(db, safe_vars):
     sel = select([
         t_trans_list.c.status,
         t_trans_list.c.sp_userid,
