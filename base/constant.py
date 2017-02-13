@@ -85,10 +85,10 @@ class USER_BANK_STATUS(object):
 
 
 class TRANS_STATUS(object):
-    PAY_SUCCESS = 1
-    PAY_FALSE = 2
-    PAYING = 4
-    MOBILE_CHECKING = 3
+    PAY_SUCCESS = 1  # 支付成功
+    PAY_FALSE = 2  # 支付失败
+    PAYING = 4  # 支付中
+    MOBILE_CHECKING = 3  # 短信验证中
 
 
 class MERCHANT_STATUS(object):
@@ -208,6 +208,8 @@ class API_ERROR(object):
     LIST_ID_NOT_EXIST = 207600
     CONFIRM_STATUS_ERROR = 207601
     CONFIRM_MOBILE_ERROR = 207602
+    CONFIRM_SPTID_ERROR = 207603
+    CONFIRM_ACCOUNT_NO_ERROR = 207604
 
     NO_USER_PAY = 207701
     INSERT_ERROR = 207702
@@ -233,6 +235,8 @@ class API_ERROR(object):
         LIST_ID_NOT_EXIST: u"二次确认中订单号错误",
         CONFIRM_STATUS_ERROR: u"二次确认状态错误",
         CONFIRM_MOBILE_ERROR: u"二次确认手机号错误",
+        CONFIRM_SPTID_ERROR: u"二次确认商户订单号错误",
+        CONFIRM_ACCOUNT_NO_ERROR: u"二次确认用户银行卡号错误",
         NO_USER_PAY: u"不支持用户付手续费情形",
         INSERT_ERROR: u"数据库插入异常"}
 

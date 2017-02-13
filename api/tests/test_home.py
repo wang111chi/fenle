@@ -25,6 +25,7 @@ from base.db import t_bank_channel
 from base.db import t_sp_bank
 from base.db import t_sp_balance
 from base.db import t_fenle_balance
+from base.db import t_user_bank
 import config
 from base import logger
 from base import constant as const
@@ -66,8 +67,31 @@ class TestCardpayApply(object):
     bank_type = 1001
     sp_private_key = config.TEST_MERCHANT_PRIVATE_KEY
 
-    def insert_bank_and_merchant(self, conn, valitype):
+    # 分配给商户的key, 用于MD5 签名
+    key = "654321" * 3
+    now = datetime.now()
+
+    def init_balance(self, conn):
         """insert some test data to mysql table."""
+        # initial sp_balance
+        sp_balance_data = {
+            'spid': self.spid,
+            'cur_type': self.params['cur_type'],
+            'uid': self.spid,
+            'b_balance': 0,
+            'modify_time': self.now,
+            'create_time': self.now}
+        conn.execute(t_sp_balance.insert(), sp_balance_data)
+        # initial fenle_balance
+        fenle_balance_data = {
+            'account_no': config.FENLE_ACCOUNT_NO,
+            'bank_type': config.FENLE_BANK_TYPE,
+            'account_type': const.FENLE_ACCOUNT.VIRTUAL,
+            'modify_time': self.now,
+            'create_time': self.now}
+        conn.execute(t_fenle_balance.insert(), fenle_balance_data)
+
+    def insert_merchant(self, conn, status):
         # initial merchant_info
         merchant_data = {
             'spid': self.spid,
@@ -75,12 +99,41 @@ class TestCardpayApply(object):
             'mer_key': '654321' * 3,
             'agent_uid': '112',
             'parent_uid': '113',
-            'status': 0,
+            'status': status,
             'sp_name': 'guazi',
             'rsa_pub_key': config.TEST_MERCHANT_PUB_KEY}
         ins = t_merchant_info.insert()
         conn.execute(ins, merchant_data)
 
+    def insert_channel(self, conn, valitype, is_enable):
+        # initial bank_channel data
+        bank_data = {
+            'bank_channel': 1,
+            'bank_type': self.bank_type,
+            'is_enable': is_enable,
+            # 修改此处决定是否验证手机号
+            'bank_valitype': valitype,
+            'fenqi_fee_percent': json.dumps({6: 300, 12: 400}),
+            'rsp_time': 10,
+            'settle_type': const.SETTLE_TYPE.DAY_SETTLE}
+        conn.execute(t_bank_channel.insert(), bank_data)
+        # return ret_channel._saved_cursor._last_insert_id
+
+    def insert_user_bank(self, conn):
+        # initial user_bank
+        user_bank_info = {
+            'account_no': self.params['user_account_no'],
+            'account_type': self.params['user_account_type'],
+            'bank_type': self.params['bank_type'],
+            'account_mobile': self.params['user_mobile']}
+        user_bank_info.update({
+            'status': const.USER_BANK_STATUS.INIT,
+            'lstate': const.LSTATE.HUNG,  # 设置为冻结标志
+            'create_time': self.now,
+            'modify_time': self.now})
+        conn.execute(t_user_bank.insert(), user_bank_info)
+
+    def insert_sp_bank(self, conn):
         # initial sp_bank data
         sp_bank_data = {
             'spid': self.spid,
@@ -90,40 +143,6 @@ class TestCardpayApply(object):
             'divided_term': '6,12',
             'settle_type': const.SETTLE_TYPE.DAY_SETTLE}
         conn.execute(t_sp_bank.insert(), sp_bank_data)
-
-        # initial bank_channel data
-        bank_data = {
-            'bank_channel': 1,
-            'bank_type': self.bank_type,
-            'is_enable': 1,
-            # 修改此处决定是否验证手机号
-            'bank_valitype': valitype,
-            'fenqi_fee_percent': json.dumps({6: 300, 12: 400}),
-            'rsp_time': 10,
-            'settle_type': const.SETTLE_TYPE.DAY_SETTLE}
-        ret_channel = conn.execute(t_bank_channel.insert(), bank_data)
-        return ret_channel._saved_cursor._last_insert_id
-
-    def init_balance(self, conn):
-        """insert some test data to mysql table."""
-        now = datetime.now()
-        # initial sp_balance
-        sp_balance_data = {
-            'spid': self.spid,
-            'cur_type': self.params['cur_type'],
-            'uid': self.spid,
-            'b_balance': 0,
-            'modify_time': now,
-            'create_time': now}
-        conn.execute(t_sp_balance.insert(), sp_balance_data)
-        # initial fenle_balance
-        fenle_balance_data = {
-            'account_no': config.FENLE_ACCOUNT_NO,
-            'bank_type': config.FENLE_BANK_TYPE,
-            'account_type': const.FENLE_ACCOUNT.VIRTUAL,
-            'modify_time': now,
-            'create_time': now}
-        conn.execute(t_fenle_balance.insert(), fenle_balance_data)
 
     def cardpay_apply_md5(self, key, params):
         u"""MD5签名 + RSA加密."""
@@ -147,95 +166,146 @@ class TestCardpayApply(object):
 
         return {"cipher_data": cipher_data}
 
-    """
-    def update_bank_valitype(self, valitype, channel_id, db):
-        udp_bank_channel = t_bank_channel.update().where(
-            t_bank_channel.c.id == channel_id).values(
-            bank_valitype=valitype)
-        db.execute(udp_bank_channel)
-    """
+    def cardpay_apply(self, client, predict_ret):
+        # @params<predict_ret>: 预计要返回的值
+        query_params = self.cardpay_apply_md5(self.key, self.params)
+        rsp = client.get('/cardpay/apply', query_string=query_params)
+        assert rsp.status_code == 200
+        json_rsp = json.loads(rsp.data)
+        assert json_rsp["retcode"] == predict_ret
+        if predict_ret == 0:
+            params = util.rsa_decrypt(
+                json_rsp['cipher_data'],
+                config.TEST_MERCHANT_PRIVATE_KEY)
+            return params['list_id'][0]
+
+    def test_merchant_balance_check(self, client):
+        self.cardpay_apply(client, const.API_ERROR.SP_BALANCE_NOT_EXIST)
+
+    def test_merchant_check(self, client, db):
+        self.init_balance(db)
+        self.cardpay_apply(client, const.API_ERROR.SPID_NOT_EXIST)
+
+    def test_merchant_forbid_check(self, client, db):
+        self.init_balance(db)
+        self.insert_merchant(db, const.MERCHANT_STATUS.FORBID)
+        self.cardpay_apply(client, const.API_ERROR.MERCHANT_FORBID)
+
+    def test_channel_check(self, client, db):
+        self.init_balance(db)
+        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.cardpay_apply(client, const.API_ERROR.BANK_NOT_EXIST)
+
+    def test_channel_unable_check(self, client, db):
+        self.init_balance(db)
+        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_NOT_VALID,
+            const.BOOLEAN.FALSE)
+        self.cardpay_apply(client, const.API_ERROR.BANK_CHANNEL_UNABLE)
+
+    def test_userbank_check(self, client, db):
+        self.init_balance(db)
+        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_VALID,
+            const.BOOLEAN.FALSE)
+        self.insert_user_bank(db)
+        self.cardpay_apply(client, const.API_ERROR.ACCOUNT_FREEZED)
 
     def test_cardpay_apply_md5(self, client, db):
-        bank_valitype = const.BANK_VALITYPE.MOBILE_NOT_VALID
-        channel_id = self.insert_bank_and_merchant(db, bank_valitype)
+        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_sp_bank(db)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_NOT_VALID,
+            const.BOOLEAN.TRUE)
         self.init_balance(db)
-
-        # 分配给商户的key, 用于MD5 签名
-        key = "654321" * 3
 
         # 测试不验证手机号的支付请求
-        query_params = self.cardpay_apply_md5(key, self.params)
-        resp = client.get('/cardpay/apply', query_string=query_params)
-
-        assert resp.status_code == 200
-        json_resp = json.loads(resp.data)
-        assert json_resp["retcode"] == 0
-        params = util.rsa_decrypt(
-            json_resp['cipher_data'],
-            config.TEST_MERCHANT_PRIVATE_KEY)
-        list_id = params['list_id'][0]
-
+        list_id = self.cardpay_apply(client, const.REQUEST_STATUS.SUCCESS)
         # 测试重复调用的反应
-        query_params = self.cardpay_apply_md5(key, self.params)
-        resp = client.get('/cardpay/apply', query_string=query_params)
-        assert resp.status_code == 200
-        json_resp = json.loads(resp.data)
-        assert json_resp["retcode"] == 0
-        params = util.rsa_decrypt(
-            json_resp['cipher_data'],
-            config.TEST_MERCHANT_PRIVATE_KEY)
+        list_ids = self.cardpay_apply(client, const.REQUEST_STATUS.SUCCESS)
+        assert list_id == list_ids
+
+    """
+    def check_merchant(self, client, db):
+        self.insert_merchant(db)
+        self.insert_channel(db, const.BANK_VALITYPE.MOBILE_NOT_VALID)
+        self.insert_sp_bank(db)
+        self.init_balance(db)
+    """
 
     def test_cardpay_confirm_md5(self, client, db):
-        bank_valitype = const.BANK_VALITYPE.MOBILE_VALID
-        channel_id = self.insert_bank_and_merchant(db, bank_valitype)
+        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_sp_bank(db)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_VALID,
+            const.BOOLEAN.TRUE)
         self.init_balance(db)
 
-        # 分配给商户的key, 用于MD5 签名
-        key = "654321" * 3
-
         # 测试验证手机号的支付请求
-        query_params = self.cardpay_apply_md5(key, self.params)
-        resp = client.get('/cardpay/apply', query_string=query_params)
+        list_id = self.cardpay_apply(client, const.REQUEST_STATUS.SUCCESS)
 
-        assert resp.status_code == 200
-        json_resp = json.loads(resp.data)
-        assert json_resp["retcode"] == 0
-        params = util.rsa_decrypt(
-            json_resp['cipher_data'],
-            config.TEST_MERCHANT_PRIVATE_KEY)
-        list_id = params['list_id'][0]
-
-        # 支付确认
+        # 测试支付确认
         confirm_data = {
             "encode_type": "MD5",
             "list_id": list_id,
             "spid": self.spid,
+            "sp_tid": self.params["sp_tid"],
             "user_mobile": self.params["user_mobile"],
+            "user_account_no": self.params["user_account_no"],
             "bank_valicode": "1234567", }
-        query_params = self.cardpay_apply_md5(key, confirm_data)
-        rsp = client.get('/cardpay/confirm', query_string=query_params)
-
-        assert rsp.status_code == 200
-        json_rsp = json.loads(rsp.data)
-        assert json_rsp["retcode"] == 0
+        query_params = self.cardpay_apply_md5(self.key, confirm_data)
+        confirm_rsp = client.get(
+            '/cardpay/confirm', query_string=query_params)
+        assert confirm_rsp.status_code == 200
+        json_confirm_rsp = json.loads(confirm_rsp.data)
+        assert json_confirm_rsp["retcode"] == 0
         confirm_ret = util.rsa_decrypt(
-            json_rsp['cipher_data'],
+            json_confirm_rsp['cipher_data'],
             config.TEST_MERCHANT_PRIVATE_KEY)
-        listid = confirm_ret['list_id'][0]
+        list_id = confirm_ret['list_id'][0]
 
-        # 查询接口
+        # 测试正确的查询
         qry_data = {
             "encode_type": "MD5",
             "list_id": list_id,
             "spid": self.spid,
             "channel": const.CHANNEL.API}
 
-        query_params = self.cardpay_apply_md5(key, qry_data)
-        rsp = client.get('/query/single', query_string=query_params)
+        query_params = self.cardpay_apply_md5(self.key, qry_data)
+        qry_rsp = client.get(
+            '/cardpay/query', query_string=query_params)
+        assert qry_rsp.status_code == 200
+        json_qry_rsp = json.loads(qry_rsp.data)
+        assert json_qry_rsp["retcode"] == 0
+        params = util.rsa_decrypt(
+            json_qry_rsp['cipher_data'],
+            config.TEST_MERCHANT_PRIVATE_KEY)
+        logger.debug(params)
+
+        # 测试错误spid的查询
+        qry_data.update({'spid': '65' * 5})  # 将spid改为错误的
+        query_params = self.cardpay_apply_md5(self.key, qry_data)
+        spid_qry = client.get(
+            '/cardpay/query', query_string=query_params)
+        assert spid_qry.status_code == 200
+        json_spid_qry = json.loads(spid_qry.data)
+        assert json_spid_qry["retcode"] == const.API_ERROR.SPID_NOT_EXIST
+
+    def test_single_query(self, client):
+        """测试错误的查询"""
+        qry_data = {
+            "encode_type": "MD5",
+            "list_id": "543223",  # 给一个不存在的list_id
+            "spid": self.spid,
+            "channel": const.CHANNEL.API}
+
+        query_params = self.cardpay_apply_md5(self.key, qry_data)
+        rsp = client.get('/cardpay/query', query_string=query_params)
         assert rsp.status_code == 200
         json_rsp = json.loads(rsp.data)
-        assert json_resp["retcode"] == 0
-        logger.debug(json_rsp)
+        assert json_rsp["retcode"] == const.API_ERROR.LIST_ID_NOT_EXIST
 
     def test_cardpay_apply_rsa(self, client):
         u"""RSA签名 + RSA加密."""

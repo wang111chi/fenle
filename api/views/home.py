@@ -56,7 +56,7 @@ def index():
 @db_conn
 @api_form_check({
     "spid": (10 <= F_str("商户号") <= 10) & "strict" & "required",
-    "sp_userid": (F_str("用户号") <= 20) & "strict" & "required",
+    "sp_userid": (F_str("用户号") <= 20) & "strict" & "optional",
     "sp_tid": (F_str("支付订单号") <= 32) & "strict" & "required",
     "money": (F_int("订单交易金额")) & "strict" & "required",
     "cur_type": (F_int("币种类型")) & "strict" & "required",
@@ -67,7 +67,7 @@ def index():
     "attach": (F_str("附加数据") <= 255) & "strict" & "optional",
     "user_account_type": (F_int("银行卡类型")) & "strict" & "required" & (
         lambda v: (v in const.ACCOUNT_TYPE.ALL, v)),
-    "user_account_attr": (F_int("用户类型")) & "strict" & "required" & (
+    "user_account_attr": (F_int("用户类型")) & "strict" & "optional" & (
         lambda v: (v in const.ACCOUNT_ATTR.ALL, v)),
     "user_account_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
     "user_name": (F_str("付款人姓名") <= 16) & "strict" & "optional",
@@ -86,18 +86,17 @@ def index():
     "rist_ctrl": (F_str("风险控制数据") <= 10240) & "strict" & "optional",
 })
 def cardpay_apply(db, safe_vars):
-    # 处理逻辑
+    """ 处理逻辑"""
 
-    is_ok, ret_merchant = _check_merchant(db,
-                                          safe_vars['spid'],
-                                          safe_vars['cur_type'])
+    is_ok, ret_merchant = _check_merchant(
+        db, safe_vars['spid'], safe_vars['cur_type'])
     if not is_ok:
         return ApiJsonErrorResponse(ret_merchant)
 
     # 返回的参数
     ret_data = {'pay_type': const.PRODUCT_TYPE.FENQI}
     for k in ('spid', 'sp_tid', 'money', 'cur_type', 'divided_term',
-              'fee_duty', 'user_account_type', 'encode_type'):
+              'fee_duty', 'encode_type'):
         ret_data[k] = safe_vars[k]
 
     # 检查商户订单号是否已经存在
@@ -134,20 +133,20 @@ def cardpay_apply(db, safe_vars):
         t_user_bank.c.account_no == safe_vars['user_account_no'])
     user_bank_ret = db.execute(sel).first()
     if user_bank_ret is None:
-        user_bank_info = dict((k, safe_vars[k]) for k in (
-            'user_account_no', 'user_name', 'bank_type', 'user_mobile'))
-        user_bank_info.update({
+        user_bank_info = {
+            'account_no': safe_vars['user_account_no'],
+            'account_type': safe_vars['user_account_type'],
+            'bank_type': safe_vars['bank_type'],
+            'account_mobile': safe_vars['user_mobile'],
             'status': const.USER_BANK_STATUS.INIT,
             'lstate': const.LSTATE.VALID,
-            'account_type': safe_vars['user_account_type'],
-            'account_attr': safe_vars['user_account_attr'],
             'create_time': now,
-            'modify_time': now})
+            'modify_time': now}
         db.execute(t_user_bank.insert(), user_bank_info)
     else:
         # 检查银行卡是否被冻结 user_bank
         if user_bank_ret['lstate'] == const.LSTATE.HUNG:  # 冻结标志
-            return ApiJsonErrorResponse(const.API_ERROR.BANKCARD_FREEZED)
+            return ApiJsonErrorResponse(const.API_ERROR.ACCOUNT_FREEZED)
 
     # 检查商户银行
     is_ok, ret_sp_bank = _check_sp_bank(db, safe_vars)
@@ -279,17 +278,20 @@ def cardpay_apply(db, safe_vars):
 @general("信用卡分期支付确认")
 @db_conn
 @api_form_check({
-    "spid": (10 <= F_str("商户号") <= 10) & "strict" & "required",
     "sign": (F_str("签名") <= 1024) & "strict" & "required",
     "encode_type": (F_str("") <= 5) & "strict" & "required" & (
         lambda v: (v in const.ENCODE_TYPE.ALL, v)),
+    "spid": (10 <= F_str("商户号") <= 10) & "strict" & "required",
+    "sp_tid": (F_str("支付订单号") <= 32) & "strict" & "required",
     "list_id": (F_str("支付订单号") <= 32) & "strict" & "required",
     "user_mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
+    "user_account_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
     "bank_valicode": (F_str("银行下发的验证码") <= 32) & "strict" & "required",
 })
 def cardpay_confirm(db, safe_vars):
     is_ok, list_ret = _check_list(
-        db, safe_vars['list_id'], safe_vars['user_mobile'])
+        db, safe_vars['list_id'], safe_vars['user_mobile'],
+        safe_vars['sp_tid'], safe_vars['user_account_no'])
     if not is_ok:
         return ApiJsonErrorResponse(list_ret)
 
@@ -366,7 +368,7 @@ def cardpay_confirm(db, safe_vars):
     ret_merchant = merchant_ret['rsa_pub_key']
     ret_data = dict((k, list_ret[k]) for k in (
         'spid', 'sp_tid', 'paynum', 'cur_type', 'divided_term',
-        'fee_duty', 'user_account_type'))
+        'fee_duty'))
     ret_data.update({
         'pay_type': const.PRODUCT_TYPE.FENQI,
         'encode_type': safe_vars['encode_type'],
@@ -380,7 +382,7 @@ def cardpay_confirm(db, safe_vars):
     return ApiJsonOkResponse(cipher_data=cipher_data)
 
 
-@home.route("/query/single")
+@home.route("/cardpay/query")
 @general("单笔查询接口")
 @db_conn
 @api_form_check({
@@ -411,24 +413,24 @@ def single_query(db, safe_vars):
     list_ret = db.execute(sel).first()
     if list_ret is None:
         return ApiJsonErrorResponse(const.API_ERROR.LIST_ID_NOT_EXIST)
-    sp_pubkey = _get_sp_pubkey(db, safe_vars['spid'])
-    if not sp_pubkey[0]:
-        return ApiJsonErrorResponse(sp_pubkey[1])
+    is_ok, sp_pubkey = _get_sp_pubkey(db, safe_vars['spid'])
+    if not is_ok:
+        return ApiJsonErrorResponse(sp_pubkey)
     ret_data = dict(list_ret).copy()
     ret_data.pop('paynum')
+    ret_data['money'] = list_ret['paynum']
     ret_data.update({
         "sign": safe_vars["sign"],
         "encode_type": safe_vars["encode_type"],
         "spid": safe_vars['spid'],
+        "list_id": safe_vars['list_id'],
         "bank_name": const.BANK_ID.NAMES[list_ret["bank_type"]],
         "result": list_ret["status"], })
 
     cipher_data = util.rsa_sign_and_encrypt_params(
-        ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey[1])
+        ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
 
-    return ApiJsonOkResponse(
-        cipher_data=cipher_data,
-        safe_vars=safe_vars)
+    return ApiJsonOkResponse(cipher_data=cipher_data)
 
 
 def _check_merchant(db, spid, cur_type):
@@ -445,22 +447,13 @@ def _check_merchant(db, spid, cur_type):
     merchant_ret = db.execute(s).first()
     if merchant_ret is None:
         return False, const.API_ERROR.SPID_NOT_EXIST
-    elif merchant_ret['status'] == const.MERCHANT_STATUS.FORBID:  # 判断是否被封禁
+    if merchant_ret['status'] == const.MERCHANT_STATUS.FORBID:  # 判断是否被封禁
+        assert False
         return False, const.API_ERROR.MERCHANT_FORBID
-    else:
-        return True, merchant_ret['rsa_pub_key']
+    return True, merchant_ret['rsa_pub_key']
 
 
 def _check_bank_channel(db, safe_vars):
-    """
-    检查银行渠道是否可用，是否验证手机号
-    需要确保safe_vars包含以下字段:
-    bank_type, expiration_date, pin_code, user_name, divided_term
-    """
-    if not set(('bank_type', 'divided_term', 'expiration_date',
-                'pin_code', 'user_name')) <= set(safe_vars.keys()):
-        return False, const.API_ERROR.PARAM_ERROR
-
     sel = select([t_bank_channel.c.is_enable,
                   t_bank_channel.c.fenqi_fee_percent,
                   t_bank_channel.c.bank_valitype,
@@ -507,10 +500,11 @@ def _check_bank_channel(db, safe_vars):
 
 
 def _check_sp_bank(db, safe_vars):
-    """ 查 sp_bank 的 fenqi_fee_percent"""
-    if not (set(safe_vars.keys()) >=
+    """ 查 sp_bank 的 fenqi_fee_percent
+        if not (set(safe_vars.keys()) >=
             set(('spid', 'bank_type', 'divided_term'))):
-        return False, const.API_ERROR.PARAM_ERROR
+            return False, const.API_ERROR.PARAM_ERROR
+    """
     sel = select([t_sp_bank.c.fenqi_fee_percent,
                   t_sp_bank.c.bank_spid]).where(and_(
                       t_sp_bank.c.spid == safe_vars['spid'],
@@ -527,12 +521,11 @@ def _check_sp_bank(db, safe_vars):
     return True, result
 
 
-def _check_list(db, list_id, user_mobile):
+def _check_list(db, list_id, user_mobile, sp_tid, user_account_no):
     """检查订单状态"""
     sel = select([
         t_trans_list.c.status,
         t_trans_list.c.user_account_no,
-        t_trans_list.c.user_account_type,
         t_trans_list.c.user_mobile,
         t_trans_list.c.bank_type,
         t_trans_list.c.spid,
@@ -555,6 +548,12 @@ def _check_list(db, list_id, user_mobile):
 
     if list_ret['user_mobile'] != user_mobile:
         return False, const.API_ERROR.CONFIRM_MOBILE_ERROR
+
+    if list_ret['sp_tid'] != sp_tid:
+        return False, const.API_ERROR.CONFIRM_SPTID_ERROR
+
+    if list_ret['user_account_no'] != user_account_no:
+        return False, const.API_ERROR.CONFIRM_ACCOUNT_NO_ERROR
     return True, list_ret
 
 

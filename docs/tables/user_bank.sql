@@ -20,7 +20,7 @@ CREATE TABLE `user_bank` (
   `bank_branch` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '支行名称',
   `account_mobile` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '银行卡预留手机号码',
   `status` tinyint(4) NOT NULL DEFAULT '0' COMMENT '状态 0：初始化 1: 验证成功 -1: 注销',
-  `lstate` tinyint(4) NOT NULL DEFAULT '0' COMMENT '0 正常，-1冻结，-2无效/删除',
+  `lstate` tinyint(4) NOT NULL DEFAULT '0' COMMENT '1有效，2挂起，3作废',
   `create_time` datetime NOT NULL COMMENT '记录创建时间',
   `modify_time` datetime NOT NULL COMMENT '最后修改时间',
   PRIMARY KEY (`id`),

@@ -37,7 +37,7 @@ CREATE TABLE `trans_list` (
   `attach` varchar(256) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '商户自定义数据，伴随结果返回，包含数字字母下划线',
   `amount` bigint(20) NOT NULL DEFAULT '0' COMMENT '商户提交的交易金额',
   `paynum` bigint(20) NOT NULL DEFAULT '0' COMMENT '实际去银行支付金额 以分为单位',
-  `fee_duty` tinyint(4) NOT NULL COMMENT '付费手续费 1用户，2商户',
+  `fee_duty` tinyint(4) NOT NULL COMMENT '付费手续费 1商户，2用户',
   `product_type` tinyint(4) NOT NULL COMMENT '分期或积分',
   `fee` bigint(20) NOT NULL DEFAULT '0' COMMENT '分乐收取的手续费',
   `bank_fee` bigint(20) NOT NULL DEFAULT '0' COMMENT '银行将要收的手续费',
