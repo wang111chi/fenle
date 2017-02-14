@@ -88,10 +88,13 @@ def index():
 def cardpay_apply(db, safe_vars):
     """ 处理逻辑"""
 
-    is_ok, ret_merchant = _check_merchant(
-        db, safe_vars['spid'], safe_vars['cur_type'])
-    if not is_ok:
-        return ApiJsonErrorResponse(ret_merchant)
+    sel_sp_balance = select([t_sp_balance.c.uid]).where(and_(
+        t_sp_balance.c.spid == safe_vars['spid'],
+        t_sp_balance.c.cur_type == safe_vars['cur_type']))
+    if db.execute(sel_sp_balance).first() is None:
+        return ApiJsonErrorResponse(const.API_ERROR.SP_BALANCE_NOT_EXIST)
+
+    sp_pubkey = _get_sp_pubkey(db, safe_vars['spid'])
 
     # 返回的参数
     ret_data = {'pay_type': const.PRODUCT_TYPE.FENQI}
@@ -104,7 +107,6 @@ def cardpay_apply(db, safe_vars):
         t_trans_list.c.spid == safe_vars['spid'],
         t_trans_list.c.sp_tid == safe_vars['sp_tid']))
     list_ret = db.execute(sel).first()
-    # merchant_pubkey = ret_merchant
     if list_ret is not None:   # 如果已经存在
         ret_data.update({
             "list_id": list_ret['list_id'],
@@ -112,7 +114,7 @@ def cardpay_apply(db, safe_vars):
         cipher_data = util.rsa_sign_and_encrypt_params(
             ret_data,
             config.FENLE_PRIVATE_KEY,
-            ret_merchant)
+            sp_pubkey)
         return ApiJsonOkResponse(cipher_data=cipher_data)
 
     comput_data = dict(
@@ -195,9 +197,7 @@ def cardpay_apply(db, safe_vars):
             "list_id": comput_data['list_id'],
             "result": comput_data['status'], })
         cipher_data = util.rsa_sign_and_encrypt_params(
-            ret_data,
-            config.FENLE_PRIVATE_KEY,
-            ret_merchant)
+            ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
         return ApiJsonOkResponse(cipher_data=cipher_data)
     else:
         db.execute(t_trans_list.insert(), dict(chain(
@@ -263,9 +263,7 @@ def cardpay_apply(db, safe_vars):
             "list_id": comput_data['list_id'],
             "result": const.TRANS_STATUS.PAY_SUCCESS, })
         cipher_data = util.rsa_sign_and_encrypt_params(
-            ret_data,
-            config.FENLE_PRIVATE_KEY,
-            ret_merchant)
+            ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
 
         return ApiJsonOkResponse(cipher_data=cipher_data)
 
@@ -354,10 +352,7 @@ def cardpay_confirm(db, safe_vars):
         trans.finish()
 
     # 从mysql获取商户公钥
-    s = select([t_merchant_info.c.rsa_pub_key]).where(
-        t_merchant_info.c.spid == safe_vars['spid'])
-    merchant_ret = db.execute(s).first()
-    ret_merchant = merchant_ret['rsa_pub_key']
+    sp_pubkey = _get_sp_pubkey(db, safe_vars['spid'])
     ret_data = dict((k, list_ret[k]) for k in (
         'spid', 'sp_tid', 'paynum', 'cur_type', 'divided_term',
         'fee_duty'))
@@ -367,9 +362,7 @@ def cardpay_confirm(db, safe_vars):
         "list_id": safe_vars['list_id'],
         "result": list_ret['status'], })
     cipher_data = util.rsa_sign_and_encrypt_params(
-        ret_data,
-        config.FENLE_PRIVATE_KEY,
-        ret_merchant)
+        ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
 
     return ApiJsonOkResponse(cipher_data=cipher_data)
 
@@ -405,9 +398,7 @@ def cardpay_query(db, safe_vars):
     list_ret = db.execute(sel).first()
     if list_ret is None:
         return ApiJsonErrorResponse(const.API_ERROR.LIST_ID_NOT_EXIST)
-    is_ok, sp_pubkey = _get_sp_pubkey(db, safe_vars['spid'])
-    if not is_ok:
-        return ApiJsonErrorResponse(sp_pubkey)
+    sp_pubkey = _get_sp_pubkey(db, safe_vars['spid'])
     ret_data = dict(list_ret).copy()
     ret_data.pop('paynum')
     ret_data['money'] = list_ret['paynum']
@@ -425,23 +416,12 @@ def cardpay_query(db, safe_vars):
     return ApiJsonOkResponse(cipher_data=cipher_data)
 
 
-def _check_merchant(db, spid, cur_type):
-    """从mysql检查商户spid及状态信息"""
-
-    sel_sp_balance = select([t_sp_balance.c.uid]).where(and_(
-        t_sp_balance.c.spid == spid,
-        t_sp_balance.c.cur_type == cur_type))
-    if db.execute(sel_sp_balance).first() is None:
-        return False, const.API_ERROR.SP_BALANCE_NOT_EXIST
-    s = select([t_merchant_info.c.status,
-                t_merchant_info.c.rsa_pub_key]).where(
+def _get_sp_pubkey(db, spid):
+    """从mysql获取商户公钥"""
+    s = select([t_merchant_info.c.rsa_pub_key]).where(
         t_merchant_info.c.spid == spid)
     merchant_ret = db.execute(s).first()
-    if merchant_ret is None:
-        return False, const.API_ERROR.SPID_NOT_EXIST
-    if merchant_ret['status'] == const.MERCHANT_STATUS.FORBID:  # 判断是否被封禁
-        return False, const.API_ERROR.MERCHANT_FORBID
-    return True, merchant_ret['rsa_pub_key']
+    return merchant_ret['rsa_pub_key']
 
 
 def _check_bank_channel(db, safe_vars):
@@ -546,14 +526,3 @@ def _check_list(db, list_id, user_mobile, sp_tid, user_account_no):
     if list_ret['user_account_no'] != user_account_no:
         return False, const.API_ERROR.CONFIRM_ACCOUNT_NO_ERROR
     return True, list_ret
-
-
-def _get_sp_pubkey(db, spid):
-    """ 从mysql获取商户公钥"""
-    s = select([t_merchant_info.c.rsa_pub_key]).where(
-        t_merchant_info.c.spid == spid)
-    merchant_ret = db.execute(s).first()
-    if merchant_ret is None:
-        return False, const.API_ERROR.SPID_NOT_EXIST
-    else:
-        return True, merchant_ret['rsa_pub_key']
