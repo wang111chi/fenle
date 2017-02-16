@@ -46,7 +46,7 @@ class TestCardpayApply(object):
         "sp_userid": "12345678",
         "sp_tid": "1234567",
         "money": 12345,
-        "cur_type": 1,
+        "cur_type": 0,
         "notify_url": "FIXME",
         "errpage_url": "",
         "memo": u"测试商品",
@@ -71,10 +71,10 @@ class TestCardpayApply(object):
     key = "654321" * 3
     now = datetime.now()
 
-    def insert_merchant(self, conn, status):
-        # initial merchant_info
+    def insert_merchant(self, conn, spid, status):
+        """ initial merchant_info """
         merchant_data = {
-            'spid': self.spid,
+            'spid': spid,
             'uid': '111',
             'mer_key': '654321' * 3,
             'agent_uid': '112',
@@ -108,7 +108,6 @@ class TestCardpayApply(object):
     def insert_channel(
         self, conn, valitype, is_enable, singlepay_vmask=None
     ):
-        # initial bank_channel data
         bank_data = {
             'bank_channel': 1,
             'bank_type': self.bank_type,
@@ -123,7 +122,6 @@ class TestCardpayApply(object):
         # return ret_channel._saved_cursor._last_insert_id
 
     def insert_user_bank(self, conn):
-        # initial user_bank
         user_bank_info = {
             'account_no': self.params['user_account_no'],
             'account_type': self.params['user_account_type'],
@@ -137,7 +135,6 @@ class TestCardpayApply(object):
         conn.execute(t_user_bank.insert(), user_bank_info)
 
     def insert_sp_bank(self, conn, spid, divided_term):
-        # initial sp_bank data
         sp_bank_data = {
             'spid': spid,
             'bank_spid': spid + '12345',
@@ -153,20 +150,17 @@ class TestCardpayApply(object):
                   v is not None and v != ""]
         params = sorted(params, key=operator.itemgetter(0))
         params_with_key = params + [("key", key)]
-
         urlencoded_params = urllib.parse.urlencode(params_with_key)
         # MD5签名
         m = hashlib.md5()
         m.update(urlencoded_params.encode())
         sign = m.hexdigest()
-
         # RSA加密
         params_with_sign = params + [("sign", sign)]
         urlencoded_params = urllib.parse.urlencode(params_with_sign)
 
         cipher_data = b64encode(
             util.rsa_encrypt(urlencoded_params, config.FENLE_PUB_KEY))
-
         return {"cipher_data": cipher_data}
 
     def cardpay_apply(self, client, params, predict_ret):
@@ -188,26 +182,26 @@ class TestCardpayApply(object):
             const.API_ERROR.SPID_NOT_EXIST)
 
     def test_merchant_forbid_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.FORBID)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.FORBID)
         self.cardpay_apply(
             client, self.params,
             const.API_ERROR.MERCHANT_FORBID)
 
     def test_merchant_balance_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.cardpay_apply(
             client, self.params,
             const.API_ERROR.SP_BALANCE_NOT_EXIST)
 
     def test_channel_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.cardpay_apply(
             client, self.params,
             const.API_ERROR.BANK_NOT_EXIST)
 
     def test_channel_unable_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.insert_channel(
             db, const.BANK_VALITYPE.MOBILE_NOT_VALID,
@@ -217,7 +211,7 @@ class TestCardpayApply(object):
             const.API_ERROR.BANK_CHANNEL_UNABLE)
 
     def test_channel_expiration_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.insert_channel(
             db, const.BANK_VALITYPE.MOBILE_NOT_VALID,
@@ -229,7 +223,7 @@ class TestCardpayApply(object):
             const.API_ERROR.NO_EXPIRATION_DATE)
 
     def test_channel_pincode_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.insert_channel(
             db, const.BANK_VALITYPE.MOBILE_NOT_VALID,
@@ -241,7 +235,7 @@ class TestCardpayApply(object):
             const.API_ERROR.NO_PIN_CODE)
 
     def test_channel_uname_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.insert_channel(
             db, const.BANK_VALITYPE.MOBILE_NOT_VALID,
@@ -253,7 +247,7 @@ class TestCardpayApply(object):
             const.API_ERROR.NO_USER_NAME)
 
     def test_channel_divided_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.insert_channel(
             db, const.BANK_VALITYPE.MOBILE_NOT_VALID,
@@ -265,7 +259,7 @@ class TestCardpayApply(object):
             const.API_ERROR.DIVIDED_TERM_NOT_EXIST)
 
     def test_userbank_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.insert_channel(
             db, const.BANK_VALITYPE.MOBILE_VALID,
@@ -276,7 +270,7 @@ class TestCardpayApply(object):
             const.API_ERROR.ACCOUNT_FREEZED)
 
     def test_spbank_spid_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.insert_channel(
             db, const.BANK_VALITYPE.MOBILE_VALID,
@@ -287,7 +281,7 @@ class TestCardpayApply(object):
             const.API_ERROR.NO_SP_BANK)
 
     def test_spbank_divided_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.insert_channel(
             db, const.BANK_VALITYPE.MOBILE_VALID,
@@ -298,7 +292,7 @@ class TestCardpayApply(object):
             const.API_ERROR.DIVIDED_TERM_NOT_EXIST)
 
     def test_feeduty_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.insert_channel(
             db, const.BANK_VALITYPE.MOBILE_VALID,
@@ -311,7 +305,7 @@ class TestCardpayApply(object):
             const.API_ERROR.NO_USER_PAY)
 
     def test_cardpay_apply_md5(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.insert_channel(
             db, const.BANK_VALITYPE.MOBILE_NOT_VALID,
@@ -327,14 +321,6 @@ class TestCardpayApply(object):
             client, self.params,
             const.REQUEST_STATUS.SUCCESS)
         assert list_id == list_ids
-
-    """
-    def check_merchant(self, client, db):
-        self.insert_merchant(db)
-        self.insert_channel(db, const.BANK_VALITYPE.MOBILE_NOT_VALID)
-        self.insert_sp_bank(db)
-        self.init_balance(db)
-    """
 
     def cardpay_confirm(self, client, confirm_info, predict_ret):
         confirm_data = {
@@ -356,7 +342,7 @@ class TestCardpayApply(object):
 
     def test_confirm_listid_check(self, client, db):
         """ 测试支付确认 """
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         confirm_info = {
             "list_id": "543223",  # 给一个不存在的list_id
             "sp_tid": self.params["sp_tid"],
@@ -367,7 +353,7 @@ class TestCardpayApply(object):
             const.API_ERROR.LIST_ID_NOT_EXIST)
 
     def test_confirm_status_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.insert_channel(
             # 不验证手机号会有状态错误
@@ -391,7 +377,7 @@ class TestCardpayApply(object):
             const.API_ERROR.CONFIRM_STATUS_ERROR)
 
     def test_confirm_mobile_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.insert_channel(
             db, const.BANK_VALITYPE.MOBILE_VALID,
@@ -414,7 +400,7 @@ class TestCardpayApply(object):
             const.API_ERROR.CONFIRM_MOBILE_ERROR)
 
     def test_confirm_accountNo_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.insert_channel(
             db, const.BANK_VALITYPE.MOBILE_VALID,
@@ -438,7 +424,7 @@ class TestCardpayApply(object):
             const.API_ERROR.CONFIRM_ACCOUNT_NO_ERROR)
 
     def test_confirm_sptid_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.insert_channel(
             db, const.BANK_VALITYPE.MOBILE_VALID,
@@ -462,7 +448,7 @@ class TestCardpayApply(object):
             const.API_ERROR.CONFIRM_SPTID_ERROR)
 
     def test_confirm_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.insert_channel(
             db, const.BANK_VALITYPE.MOBILE_VALID,
@@ -484,6 +470,217 @@ class TestCardpayApply(object):
             client, confirm_info,
             const.REQUEST_STATUS.SUCCESS)
 
+    def cardpay_validate(self, client, predict_ret):
+        confirm_data = {
+            "encode_type": "MD5",
+            "spid": self.spid,
+            "money": self.params['money'],
+            "user_account_no": self.params['user_account_no'],
+            "user_mobile": self.params['user_mobile'],
+            "bank_type": self.params['bank_type']}
+        query_params = self.cardpay_apply_md5(self.key, confirm_data)
+        valid_rsp = client.get(
+            '/cardpay/validate', query_string=query_params)
+        assert valid_rsp.status_code == 200
+        json_valid_rsp = json.loads(valid_rsp.data)
+        assert json_valid_rsp["retcode"] == predict_ret
+        if predict_ret == 0:
+            valid_ret = util.rsa_decrypt(
+                json_valid_rsp['cipher_data'],
+                config.TEST_MERCHANT_PRIVATE_KEY)
+            return valid_ret
+
+    def test_valid_spid_check(self, client, db):
+        self.insert_merchant(db, '34' * 5, const.MERCHANT_STATUS.OPEN)
+        self.cardpay_validate(
+            client, const.API_ERROR.SPID_NOT_EXIST)
+
+    def test_valid_merchant_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.FORBID)
+        self.cardpay_validate(
+            client, const.API_ERROR.MERCHANT_FORBID)
+
+    def test_valid_balance_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.cardpay_validate(
+            client, const.API_ERROR.SP_BALANCE_NOT_EXIST)
+
+    def test_valid_banktype_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.init_balance(db)
+        self.cardpay_validate(
+            client, const.API_ERROR.BANK_NOT_EXIST)
+
+    def test_valid_channel_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.init_balance(db)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_VALID,
+            const.BOOLEAN.FALSE)
+        self.cardpay_validate(
+            client, const.API_ERROR.BANK_CHANNEL_UNABLE)
+
+    def test_valid_usrbank_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.init_balance(db)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_VALID,
+            const.BOOLEAN.TRUE)
+        self.insert_user_bank(db)
+        self.cardpay_validate(
+            client, const.API_ERROR.ACCOUNT_FREEZED)
+
+    def test_valid_spbank_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.init_balance(db)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_VALID,
+            const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, '57' * 5, {6: 500, 12: 600})
+        self.cardpay_validate(
+            client, const.API_ERROR.NO_SP_BANK)
+
+    def test_valid_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.init_balance(db)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_VALID,
+            const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+        self.cardpay_validate(
+            client, const.REQUEST_STATUS.SUCCESS)
+
+    def cardpay_trade(self, client, params, predict_ret):
+        # @params<predict_ret>: 预计要返回的值
+        query_params = self.cardpay_apply_md5(self.key, params)
+        rsp = client.get('/cardpay/trade', query_string=query_params)
+        assert rsp.status_code == 200
+        json_rsp = json.loads(rsp.data)
+        assert json_rsp["retcode"] == predict_ret
+        if predict_ret == 0:
+            params = util.rsa_decrypt(
+                json_rsp['cipher_data'],
+                config.TEST_MERCHANT_PRIVATE_KEY)
+            return params['list_id'][0]
+
+    def test_trade_spid_check(self, client, db):
+        self.insert_merchant(db, '23' * 5, const.MERCHANT_STATUS.OPEN)
+        params = self.params.copy()
+        params['bank_sms_time'] = self.now
+        self.cardpay_trade(
+            client, params,
+            const.API_ERROR.SPID_NOT_EXIST)
+
+    def test_trade_merchant_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.FORBID)
+        params = self.params.copy()
+        params['bank_sms_time'] = self.now
+        self.cardpay_trade(
+            client, params,
+            const.API_ERROR.MERCHANT_FORBID)
+
+    def test_trade_balance_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        params = self.params.copy()
+        params['bank_sms_time'] = self.now
+        self.cardpay_trade(
+            client, params,
+            const.API_ERROR.SP_BALANCE_NOT_EXIST)
+
+    def test_trade_bank_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.init_balance(db)
+        params = self.params.copy()
+        params['bank_sms_time'] = self.now
+        self.cardpay_trade(
+            client, params,
+            const.API_ERROR.BANK_NOT_EXIST)
+
+    def test_trade_channel_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.init_balance(db)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_NOT_VALID,
+            const.BOOLEAN.FALSE)
+        params = self.params.copy()
+        params['bank_sms_time'] = self.now
+        self.cardpay_trade(
+            client, params,
+            const.API_ERROR.BANK_CHANNEL_UNABLE)
+
+    def test_trade_userbank_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.init_balance(db)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_VALID,
+            const.BOOLEAN.TRUE)
+        self.insert_user_bank(db)
+        params = self.params.copy()
+        params['bank_sms_time'] = self.now
+        self.cardpay_trade(
+            client, params,
+            const.API_ERROR.ACCOUNT_FREEZED)
+
+    def test_trade_spbank_spid_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.init_balance(db)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_VALID,
+            const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, '57' * 5, {6: 500, 12: 600})
+        params = self.params.copy()
+        params['bank_sms_time'] = self.now
+        self.cardpay_trade(
+            client, params,
+            const.API_ERROR.NO_SP_BANK)
+
+    def test_trade_spbank_divided_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.init_balance(db)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_VALID,
+            const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {8: 500, 12: 600})
+        params = self.params.copy()
+        params['bank_sms_time'] = self.now
+        self.cardpay_trade(
+            client, params,
+            const.API_ERROR.DIVIDED_TERM_NOT_EXIST)
+
+    def test_trade_feeduty_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.init_balance(db)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_VALID,
+            const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+        params = self.params.copy()
+        params['fee_duty'] = const.FEE_DUTY.CUSTOM
+        params['bank_sms_time'] = self.now
+        self.cardpay_trade(
+            client, params,
+            const.API_ERROR.NO_USER_PAY)
+
+    def test_trade_md5(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.init_balance(db)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_NOT_VALID,
+            const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+        params = self.params.copy()
+        params['bank_sms_time'] = self.now
+
+        # 测试不验证手机号的支付请求
+        list_id = self.cardpay_trade(
+            client, params,
+            const.REQUEST_STATUS.SUCCESS)
+        # 测试重复调用的反应
+        list_ids = self.cardpay_trade(
+            client, params,
+            const.REQUEST_STATUS.SUCCESS)
+        assert list_id == list_ids
+
     def test_query_listid_check(self, client):
         """测试错误list_id的查询"""
         qry_data = {
@@ -498,7 +695,7 @@ class TestCardpayApply(object):
         assert json_rsp["retcode"] == const.API_ERROR.LIST_ID_NOT_EXIST
 
     def test_query_spid_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.insert_channel(
             db, const.BANK_VALITYPE.MOBILE_VALID,
@@ -523,7 +720,7 @@ class TestCardpayApply(object):
         assert json_qry_rsp["retcode"] == const.API_ERROR.SPID_NOT_EXIST
 
     def test_query_check(self, client, db):
-        self.insert_merchant(db, const.MERCHANT_STATUS.OPEN)
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.init_balance(db)
         self.insert_channel(
             db, const.BANK_VALITYPE.MOBILE_VALID,
