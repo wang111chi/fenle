@@ -176,7 +176,7 @@ class TestCardpayApply(object):
                 config.TEST_MERCHANT_PRIVATE_KEY)
             return params['list_id'][0]
 
-    def test_merchant_spid_check(self, client):
+    def test_merchant_spid_check(self, client, db):
         self.cardpay_apply(
             client, self.params,
             const.API_ERROR.SPID_NOT_EXIST)

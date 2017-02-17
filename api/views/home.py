@@ -422,7 +422,6 @@ def cardpay_validate(db, safe_vars):
 
     # TODO 调用银行短信下发接口
     ret_data = {
-        "bank_roll": '',
         "bank_sms_time": now}  # 此处为银行返回时间
     sp_pubkey = _get_sp_pubkey(db, safe_vars['spid'])
     cipher_data = util.rsa_sign_and_encrypt_params(
@@ -431,7 +430,7 @@ def cardpay_validate(db, safe_vars):
 
 
 @home.route("/cardpay/trade")
-@general("信用卡分期交易接口")
+@general("信用卡分期支付接口")
 @db_conn
 @api_form_check({
     "bank_sms_time": (F_str("短信下发时间") <= 32) & "strict" & "required",
