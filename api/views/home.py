@@ -59,16 +59,14 @@ def index():
     "sp_userid": (F_str("用户号") <= 20) & "strict" & "optional",
     "sp_tid": (F_str("支付订单号") <= 32) & "strict" & "required",
     "money": (F_int("订单交易金额")) & "strict" & "required",
-    "cur_type": (F_int("币种类型")) & "strict" & "required",
+    "cur_type": (F_int("币种类型", const.CUR_TYPE.RMB)) & (
+        "strict") & "required",
     "notify_url": (F_str("后台回调地址") <= 255) & "strict" & "required",
     "errpage_url": (F_str("错误页面回调地址") <= 255) & "strict" & "optional",
     "memo": (F_str("订单备注") <= 255) & "strict" & "required",
-    "expire_time": (F_int("订单有效时长")) & "strict" & "optional",
     "attach": (F_str("附加数据") <= 255) & "strict" & "optional",
-    "user_account_type": (F_int("银行卡类型")) & "strict" & "required" & (
-        lambda v: (v in const.ACCOUNT_TYPE.ALL, v)),
-    "user_account_attr": (F_int("用户类型")) & "strict" & "optional" & (
-        lambda v: (v in const.ACCOUNT_ATTR.ALL, v)),
+    "user_account_type": F_int("银行卡类型", const.ACCOUNT_TYPE.CREDIT_CARD) & (
+        "strict") & "required" & (lambda v: (v in const.ACCOUNT_TYPE.ALL, v)),
     "user_account_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
     "user_name": (F_str("付款人姓名") <= 16) & "strict" & "optional",
     "user_mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
@@ -78,8 +76,8 @@ def index():
     "divided_term": (F_int("分期期数")) & "strict" & "required",
     "fee_duty": (F_int("手续费承担方")) & "strict" & "required" & (
         lambda v: (v in const.FEE_DUTY.ALL, v)),
-    "channel": (F_int("渠道类型")) & "strict" & "required" & (
-        lambda v: (v in const.CHANNEL.ALL, v)),
+    "channel": F_int("渠道类型", const.CHANNEL.API) & "strict" & (
+        "required") & (lambda v: (v in const.CHANNEL.ALL, v)),
     "sign": (F_str("签名") <= 1024) & "strict" & "required",
     "encode_type": (F_str("") <= 5) & "strict" & "required" & (
         lambda v: (v in const.ENCODE_TYPE.ALL, v)),
@@ -180,10 +178,9 @@ def cardpay_apply(db, safe_vars):
 
     # 请求参数中的不需要计算的字段
     solid_data = dict((k, safe_vars[k]) for k in (
-        u'spid', u'sp_userid', u'sp_tid', u'cur_type',
-        u'notify_url', u'memo', u'attach', u'user_account_no',
-        u'user_account_type', u'user_account_attr',
-        u'user_name', u'user_mobile', u'bank_type',
+        u'spid', u'sp_tid', u'cur_type', u'notify_url',
+        u'memo', u'attach', u'user_account_no', u'bank_type',
+        u'user_account_type', u'user_name', u'user_mobile',
         u'divided_term', u'pin_code', u'fee_duty', u'channel'))
 
     if ret_channel['is_need_mobile']:
@@ -271,7 +268,7 @@ def cardpay_apply(db, safe_vars):
 @db_conn
 @api_form_check({
     "sign": (F_str("签名") <= 1024) & "strict" & "required",
-    "encode_type": (F_str("") <= 5) & "strict" & "required" & (
+    "encode_type": (F_str("编码方式") <= 5) & "strict" & "required" & (
         lambda v: (v in const.ENCODE_TYPE.ALL, v)),
     "spid": (10 <= F_str("商户号") <= 10) & "strict" & "required",
     "sp_tid": (F_str("支付订单号") <= 32) & "strict" & "required",
@@ -438,13 +435,13 @@ def cardpay_validate(db, safe_vars):
     "sp_userid": (F_str("用户号") <= 20) & "strict" & "optional",
     "sp_tid": (F_str("支付订单号") <= 32) & "strict" & "required",
     "money": (F_int("订单交易金额")) & "strict" & "required",
-    "cur_type": (F_int("币种类型")) & "strict" & "required",
+    "cur_type": (F_int("币种类型", const.CUR_TYPE.RMB)) & "strict" & "optional",
     "notify_url": (F_str("后台回调地址") <= 255) & "strict" & "required",
     "errpage_url": (F_str("错误页面回调地址") <= 255) & "strict" & "optional",
     "memo": (F_str("订单备注") <= 255) & "strict" & "required",
     "attach": (F_str("附加数据") <= 255) & "strict" & "optional",
-    "user_account_type": (F_int("银行卡类型")) & "strict" & "required" & (
-        lambda v: (v in const.ACCOUNT_TYPE.ALL, v)),
+    "user_account_type": F_int("银行卡类型", const.ACCOUNT_TYPE.CREDIT_CARD) & (
+        "strict") & "required" & (lambda v: (v in const.ACCOUNT_TYPE.ALL, v)),
     "user_account_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
     "user_name": (F_str("付款人姓名") <= 16) & "strict" & "optional",
     "user_mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
@@ -454,8 +451,8 @@ def cardpay_validate(db, safe_vars):
     "divided_term": (F_int("分期期数")) & "strict" & "required",
     "fee_duty": (F_int("手续费承担方")) & "strict" & "required" & (
         lambda v: (v in const.FEE_DUTY.ALL, v)),
-    "channel": (F_int("渠道类型")) & "strict" & "required" & (
-        lambda v: (v in const.CHANNEL.ALL, v)),
+    "channel": (F_int("渠道类型", const.CHANNEL.API)) & "strict" & (
+        "required") & (lambda v: (v in const.CHANNEL.ALL, v)),
     "sign": (F_str("签名") <= 1024) & "strict" & "required",
     "encode_type": (F_str("") <= 5) & "strict" & "required" & (
         lambda v: (v in const.ENCODE_TYPE.ALL, v)),
@@ -637,8 +634,8 @@ def cardpay_trade(db, safe_vars):
         lambda v: (v in const.ENCODE_TYPE.ALL, v)),
     "spid": (10 <= F_str("商户号") <= 10) & "strict" & "required",
     "list_id": (F_str("支付订单号") <= 32) & "strict" & "required",
-    "channel": (F_int("渠道类型")) & "strict" & "required" & (
-        lambda v: (v in const.CHANNEL.ALL, v)),
+    "channel": (F_int("渠道类型", const.CHANNEL.API)) & "strict" & (
+        "required") & (lambda v: (v in const.CHANNEL.ALL, v)),
     "rist_ctrl": (F_str("风险控制数据") <= 10240) & "strict" & "optional",
 })
 def cardpay_query(db, safe_vars):

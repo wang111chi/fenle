@@ -87,8 +87,8 @@ class USER_BANK_STATUS(object):
 class TRANS_STATUS(object):
     PAY_SUCCESS = 1  # 支付成功
     PAY_FALSE = 2  # 支付失败
-    PAYING = 4  # 支付中
-    MOBILE_CHECKING = 3  # 短信验证中
+    PAYING = 3  # 支付中
+    MOBILE_CHECKING = 4  # 短信验证中
 
 
 class MERCHANT_STATUS(object):
