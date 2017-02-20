@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import os
 import json
 import datetime
 from decimal import Decimal
@@ -243,3 +244,37 @@ def gen_bank_tid(bank_spid):
 
     key = "bank_tid:%s" % key_prefix
     return ("%s%06d" % (key_prefix, _gen_seq_by_redis(key, 1)))[:35]
+
+
+class FileLock:
+    def __init__(self, file_name, path):
+        self._file = os.path.join(path, file_name)
+        self._fd = None
+        self._locked = False
+
+    def lock(self):
+        import fcntl
+        if self._locked:
+            return True
+
+        fd = open(self._file, 'a+b')
+        try:
+            fcntl.flock(fd.fileno(), fcntl.LOCK_NB | fcntl.LOCK_EX)
+        except IOError:
+            fd.close()
+            return False
+
+        self._fd = fd
+        self._locked = True
+        return True
+
+    def release(self):
+        import fcntl
+        if self._locked:
+            fcntl.flock(self._fd.fileno(), fcntl.LOCK_UN)
+            self._fd.close()
+            self._fd = None
+            self._locked = False
+
+    def __del__(self):
+        self.release()

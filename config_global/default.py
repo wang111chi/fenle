@@ -17,6 +17,7 @@ LOGGING_CONFIG = [
     ["response-log", "response.log", "debug"],
 
     ["tools-log", "tools.log", "debug"],
+    ["task-log", "task.log", "debug"],
 ]
 
 # URL回调的设置，k, v的形式，其中：

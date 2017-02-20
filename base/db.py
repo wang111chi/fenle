@@ -26,6 +26,8 @@ t_sp_bankroll_list = meta.tables['sp_bankroll_list']
 t_sp_balance = meta.tables['sp_balance']
 t_fenle_balance = meta.tables['fenle_balance']
 t_callback_url = meta.tables['callback_url']
+t_task_log = meta.tables['task_log']
+t_task_footprint = meta.tables['task_footprint']
 
 
 # ########## redis #################
