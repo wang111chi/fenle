@@ -59,17 +59,21 @@ class CUR_TYPE(object):
     ALL = (RMB, DOLLAR)
 
 
-class BANKROLL_TYPE(object):
+class BIZ(object):
+
+    u"""业务类型"""
+
     TRANS = 1  # 交易
     REFUND = 2  # 退款
-    B2C = 3  # 结算
-    C2B = 4  # 反结算
+    SETTLE = 3  # 结算
+    WITHDRAW = 4  # 提现
     DEPOSIT = 5  # 充值
-    DRAW_CASH = 6  # 提现
-    FREEZE = 7  # 冻结
-    DEFREEZE = 8  # 解冻
-    ARREARS_IN = 9  # 欠款入
-    ARREARS_OUT = 10  # 欠款出
+
+    # C2B = 4  # 反结算
+    # FREEZE = 7  # 冻结
+    # DEFREEZE = 8  # 解冻
+    # ARREARS_IN = 9  # 欠款入
+    # ARREARS_OUT = 10  # 欠款出
 
 
 class LSTATE(object):
@@ -133,6 +137,7 @@ class PAY_MASK(object):
 class ACCOUNT_CLASS(object):
     B = 1
     C = 2
+    ARREARS = 3
 
 
 class ACCOUNT_TYPE(object):

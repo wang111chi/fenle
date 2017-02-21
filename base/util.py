@@ -232,6 +232,23 @@ def gen_trans_list_id(spid, bank_type):
                         _gen_seq_by_redis(key, 60 * 60 * 24 + 60)))[:30]
 
 
+def gen_refund_id(spid, bank_type):
+    u"""生成退款单ID.
+
+    10位的spid+4位银行类型+8位日期+8位序列号
+
+    @param<spid>: 商户号
+    @param<bank_type>: 银行类型
+    """
+    key_prefix = "%s%s%s" % (spid,
+                             bank_type,
+                             datetime.date.today().strftime("%Y%m%d"))
+
+    key = "refund_id:%s" % key_prefix
+    return ("%s%08d" % (key_prefix,
+                        _gen_seq_by_redis(key, 60 * 60 * 24 + 60)))[:30]
+
+
 def gen_bank_tid(bank_spid):
     u"""生成给银行的订单号.
 

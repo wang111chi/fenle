@@ -5,7 +5,7 @@ use fenle_fenqi_db;
 # DROP TABLE IF EXISTS sp_bank;
 
 CREATE TABLE `sp_bank` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键',
   `spid` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户号',
   `bank_type` int(11) NOT NULL COMMENT '银行类型',
   `bank_spid` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '15位银行子商户号: 四位的地区号+mcc号+内部序列号',

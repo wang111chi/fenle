@@ -4,7 +4,7 @@ use fenle_fenqi_db;
 # DROP TABLE IF EXISTS callback_url;
 
 CREATE TABLE `callback_url` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `url` varchar(2000) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'URL',
   `method` tinyint(4) NOT NULL DEFAULT '0' COMMENT '请求方法 0: GET 1: POST',
   `body` text COLLATE utf8mb4_unicode_ci COMMENT '请求body',

@@ -4,7 +4,7 @@ use fenle_fenqi_db;
 # DROP TABLE IF EXISTS merchant_info;
 
 CREATE TABLE `merchant_info` (
-  `spid` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户外部编号',
+  `spid` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户外部编号',
   `uid` int(10) unsigned NOT NULL COMMENT '内部编号',
   `agent_uid` int(10) unsigned NOT NULL COMMENT '代理编号',
   `parent_uid` int(10) unsigned NOT NULL COMMENT '上级商户uid',

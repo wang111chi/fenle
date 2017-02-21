@@ -1,13 +1,13 @@
 create database if not exists fenle_fenqi_db;
 use fenle_fenqi_db;
 
-# ÈÎÎñÔËĞĞ±í
+# ä»»åŠ¡è¿è¡Œè¡¨
 # DROP TABLE IF EXISTS task_footprint;
 
 CREATE TABLE `task_footprint` (
-`task_id` int(11) NOT NULL COMMENT 'ÈÎÎñÀàĞÍID',
-`task_name` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'ÈÎÎñÀàĞÍÃû³Æ',
-`status` tinyint(4) NOT NULL DEFAULT '0' COMMENT 'ÈÎÎñ×´Ì¬',
-`modify_time` datetime NOT NULL COMMENT '¸üĞÂÊ±¼ä',
+`task_id` int(11) NOT NULL COMMENT 'ä»»åŠ¡ç±»å‹ID',
+`task_name` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'ä»»åŠ¡ç±»å‹åç§°',
+`status` tinyint(4) NOT NULL DEFAULT '0' COMMENT 'ä»»åŠ¡çŠ¶æ€',
+`modify_time` datetime NOT NULL COMMENT 'æ›´æ–°æ—¶é—´',
 PRIMARY KEY (`task_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

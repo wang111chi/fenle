@@ -4,7 +4,7 @@ use fenle_fenqi_db;
 # DROP TABLE IF EXISTS `user_bank`;
 
 CREATE TABLE `user_bank` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键',
   `account_no` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '卡号',
   `account_type` tinyint(4) NOT NULL COMMENT '卡种 1信用卡、2借计卡、3公司账号',
   `account_attr` tinyint(4) NOT NULL DEFAULT '0' COMMENT '0个人',
