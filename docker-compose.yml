@@ -34,6 +34,16 @@ services:
     depends_on:
      - mysql
      - redis
+  sit:
+    build:
+      context: .
+      dockerfile: sit/Dockerfile
+    volumes:
+     - .:/fenle
+    ports:
+     - "3035:3031"
+    depends_on:
+     - mysql
   mysql:
     extends:
       file: mysql/docker-compose.yml
