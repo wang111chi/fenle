@@ -205,12 +205,12 @@ def cardpay_apply(db, safe_vars):
             'user_name', 'cur_type', 'bank_type', 'spid'))
         sp_bankroll_data['list_id'] = comput_data['list_id']
         sp_bankroll_data['product_type'] = const.PRODUCT_TYPE.FENQI
+        sp_bankroll_data['bankroll_type'] = const.BANKROLL_TYPE.TRANS,
         sp_bankroll_data['create_time'] = now
         sp_bankroll_data['modify_time'] = now
         fenle_bankroll_data = sp_bankroll_data.copy()
 
         sp_bankroll_data.update({
-            'bankroll_type': const.SP_BANKROLL_TYPE.TRANS,
             'list_sign': const.LIST_SIGN.WELL,
             'account_class': const.ACCOUNT_CLASS.B})
 
@@ -291,11 +291,11 @@ def cardpay_confirm(db, safe_vars):
     sp_bankroll_data['create_time'] = now
     sp_bankroll_data['modify_time'] = now
     sp_bankroll_data['product_type'] = const.PRODUCT_TYPE.FENQI
+    sp_bankroll_data['bankroll_type'] = const.BANKROLL_TYPE.TRANS,
     sp_bankroll_data['list_id'] = safe_vars['list_id']
     fenle_bankroll_data = sp_bankroll_data.copy()
 
     sp_bankroll_data.update({
-        'bankroll_type': const.SP_BANKROLL_TYPE.TRANS,
         'list_sign': const.LIST_SIGN.WELL,
         'account_class': const.ACCOUNT_CLASS.B})
 
@@ -536,7 +536,7 @@ def cardpay_trade(db, safe_vars):
         'list_id': util.gen_trans_list_id(
             safe_vars['spid'], safe_vars['bank_type']),
         'bank_tid': util.gen_bank_tid(bank_spid),
-        'bank_backid': safe_vars['bank_sms_time'],
+        'bank_backid': "",
         'status': const.TRANS_STATUS.PAYING,  # 支付中
         'lstate': const.LSTATE.VALID,  # 有效的
         'create_time': now,
@@ -546,7 +546,7 @@ def cardpay_trade(db, safe_vars):
     if safe_vars['fee_duty'] == const.FEE_DUTY.BUSINESS:  # 商户付手续费
         comput_data.update({
             'amount': safe_vars['money'],
-            'pay_num': safe_vars['money'], })
+            'pay_num': safe_vars['money']})
     else:
         # 用户付手续费情形
         return ApiJsonErrorResponse(const.API_ERROR.NO_USER_PAY)
@@ -567,19 +567,18 @@ def cardpay_trade(db, safe_vars):
         'user_name', 'cur_type', 'bank_type', 'spid'))
     sp_bankroll_data['list_id'] = comput_data['list_id']
     sp_bankroll_data['product_type'] = const.PRODUCT_TYPE.FENQI
+    sp_bankroll_data['bankroll_type'] = const.BANKROLL_TYPE.TRANS,
+    sp_bankroll_data['amount'] = comput_data['pay_num']
     sp_bankroll_data['create_time'] = now
     sp_bankroll_data['modify_time'] = now
     fenle_bankroll_data = sp_bankroll_data.copy()
 
     sp_bankroll_data.update({
-        'bankroll_type': const.SP_BANKROLL_TYPE.TRANS,
         'list_sign': const.LIST_SIGN.WELL,
         'account_class': const.ACCOUNT_CLASS.B})
-
     fenle_bankroll_data.update({
         'fenle_account_id': config.FENLE_ACCOUNT_NO,
         'fenle_account_type': const.FENLE_ACCOUNT.VIRTUAL})  # 1真实，2虚拟
-
     # fee_duty  计算手续费生成金额
     sp_bankroll_data.update({
         'pay_num': comput_data['pay_num'],
@@ -589,7 +588,6 @@ def cardpay_trade(db, safe_vars):
         'fact_amount': (
             comput_data['pay_num'] - comput_data['bank_fee']),
         'income_num': comput_data['fee'] - comput_data['bank_fee']})
-
     fenle_bankroll_data.update({
         'bank_tid': comput_data['bank_tid'],
         'bank_backid': comput_data['bank_backid']})
@@ -597,17 +595,18 @@ def cardpay_trade(db, safe_vars):
     udp_fenle_balance = t_fenle_balance.update().where(and_(
         t_fenle_balance.c.account_no == config.FENLE_ACCOUNT_NO,
         t_fenle_balance.c.bank_type == config.FENLE_BANK_TYPE)).values(
-        balance=t_fenle_balance.c.balance +
-            comput_data['fee'] - comput_data['bank_fee'],
+        balance=t_fenle_balance.c.balance + comput_data['pay_num'],
         modify_time=now)
     udp_sp_balance = t_sp_balance.update().where(and_(
         t_sp_balance.c.spid == safe_vars['spid'],
         t_sp_balance.c.cur_type == safe_vars['cur_type'])).values(
-        b_balance=t_sp_balance.c.b_balance +
-            comput_data['pay_num'] - comput_data['fee'])
+        b_balance=t_sp_balance.c.b_balance + comput_data['pay_num'],
+        modify_time=now)
+
     udp_trans_list = t_trans_list.update().where(
         t_trans_list.c.list_id == comput_data['list_id']).values(
-        status=const.TRANS_STATUS.PAY_SUCCESS)
+        status=const.TRANS_STATUS.PAY_SUCCESS, modify_time=now,
+        paysucc_time=now)
 
     with transaction(db) as trans:
         db.execute(udp_trans_list)
@@ -625,6 +624,26 @@ def cardpay_trade(db, safe_vars):
     return ApiJsonOkResponse(cipher_data=cipher_data)
 
 
+@home.route("/cardpay/refund")
+@general("退款接口")
+@db_conn
+@api_form_check({
+    "sign": (F_str("签名") <= 1024) & "strict" & "required",
+    "encode_type": (F_str("") <= 5) & "strict" & "required" & (
+        lambda v: (v in const.ENCODE_TYPE.ALL, v)),
+    "spid": (10 <= F_str("商户号") <= 10) & "strict" & "required",
+    "list_id": (F_str("支付订单号") <= 32) & "strict" & "required",
+})
+def cardpay_refund(db, safe_vars):
+    is_ok, list_ret = _get_list(
+        db, safe_vars['list_id'], const.TRANS_STATUS.PAY_SUCCESS)
+    if not is_ok:
+        return ApiJsonErrorResponse(list_ret)
+    # now = datetime.now()
+
+    return
+
+
 @home.route("/cardpay/query")
 @general("单笔查询接口")
 @db_conn
@@ -639,23 +658,9 @@ def cardpay_trade(db, safe_vars):
     "rist_ctrl": (F_str("风险控制数据") <= 10240) & "strict" & "optional",
 })
 def cardpay_query(db, safe_vars):
-    sel = select([
-        t_trans_list.c.status,
-        t_trans_list.c.sp_userid,
-        t_trans_list.c.sp_tid,
-        t_trans_list.c.paynum,
-        t_trans_list.c.fee,
-        t_trans_list.c.cur_type,
-        t_trans_list.c.divided_term,
-        t_trans_list.c.fee_duty,
-        t_trans_list.c.memo,
-        t_trans_list.c.product_type,
-        t_trans_list.c.bank_type]).where(
-        t_trans_list.c.list_id == safe_vars['list_id'])
-
-    list_ret = db.execute(sel).first()
-    if list_ret is None:
-        return ApiJsonErrorResponse(const.API_ERROR.LIST_ID_NOT_EXIST)
+    is_ok, list_ret = _get_list(db, safe_vars['list_id'])
+    if not is_ok:
+        return ApiJsonErrorResponse(list_ret)
     sp_pubkey = _get_sp_pubkey(db, safe_vars['spid'])
     ret_data = dict(list_ret).copy()
     ret_data.pop('paynum')
@@ -667,7 +672,6 @@ def cardpay_query(db, safe_vars):
         "list_id": safe_vars['list_id'],
         "bank_name": const.BANK_ID.NAMES[list_ret["bank_type"]],
         "result": list_ret["status"]})
-
     cipher_data = util.rsa_sign_and_encrypt_params(
         ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
     return ApiJsonOkResponse(cipher_data=cipher_data)
@@ -782,4 +786,29 @@ def _check_list(db, list_id, user_mobile, sp_tid, user_account_no):
 
     if list_ret['user_account_no'] != user_account_no:
         return False, const.API_ERROR.CONFIRM_ACCOUNT_NO_ERROR
+    return True, list_ret
+
+
+def _get_list(db, list_id, what_status=None):
+    sel = select([
+        t_trans_list.c.status,
+        t_trans_list.c.sp_userid,
+        t_trans_list.c.sp_tid,
+        t_trans_list.c.paynum,
+        t_trans_list.c.fee,
+        t_trans_list.c.cur_type,
+        t_trans_list.c.divided_term,
+        t_trans_list.c.fee_duty,
+        t_trans_list.c.memo,
+        t_trans_list.c.money,
+        t_trans_list.c.paysucc_time,
+        t_trans_list.c.product_type,
+        t_trans_list.c.bank_type]).where(
+        t_trans_list.c.list_id == list_id)
+    list_ret = db.execute(sel).first()
+    if list_ret is None:
+        return False, const.API_ERROR.LIST_ID_NOT_EXIST
+    if what_status == const.TRANS_STATUS.PAY_SUCCESS:
+        if list_ret['status'] != const.TRANS_STATUS.PAY_SUCCESS:
+            return False, const.API_ERROR.LIST_STATUS_ERROR
     return True, list_ret

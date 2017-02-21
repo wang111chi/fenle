@@ -59,7 +59,7 @@ class CUR_TYPE(object):
     ALL = (RMB, DOLLAR)
 
 
-class SP_BANKROLL_TYPE(object):
+class BANKROLL_TYPE(object):
     TRANS = 1  # 交易
     REFUND = 2  # 退款
     B2C = 3  # 结算
@@ -210,6 +210,7 @@ class API_ERROR(object):
     CONFIRM_MOBILE_ERROR = 207602
     CONFIRM_SPTID_ERROR = 207603
     CONFIRM_ACCOUNT_NO_ERROR = 207604
+    LIST_STATUS_ERROR = 207605
 
     NO_USER_PAY = 207701
     INSERT_ERROR = 207702
@@ -237,6 +238,7 @@ class API_ERROR(object):
         CONFIRM_MOBILE_ERROR: u"二次确认手机号错误",
         CONFIRM_SPTID_ERROR: u"二次确认商户订单号错误",
         CONFIRM_ACCOUNT_NO_ERROR: u"二次确认用户银行卡号错误",
+        LIST_STATUS_ERROR: u"订单状态错误",
         NO_USER_PAY: u"不支持用户付手续费情形",
         INSERT_ERROR: u"数据库插入异常"}
 

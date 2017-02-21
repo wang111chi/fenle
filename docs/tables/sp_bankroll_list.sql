@@ -16,6 +16,7 @@ CREATE TABLE `sp_bankroll_list` (
   `freezing_balance` bigint(20) NOT NULL DEFAULT '0' COMMENT '冻结余额',
   `pay_num` bigint(20) NOT NULL DEFAULT '0' COMMENT '交易金额：支付时，是指用户需要去银行扣除的金额',
   `sp_num` bigint(20) NOT NULL DEFAULT '0' COMMENT '商户所得金额',
+  `money` bigint(20) NOT NULL DEFAULT '0' COMMENT '账户变动金额（有正负）',
   `bank_type` int(11) NOT NULL COMMENT '银行类型',
   `cur_type` tinyint(4) NOT NULL DEFAULT '0' COMMENT '币种 0人民币',
   `prove` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '入账凭证',
