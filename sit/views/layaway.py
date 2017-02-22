@@ -24,7 +24,6 @@ layaway = Blueprint("layaway", __name__)
 
 @layaway.route("/layaway/smscode/send", methods=["POST"])
 @general("银行下发验证码")
-@db_conn
 @form_check({
     "amount": (F_int("订单交易金额")) & "strict" & "optional",
     "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
@@ -89,7 +88,15 @@ bank_sp_id	string	M	64	商户在银行备案的二级商户号
 @general("分期交易")
 @db_conn
 @form_check({
-
+    "amount": (F_int("订单交易金额")) & "strict" & "optional",
+    "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
+    "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
+    "valid_date": F_str("有效期") & "strict" & "required",
+    "bank_sms_time": F_str("银行下发短信时间") & "strict" & "required",
+    "bank_list": F_str("给银行订单号") & "strict" & "required",
+    "div_term": F_int("分期期数") & "strict" & "required",
+    "uname": F_str("开户人姓名") & "strict" & "required",
+    "bank_validcode": F_str("银行验证码") & "strict" & "required",
 })
 def trade(db, safe_vars):
     u"""
@@ -127,5 +134,43 @@ bank_sms_time	string	M		银行短信下发时间 yymmddhhmmss
     #     "ver": "1.0",
     #     "request_type": "2001",
     # }
+
+    now = datetime.datetime.now()
+
+    # 生成订单
+    db.execute(
+        tables["trans_list"].insert(),
+    )
+
+    input_data = {
+        'ver': '1.0',
+        'request_type': '2002',
+    }
+
+    input_data.update({
+        "amount": safe_vars["amount"],
+        "bankacc_no": safe_vars["bankacc_no"],
+        "mobile": safe_vars["mobile"],
+        "valid_time": safe_vars["valid_date"],
+        "bank_sms_time": safe_vars["bank_sms_time"],
+        "bank_list": safe_vars["bank_list"],
+        "div_term": safe_vars["div_term"],
+        "bank_validcode": safe_vars["bank_validcode"],
+        "uame": safe_vars["uname"],
+
+        "bank_type": const.BANK_ID.GDB,
+        "pay_type": 1,
+        "cur_type": const.CUR_TYPE.RMB,
+        "client_ip": request.remote_addr,
+        "sp_time_stamp": now,
+
+        "list_id": "",
+        "sp_id": "",
+        "bank_sp_id": "",
+    })
+
+    ok, msg = pi.call2(input_data)
+    if not ok:
+        return JsonErrorResponse(msg)
 
     return JsonOkResponse()
