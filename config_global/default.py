@@ -18,6 +18,7 @@ LOGGING_CONFIG = [
 
     ["tools-log", "tools.log", "debug"],
     ["task-log", "task.log", "debug"],
+    ["pp-interface", "pp-interface.log", "debug"],
 ]
 
 # URL回调的设置，k, v的形式，其中：

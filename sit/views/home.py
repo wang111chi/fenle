@@ -10,7 +10,7 @@ import requests
 
 from base.framework import general, db_conn, form_check
 from base.framework import JsonOkResponse, TempResponse
-from base.db import engine, t_callback_url
+from base.db import engine
 from base import util
 from base import logic
 from base import logger

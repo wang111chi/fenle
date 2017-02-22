@@ -3,7 +3,24 @@
 
 import socket
 import urllib
+
 from werkzeug.datastructures import MultiDict
+
+from base import logger
+
+
+def call2(params, host='172.18.0.1', port=31001):
+    ok, msg = call(params, host, port)
+    if not ok:
+        return False, msg
+
+    bank_ret = msg
+    if bank_ret["result"] != 0:
+        if bank_ret.get("bank_time_out", False):
+            return False, "银行超时"
+        return False, bank_ret["res_info"]
+
+    return True, bank_ret
 
 
 def call(params, host='172.18.0.1', port=31001):
@@ -16,15 +33,28 @@ def call(params, host='172.18.0.1', port=31001):
     @return: 返回值是字典形式
     """
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((host, port))
+    try:
+        s.connect((host, port))
+    except:
+        logger.get("pp-interface").error(
+            "[connect error]: <host>=><%s>, <port>=><%s>",
+            host, port, exc_info=True)
+        return False, "与银行连接出错"
+
     s.sendall(_pack_params(params))
     ret = _recv_all(s)
     s.close()
-    assert len(ret) >= 4
-    msg_len = int.from_bytes(ret[:4], byteorder='little')
-    assert msg_len == len(ret[4:])
-    msg_body = ret[4:].decode('gbk')
-    return MultiDict(urllib.parse.parse_qsl(msg_body)).to_dict()
+    try:
+        assert len(ret) >= 4
+        msg_len = int.from_bytes(ret[:4], byteorder='little')
+        assert msg_len == len(ret[4:])
+        msg_body = ret[4:].decode('gbk')
+    except:
+        logger.get("pp-interface").error(
+            "[recv data error]: <recv_data>=><%s>", ret, exc_info=True)
+        return False, "银行返回数据解析出错"
+
+    return True, MultiDict(urllib.parse.parse_qsl(msg_body)).to_dict()
 
 
 def _pack_params(params):

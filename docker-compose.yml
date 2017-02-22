@@ -43,13 +43,22 @@ services:
     ports:
      - "3035:3031"
     depends_on:
-     - mysql
+     - mysql_sit
   mysql:
     extends:
       file: mysql/docker-compose.yml
       service: mysql
     volumes:
      - "db-data:/var/lib/mysql"
+  mysql_sit:
+    build:
+      context: .
+      dockerfile: sit/Dockerfile-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=123456
+      - MYSQL_DATABASE=fenle_fenqi_db
+      - MYSQL_ROOT_HOST=%
+      - LANG=en_US.UTF-8
   redis:
     image: redis
 

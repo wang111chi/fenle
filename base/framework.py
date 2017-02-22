@@ -286,6 +286,7 @@ def api_form_check(settings, is_encrypted=True, var_name="safe_vars"):
             valid_data = checker.get_valid_data()
 
             # 从mysql检查商户spid是否存在
+            t_merchant_info = meta.tables["merchant_info"]
             s = select([t_merchant_info.c.status,
                         t_merchant_info.c.mer_key,
                         t_merchant_info.c.rsa_pub_key]).where(
