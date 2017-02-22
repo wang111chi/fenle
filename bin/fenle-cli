@@ -173,6 +173,33 @@ def callback_url_test_mysql():
     start_and_wait_mysql()
 
 
+@cli.group()
+def sit():
+    u"""commands related to sit."""
+    pass
+
+
+@sit.command('start')
+def sit_start():
+    u"""start sit server."""
+    subprocess.call("docker-compose up -d sit", shell=True)
+    click.echo()
+    click.echo("sit server started! you can go to http://localhost:3035")
+
+
+@sit.command('stop')
+def sit_stop():
+    u"""stop sit server."""
+    subprocess.call("docker-compose stop sit", shell=True)
+
+
+@sit.command('repl')
+def sit_repl():
+    u"""an ipython repl for sit server."""
+    subprocess.call("docker-compose -f docker-compose.yml "
+                    "-f docker-compose.adhoc.yml run sit_repl", shell=True)
+
+
 @cli.command('tools', context_settings=dict(
     ignore_unknown_options=True,
 ))

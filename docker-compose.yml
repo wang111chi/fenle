@@ -44,6 +44,7 @@ services:
      - "3035:3031"
     depends_on:
      - mysql_sit
+     - redis
   mysql:
     extends:
       file: mysql/docker-compose.yml
