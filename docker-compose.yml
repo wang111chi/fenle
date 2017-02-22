@@ -38,6 +38,8 @@ services:
     build:
       context: .
       dockerfile: sit/Dockerfile
+    environment:
+      FENLE_SETTINGS: local
     volumes:
      - .:/fenle
     ports:

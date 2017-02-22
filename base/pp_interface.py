@@ -6,10 +6,11 @@ import urllib
 
 from werkzeug.datastructures import MultiDict
 
+import config
 from base import logger
 
 
-def call2(params, host='172.18.0.1', port=31001):
+def call2(params, host=config.PP_SERVER_HOST, port=config.PP_SERVER_PORT):
     ok, msg = call(params, host, port)
     if not ok:
         return False, msg
@@ -23,7 +24,7 @@ def call2(params, host='172.18.0.1', port=31001):
     return True, bank_ret
 
 
-def call(params, host='172.18.0.1', port=31001):
+def call(params, host=config.PP_SERVER_HOST, port=config.PP_SERVER_PORT):
     u"""与前置机通讯调用银行接口.
 
     @param<params>: 需要发的参数，字典形式
