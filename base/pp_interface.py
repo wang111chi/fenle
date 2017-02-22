@@ -16,8 +16,8 @@ def call2(params, host=config.PP_SERVER_HOST, port=config.PP_SERVER_PORT):
         return False, msg
 
     bank_ret = msg
-    if bank_ret["result"] != 0:
-        if bank_ret.get("bank_time_out", False):
+    if bank_ret["result"] != '0':
+        if bank_ret.get("bank_time_out", '') == 'true':
             return False, "银行超时"
         return False, bank_ret["res_info"]
 

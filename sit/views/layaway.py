@@ -75,7 +75,7 @@ bank_sp_id	string	M	64	商户在银行备案的二级商户号
         'bank_type': bank_type,
     })
 
-    ok, msg = pi.call(input_data)
+    ok, msg = pi.call2(input_data)
     if not ok:
         return JsonErrorResponse(msg)
 
