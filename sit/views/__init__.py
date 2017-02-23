@@ -2,4 +2,4 @@
 # -*- coding: utf-8 -*-
 #
 
-__all__ = ("sms", "layaway")
+__all__ = ("sms", "layaway", "point", "point_cash", "consume")

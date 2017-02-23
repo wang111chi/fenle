@@ -20,20 +20,21 @@ from base import pp_interface as pi
 from base.db import tables
 
 
-point = Blueprint("point", __name__)
+point_cash = Blueprint("point_cash", __name__)
 
 
-@point.route("/point")
-@general("积分页面载入")
+@point_cash.route("/point_cash")
+@general("积分加现金页面载入")
 def load():
-    return TempResponse("point.html")
+    return TempResponse("point_cash.html")
 
 
-@point.route("/point/trade", methods=["POST"])
-@general("积分交易")
+@point_cash.route("/point_cash/trade", methods=["POST"])
+@general("积分加现金交易")
 @db_conn
 @form_check({
-    "amount": (F_int("积分抵扣金额")) & "strict" & "required",
+    "amount": (F_int("现金金额")) & "strict" & "required",
+    "jf_deduct_money": (F_int("积分抵扣金额")) & "strict" & "required",
     "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
     "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
     "valid_date": F_str("有效期") & "strict" & "required",
@@ -42,7 +43,7 @@ def load():
     "bank_validcode": F_str("银行验证码") & "strict" & "required",
 })
 def trade(db, safe_vars):
-    ok, msg = dbl.trade(db, const.PRODUCT_TYPE.POINT, safe_vars)
+    ok, msg = dbl.trade(db, const.PRODUCT_TYPE.POINT_CASH, safe_vars)
     if not ok:
         return JsonErrorResponse(msg)
     return JsonOkResponse(trans_list=msg)

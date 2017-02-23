@@ -65,14 +65,20 @@ def check_sign_rsa(db, params):
 
 def get_trans_list_by_bank_list(db, bank_list):
     t_trans_list = tables["trans_list"]
-    return db.execute(t_trans_list.select().where(
-        t_trans_list.c.bank_list == bank_list)).fetchone()
+    result = db.execute(t_trans_list.select().where(
+        t_trans_list.c.bank_list == bank_list)).first()
+    if result is None:
+        return None
+    return dict(result)
 
 
 def get_trans_list_by_id(db, id_):
     t_trans_list = tables["trans_list"]
-    return db.execute(t_trans_list.select().where(
-        t_trans_list.c.id == id_)).fetchone()
+    result = db.execute(t_trans_list.select().where(
+        t_trans_list.c.id == id_)).first()
+    if result is None:
+        return None
+    return dict(result)
 
 
 def trade(db, product_type, safe_vars):

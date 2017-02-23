@@ -35,7 +35,7 @@ def load():
 @general("分期交易")
 @db_conn
 @form_check({
-    "amount": (F_int("订单交易金额")) & "strict" & "optional",
+    "amount": (F_int("订单交易金额")) & "strict" & "required",
     "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
     "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
     "valid_date": F_str("有效期") & "strict" & "required",
@@ -55,7 +55,7 @@ def trade(db, safe_vars):
 @general("分期交易撤消")
 @db_conn
 @form_check({
-    "amount": (F_int("订单交易金额")) & "strict" & "optional",
+    "amount": (F_int("订单交易金额")) & "strict" & "required",
     "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
     "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
     "valid_date": F_str("有效期") & "strict" & "required",
