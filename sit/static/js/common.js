@@ -22,7 +22,7 @@ function sendCaptcha(url, captcha_data){
 
 			
 			if (data.status == 0){
-				showMsg('提交成功');
+				showMsg('发送成功');
 			} else if (data.status == 1){
 				showMsg(data.message);
 			} else {
@@ -36,7 +36,7 @@ function sendCaptcha(url, captcha_data){
 
 		},
 		error:function(){
-			showMsg('请求未发出');
+			showMsg('服务端错误，请稍后重试');
 		}
 	});
 }
@@ -67,7 +67,7 @@ function submitForm(url, submit_data){
 
 		},
 		error:function(){
-			showMsg('请求未发出');
+			showMsg('服务端错误，请稍后重试');
 		}
 	});
 }

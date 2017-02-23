@@ -45,70 +45,10 @@ def load():
     "bank_validcode": F_str("银行验证码") & "strict" & "required",
 })
 def trade(db, safe_vars):
-    now = datetime.datetime.now()
-
-    bank_type = const.BANK_ID.GDB
-    trans_list_id = util.gen_trans_list_id(config.SPID, bank_type)
-    t_trans_list = tables["trans_list"]
-
-    # 生成订单
-    trans_list_data = {}
-    trans_list_data.update(safe_vars)
-    trans_list_data.update({
-        "id": trans_list_id,
-        "bank_type": bank_type,
-        "product": const.PRODUCT_TYPE.LAYAWAY,
-        "status": const.TRANS_STATUS.DOING,
-        "create_time": now,
-        "modify_time": now,
-    })
-
-    try:
-        trans_list_id = db.execute(
-            t_trans_list.insert(),
-            **trans_list_data
-        ).inserted_primary_key
-    except sqlalchemy.exc.IntegrityError:
-        trans_list = dbl.get_trans_list_by_bank_list(
-            db, safe_vars["bank_list"])
-
-        if trans_list["status"] != const.TRANS_STATUS.FAIL:
-            return JsonErrorResponse("请勿重复提交交易")
-
-        trans_list_id = trans_list["id"]
-
-    # 调银行接口
-    interface_input = {
-        'ver': '1.0',
-        'request_type': '2002',
-    }
-
-    interface_input.update(safe_vars)
-    interface_input["bank_type"] = bank_type
-
-    ok, msg = pi.call2(interface_input)
+    ok, msg = dbl.trade(db, const.PRODUCT_TYPE.LAYAWAY, safe_vars)
     if not ok:
-        db.execute(t_trans_list.update().where(
-            t_trans_list.c.id == trans_list_id
-        ).values(
-            status=const.TRANS_STATUS.FAIL,
-            modify_time=datetime.datetime.now(),
-        ))
-
         return JsonErrorResponse(msg)
-
-    db.execute(t_trans_list.update().where(
-        t_trans_list.c.id == trans_list_id
-    ).values(
-        bank_roll=msg['bank_roll'],
-        bank_settle_time=msg['bank_settle_time'],
-        status=const.TRANS_STATUS.OK,
-        modify_time=datetime.datetime.now(),
-    ))
-
-    return JsonOkResponse(
-        trans_list=dbl.get_trans_list_by_id(
-            db, trans_list_id))
+    return JsonOkResponse(trans_list=msg)
 
 
 @layaway.route("/layaway/cancel", methods=["POST"])
