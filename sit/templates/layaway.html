@@ -106,7 +106,7 @@
 				var captcha_data = {'amount':amount, 'bankacc_no':bankacc_no, 'div_term':div_term, 'valid_date':valid_date, 'mobile':mobile};
 
 				// 1-2 post
-				sendCaptcha('/sms', captcha_data);
+				sendCaptcha('/sms/send', captcha_data);
 			});
 
 			// 2. 提交
