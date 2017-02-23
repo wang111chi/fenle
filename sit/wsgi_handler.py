@@ -21,7 +21,7 @@ import config
 from init_app import init
 
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path=config.STATIC_URL_PATH)
 init(app)
 
 # route setting

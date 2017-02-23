@@ -22,15 +22,21 @@ from base.db import tables
 layaway = Blueprint("layaway", __name__)
 
 
+@layaway.route("/layaway")
+@general("分期页面载入")
+def load():
+    return TempResponse("layaway.html")
+
+
 @layaway.route("/layaway/smscode/send", methods=["POST"])
 @general("银行下发验证码")
 @form_check({
-    "amount": (F_int("订单交易金额")) & "strict" & "optional",
+    "amount": (F_int("订单交易金额")) & "strict" & "required",
     "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
     "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
     "valid_date": F_str("有效期") & "strict" & "required",
 })
-def send_smscode(db, safe_vars):
+def send_smscode(safe_vars):
     u"""
 ver	int	M	4	协议版本 1.0
 request_type	int	M	4	接口编号：2001
@@ -173,4 +179,22 @@ bank_sms_time	string	M		银行短信下发时间 yymmddhhmmss
     if not ok:
         return JsonErrorResponse(msg)
 
+    return JsonOkResponse()
+
+
+@layaway.route("/layaway/cancel", methods=["POST"])
+@general("分期交易撤消")
+@db_conn
+@form_check({
+    "amount": (F_int("订单交易金额")) & "strict" & "optional",
+    "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
+    "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
+    "valid_date": F_str("有效期") & "strict" & "required",
+    "bank_sms_time": F_str("银行下发短信时间") & "strict" & "required",
+    "bank_list": F_str("给银行订单号") & "strict" & "required",
+    "div_term": F_int("分期期数") & "strict" & "required",
+    "uname": F_str("开户人姓名") & "strict" & "required",
+    "bank_validcode": F_str("银行验证码") & "strict" & "required",
+})
+def cancel(db, safe_vars):
     return JsonOkResponse()

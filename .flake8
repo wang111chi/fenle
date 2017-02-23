@@ -21,4 +21,8 @@ exclude =
         *.docx,
         *.txt,
         requirements.txt,
-        *.html
+        *.html,
+        *.js,
+        *.css, 
+        *.jpg,
+        *.png

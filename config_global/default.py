@@ -10,6 +10,7 @@ ENCODING = 'utf8'
 DEBUG_PORT = 5000
 HOME_URL = 'http://www.fenle.com/'
 DATABASE_URL = 'mysql+mysqlconnector://root:123456@mysql:3306/fenle_fenqi_db'
+STATIC_URL_PATH = '/static'
 
 # Logging配置
 LOGGING_CONFIG = [
