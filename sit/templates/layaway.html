@@ -107,7 +107,7 @@
 				var captcha_data = {'amount':amount, 'bankacc_no':bankacc_no, 'period':period, 'valid_date':valid_date, 'mobile':mobile};
 
 				// 1-2 post
-				sendCaptcha('/layaway/smscode/send', captcha_data);
+				sendCaptcha('/sms/send', captcha_data);
 			});
 
 			// 2. 提交
@@ -125,7 +125,7 @@
 				var submit_data = $.extend(return_data, {'amount':amount, 'bankacc_no':bankacc_no, 'period':period, 'valid_date':valid_date, 'mobile':mobile, 'captcha':captcha});
 
 				// 2-3 post
-				submitForm('/captcha', submit_data);
+				submitForm('/layaway/trade', submit_data);
 			});
 
 			// 3. 绑定确认按钮

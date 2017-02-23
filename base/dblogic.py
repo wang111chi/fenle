@@ -6,10 +6,12 @@ import hashlib
 import urllib
 from base64 import b64decode
 
-import config
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5 as sign_PKCS1_v1_5
 from Crypto.Hash import SHA
+
+import config
+from base.db import tables
 
 
 def check_sign_md5(db, params):
@@ -54,3 +56,15 @@ def check_sign_rsa(db, params):
     h = SHA.new(urlencoded_params)
 
     return verifier.verify(h, sign)
+
+
+def get_trans_list_by_bank_list(db, bank_list):
+    t_trans_list = tables["trans_list"]
+    return db.execute(t_trans_list.select().where(
+        t_trans_list.c.bank_list == bank_list)).fetchone()
+
+
+def get_trans_list_by_id(db, id_):
+    t_trans_list = tables["trans_list"]
+    return db.execute(t_trans_list.select().where(
+        t_trans_list.c.id == id_)).fetchone()

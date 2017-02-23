@@ -2,4 +2,4 @@
 # -*- coding: utf-8 -*-
 #
 
-__all__ = ("home", "layaway")
+__all__ = ("sms", "layaway")
