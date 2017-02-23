@@ -15,7 +15,8 @@ def call2(params, host=config.PP_SERVER_HOST, port=config.PP_SERVER_PORT):
     if not ok:
         return False, msg
 
-    logger.get("pp-interface").debug('msg returned: {}'.format(msg))
+    logger.get("pp-interface").debug(
+        'params: {}\nmsg returned: {}'.format(params, msg))
 
     bank_ret = msg
     if bank_ret["result"] != '0':
