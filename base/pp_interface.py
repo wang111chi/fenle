@@ -15,6 +15,8 @@ def call2(params, host=config.PP_SERVER_HOST, port=config.PP_SERVER_PORT):
     if not ok:
         return False, msg
 
+    logger.get("pp-interface").debug('msg returned: {}'.format(msg))
+
     bank_ret = msg
     if bank_ret["result"] != '0':
         if bank_ret.get("bank_time_out", '') == 'true':
