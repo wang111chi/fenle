@@ -14,7 +14,7 @@ CREATE TABLE `trans_list` (
   `valid_date` varchar(8) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '信用卡有效期',
   `bank_sms_time` varchar(32) NOT NULL COMMENT '银行下发短信时间',
   `bank_type` int(11) NOT NULL COMMENT '交易银行的数字编号 1001广发信用卡',
-  `div_term` int(11) NOT NULL COMMENT '分期期数',
+  `div_term` int(11) DEFAULT NULL COMMENT '分期期数',
   `bank_validcode` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '银行下发的验证码',
   `bank_roll` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '银行返回的订单号',
   `bank_settle_time` varchar(32) DEFAULT NULL COMMENT '银行结算时间',
