@@ -200,6 +200,12 @@ def sit_repl():
                     "-f docker-compose.adhoc.yml run sit_repl", shell=True)
 
 
+@sit.command('mysql')
+def sit_mysql():
+    u"""mysql console for sit server."""
+    start_and_wait_mysql(db_service_name="mysql_sit")
+
+
 @cli.command('tools', context_settings=dict(
     ignore_unknown_options=True,
 ))
@@ -246,13 +252,15 @@ def test_redis():
     start_and_wait_redis()
 
 
-def start_and_wait_mysql():
+def start_and_wait_mysql(db_service_name="mysql"):
     FNULL = open(os.devnull, 'w')
-    subprocess.call("docker-compose up -d mysql", shell=True)
+    subprocess.call("docker-compose up -d {}".format(
+        db_service_name), shell=True)
 
     ret_code = subprocess.call(
-        "docker-compose exec mysql mysql "
-        "-uroot -p123456 fenle_fenqi_db -e 'SELECT 1'",
+        "docker-compose exec {} mysql "
+        "-uroot -p123456 fenle_fenqi_db -e 'SELECT 1'".format(
+            db_service_name),
         shell=True, stdout=FNULL, stderr=subprocess.STDOUT)
 
     msg_printed = False
@@ -264,13 +272,14 @@ def start_and_wait_mysql():
         time.sleep(1)
 
         ret_code = subprocess.call(
-            "docker-compose exec mysql mysql "
-            "-uroot -p123456 fenle_fenqi_db -e 'SELECT 1'",
+            "docker-compose exec {} mysql "
+            "-uroot -p123456 fenle_fenqi_db -e 'SELECT 1'".format(
+                db_service_name),
             shell=True, stdout=FNULL, stderr=subprocess.STDOUT)
 
     subprocess.call(
-        "docker-compose exec mysql mysql "
-        "-uroot -p123456 fenle_fenqi_db", shell=True)
+        "docker-compose exec {} mysql "
+        "-uroot -p123456 fenle_fenqi_db".format(db_service_name), shell=True)
 
 
 def start_and_wait_redis():
