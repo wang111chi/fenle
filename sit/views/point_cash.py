@@ -46,4 +46,4 @@ def trade(db, safe_vars):
     ok, msg = dbl.trade(db, const.PRODUCT_TYPE.POINT_CASH, safe_vars)
     if not ok:
         return JsonErrorResponse(msg)
-    return JsonOkResponse(trans_list=msg)
+    return JsonOkResponse(trans=msg)

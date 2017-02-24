@@ -63,7 +63,7 @@ def check_sign_rsa(db, params):
     return verifier.verify(h, sign)
 
 
-def get_trans_list_by_bank_list(db, bank_list):
+def get_trans_by_bank_list(db, bank_list):
     t_trans_list = tables["trans_list"]
     result = db.execute(t_trans_list.select().where(
         t_trans_list.c.bank_list == bank_list)).first()
@@ -72,7 +72,7 @@ def get_trans_list_by_bank_list(db, bank_list):
     return dict(result)
 
 
-def get_trans_list_by_id(db, id_):
+def get_trans_by_id(db, id_):
     t_trans_list = tables["trans_list"]
     result = db.execute(t_trans_list.select().where(
         t_trans_list.c.id == id_)).first()
@@ -106,7 +106,7 @@ def trade(db, product_type, safe_vars):
             **trans_list_data
         )
     except sqlalchemy.exc.IntegrityError:
-        trans_list = get_trans_list_by_bank_list(
+        trans_list = get_trans_by_bank_list(
             db, safe_vars["bank_list"])
 
         if trans_list["status"] != const.TRANS_STATUS.FAIL:
@@ -144,4 +144,4 @@ def trade(db, product_type, safe_vars):
         modify_time=datetime.datetime.now(),
     ))
 
-    return True, get_trans_list_by_id(db, trans_list_id)
+    return True, get_trans_by_id(db, trans_list_id)
