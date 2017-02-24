@@ -42,11 +42,6 @@ $(document).ready(function(){
 // award_feedback
 return_data = {};
 
-// url
-var url_waterbill = '/trans_list';  //流水
-var url_od_detail = '/detail'; //订单详情
-
-
 // page
 var page_check = $('#check');
 var page_od_detail = $('#order-detail');
@@ -57,18 +52,17 @@ var page_preaward_submit = $('#pre-award-submit');
 var msg_od_detail = $('#order-detail .message');
 
 
-var dt_spid = $('.dt_spid');
-var dt_service_type = $('.dt_service_type');
-var dt_order_num = $('.dt_order_num');
-var dt_order_time = $('.dt_order_time');
-var dt_pay_bank = $('.dt_pay_bank');
+//var dt_spid = $('.dt_spid');
+var dt_product = $('.dt_product');
+var dt_id = $('.dt_id');
+var dt_modify_time = $('.dt_modify_time');
+var dt_bank_type = $('.dt_bank_type');
 var dt_bankacc_no = $('.dt_bankacc_no');
 var dt_valid_date = $('.dt_valid_date');
 var dt_status = $('.dt_status');
 var dt_amount = $('.dt_amount');
-var dt_point_amount = $('.dt_point_amount');
-var dt_crash_amount = $('.dt_crash_amount');
-var dt_period = $('.dt_period');
+var dt_jf_deduct_money = $('.dt_jf_deduct_money');
+var dt_div_term = $('.dt_div_term');
 
 
 // error
@@ -91,7 +85,7 @@ var cancel_btn_left = $('#confirm_cancel .confirm_btn_left');
 function pageInit(){
 	//创建jqGrid组件
 	jQuery("#list").jqGrid({
-		url : url_waterbill,//组件创建完成之后请求数据的url
+		url : '/trans/list/data',//组件创建完成之后请求数据的url
 		datatype : "json",//请求数据返回的类型。可选json,xml,txt
 		colNames : [ '业务类型', '创建时间', '单号', '支付账户', '交易状态','订单金额', '' ],//jqGrid的列显示名字
 		formatter:{
@@ -107,7 +101,7 @@ function pageInit(){
 			{label :'操作', name : 'bank_list', formatter:fmatterDetail, align : "center", width : 130,sortable : false, title : false} 
 		],
 		rowNum:1000,
-		mtype : "post",//向后台请求数据的ajax的类型。可选post,get
+		mtype : "get",//向后台请求数据的ajax的类型。可选post,get
 	});
 }
 
@@ -150,22 +144,21 @@ function fmatterStatus(cellvalue){
 
 // 3. formatter 操作
 function fmatterDetail(cellvalue, options, rowObject){
-	// 判断 业务类型 是否为 预授权
 	
-	// 成功
+	// 状态：成功 -- 查看 退款 撤销
 	if (rowObject.status == 1){
-		if ( rowObject.product == 5){
-
-			// 预授权
-			return "<a href=\"javascript:getAwardDetail('" + rowObject.bank_list + "')\">查看</a> | <a href=\"javascript:applyDrawback('" rowObject.product + "','" + rowObject.amount + "','" + rowObject.bankacc_no + "','" + rowObject.bank_list+ "')\">退款</a> | <a href=\"javascript:cancel('" rowObject.product + "','" + rowObject.bank_list + "')\">撤销</a>";
-		} else {
-
 			// 非预授权
-			return "<a href=\"javascript:getDetail('" + rowObject.bank_list + "')\">查看</a> | <a href=\"javascript:applyDrawback('" rowObject.product + "','" + rowObject.amount + "','" + rowObject.bankacc_no + "','" + rowObject.bank_list+ "')\">退款</a> | <a href=\"javascript:cancel('" rowObject.product + "','" + rowObject.bank_list + "')\">撤销</a>";
-		}
+		return "<a href=\"javascript:getDetail('" + rowObject.bank_list + "')\">查看</a> | <a href=\"javascript:applyDrawback('" + rowObject.product + "','" + rowObject.amount + "','" + rowObject.bankacc_no + "','" + rowObject.bank_list + "')\">退款</a> | <a href=\"javascript:cancel('" + rowObject.product + "','" + rowObject.bank_list + "')\">撤销</a>";
 	} else {
+
+		// 状态：支付中，支付失败，已撤销，已退款 -- 查看
 		return "<a href=\"javascript:getDetail('" + rowObject.bank_list + "')\">查看</a>";
 	}
+
+	/*
+	// 预授权 -- 查看，提交实际金额
+	return "<a href=\"javascript:getAwardDetail('" + rowObject.bank_list + "')\">查看</a> | <a href=\"javascript:applyDrawback('" rowObject.product + "','" + rowObject.amount + "','" + rowObject.bankacc_no + "','" + rowObject.bank_list+ "')\">退款</a> | <a href=\"javascript:cancel('" rowObject.product + "','" + rowObject.bank_list + "')\">撤销</a>";
+	*/
 }
 
 
@@ -177,21 +170,25 @@ function applyDrawback(product, amount, bankacc_no, bank_list){
 	mask.show();
 	drawback_box.show();
 
+	console.log(product);
 	// 绑定确定事件
-	drawback_btn_left.click(function(product, bank_list){
+	drawback_btn_left.unbind();
+	drawback_btn_left.click(function(){
 
-		// post退款 1:分期，2：积分，3：积分+现金，4：普通信用卡消费
+		/* post退款 1:分期，2：积分，3：积分+现金，4：普通信用卡消费
 		if ( product == 1) {
-			sendDrawback('/layaway/drawback', bank_list);
+			sendDrawback('/layaway/refund', bank_list);
 		} else if ( product == 2 ) {
-			sendDrawback('/poit/drawback', bank_list);
+			sendDrawback('/point/refund', bank_list);
 		} else if ( product == 3 ) {
-			sendDrawback('/point_cash/drawback', bank_list);
+			sendDrawback('/point_cash/refund', bank_list);
 		} else if ( product == 4 ) {
-			sendDrawback('/consume/drawback', bank_list);
+			sendDrawback('/consume/refund', bank_list);
 		} else {
-			showMsg('ERROR,该产品类型未定义')
+			showMsg('ERROR,产品类型未定义')
 		}
+		*/
+		sendDrawback('/trans/refund',bank_list);
 	});
 }
 
@@ -206,7 +203,7 @@ function sendDrawback(url, bank_list){
 
 			hideDrawback();
 			if (data.status == 0){
-				showMsg('发送成功');
+				showMsg('【退款】提交成功');
 			} else if (data.status == 1){
 				showMsg(data.message);
 			} else {
@@ -224,25 +221,28 @@ function sendDrawback(url, bank_list){
 // 3-3 操作 -- 撤销
 function cancel(product, bank_list){
 	// 弹框
-	cancel_content.html('订单' + order_num + '将撤销');
+	cancel_content.html('订单将撤销');
 	mask.show();
 	cancel_box.show();
 
 	// 绑定确定事件
-	cancel_btn_left.click(function(product, bank_list){
+	cancel_btn_left.unbind();
+	cancel_btn_left.click(function(){
 
-		// post撤销 1:分期，2：积分，3：积分+现金，4：普通信用卡消费
+		/* post撤销 1:分期，2：积分，3：积分+现金，4：普通信用卡消费
 		if ( product == 1) {
 			sendCancel('/layaway/cancel', bank_list);
 		} else if ( product == 2 ) {
-			sendCancel('/poit/cancel', bank_list);
+			sendCancel('/point/cancel', bank_list);
 		} else if ( product == 3 ) {
 			sendCancel('/point_cash/cancel', bank_list);
 		} else if ( product == 4 ) {
 			sendCancel('/consume/cancel', bank_list);
 		} else {
-			showMsg('ERROR,该产品类型未定义')
+			showMsg('ERROR,产品类型未定义')
 		}
+		*/
+		sendCancel('/trans/cancel', bank_list);
 		
 	});
 }
@@ -257,7 +257,7 @@ function sendCancel(url, bank_list){
 
 			hideCancel();
 			if (data.status == 0){
-				showMsg('发送成功');
+				showMsg('【撤销】提交成功');
 			} else if (data.status == 1){
 				showMsg(data.message);
 			} else {
@@ -275,21 +275,110 @@ function sendCancel(url, bank_list){
 // 3-1 操作 -- 查看订单详情
 function getDetail(bank_list){
 
-	// 1. 隐藏查询页，展示详情页
-	page_check.hide();
-	page_od_detail.show();
-
-
 	// 2. post订单详情,展示返回json
-	$.post(url_od_detail, {'bank_list':bank_list}, function(data){
+	$.ajax({
+		type:'GET',
+		url:'/trans',
+		data:{"bank_list":bank_list},
+		success:function(data){
 
-		// 显示详情
-		showDetail(data);
+			if ( data.status == 0 ){
+
+				page_check.hide();
+				page_od_detail.show();
+				showDetail(data.trans);
+
+			} else if ( data.status == 1 ){
+				showMsg(data.message);
+			} else {
+				showMsg('返回status,不为0或1');
+			}
+		},
+		error:function(){
+			showMsg('服务器繁忙，请稍后重试');
+		}
 	});
+
+}
+
+function hideDrawback(){
+	mask.hide();
+	drawback_box.hide();
 }
 
 
-// 3-4 操作 -- 查看（预授权）订单详情，并提交实际金额
+function hideCancel(){
+	mask.hide();
+	cancel_box.hide();
+}
+
+
+// 显示详情
+function showDetail(data){
+	
+	// data.status
+	if ( data.status == 0 ) {
+		data.status = '支付中';
+	} else if (data.status == 1 ) {
+		data.status = '成功'; 
+	} else if (data.status == 2 ){
+		data.status = '失败';
+	} else if (data.status == 3 ){
+		data.status = '已撤销';
+	} else if (data.status == 4 ){
+		data.status = '已退款'; 
+	} else {
+		data.stauts ='Error'
+	}
+
+	// data.product
+	if ( data.product == 1 ) {
+		data.product = '分期';
+	} else if (data.product == 2 ) {
+		data.product = '积分'; 
+	} else if (data.product == 3 ){
+		data.product = '积分+分期';
+	} else if (data.product == 4 ){
+		data.product = '普通信用卡消费';
+	} else {
+		data.product = 'ERROR'; 
+	}
+
+	dt_product.html(data.product);
+	dt_id.html(data.id);
+	dt_modify_time.html(data.modify_time);
+	dt_bank_type.html(data.bank_type);
+	dt_bankacc_no.html(data.bankacc_no);
+	dt_valid_date.html(data.valid_date);
+	dt_status.html(data.status);
+	dt_amount.html(data.amount);
+	dt_jf_deduct_money.html(data.jf_deduct_money);
+	dt_div_term.html(data.div_term);
+}
+
+
+// 清楚详情内容
+function clearDetail(){
+	//dt_spid.html('');
+	dt_product.html('');
+	dt_id.html('');
+	dt_modify_time.html('');
+	dt_bank_type.html('');
+	dt_bankacc_no.html('');
+	dt_valid_date.html('');
+	dt_status.html('');
+	dt_amount.html('');
+	dt_jf_deduct_money.html('');
+	dt_div_term.html('');
+}
+
+function showMsg(msg){
+	$('.mask').show();
+	$('.error_area').show();
+	$('.error_content').html(msg);
+}
+
+/* 3-4 预授权 -- 查看订单详情，并提交实际金额
 function getAwardDetail(bank_list){
 	//console.log(order_num);
 
@@ -300,7 +389,7 @@ function getAwardDetail(bank_list){
 
 
 	// 2. post详情
-	$.post(url_od_detail,{'bank_list':bank_list}, function(data){
+	$.post('/trans',{'bank_list':bank_list}, function(data){
 
 		// 显示详情
 		showDetail(data);
@@ -308,10 +397,7 @@ function getAwardDetail(bank_list){
 
 	// 3. 绑定 -- 提交实际金额事件
 	preAwardSubmit(bank_list);
-
-	
 }
-
 
 // 预授权提单
 return_data = {};
@@ -354,62 +440,6 @@ function preAwardSubmit(bank_list){
 	});	
 }
 
-
-function hideDrawback(){
-	mask.hide();
-	drawback_box.hide();
-}
-
-
-function hideCancel(){
-	mask.hide();
-	cancel_box.hide();
-}
-
-
-
-
-// 显示详情
-function showDetail(data){
-	dt_spid.html(data.spid);
-	dt_service_type.html(data.service_type);
-	dt_order_num.html(data.order_num);
-	dt_order_time.html(data.order_time);
-	dt_pay_bank.html(data.pay_bank);
-	dt_bankacc_no.html(data.bankacc_no);
-	dt_valid_date.html(data.valid_date);
-	dt_status.html(data.status);
-	dt_amount.html(data.amount);
-	dt_point_amount.html(data.point_amount);
-	dt_crash_amount.html(data.crash_amount);
-	dt_period.html(data.period);
-}
-
-
-// 清楚详情内容
-function clearDetail(){
-	dt_spid.html('');
-	dt_service_type.html('');
-	dt_order_num.html('');
-	dt_order_time.html('');
-	dt_pay_bank.html('');
-	dt_bankacc_no.html('');
-	dt_valid_date.html('');
-	dt_status.html('');
-	dt_amount.html('');
-	dt_point_amount.html('');
-	dt_crash_amount.html('');
-	dt_period.html('');
-}
-
-function showMsg(msg){
-	$('.mask').show();
-	$('.error_area').show();
-	$('.error_content').html(msg);
-}
-
-
-// common.js
 // 发送短信验证码
 function sendCaptcha(url, captcha_data){
 	$.ajax({
@@ -460,4 +490,6 @@ function submitForm(url, submit_data){
 		}
 	});
 }
+
+*/
 
