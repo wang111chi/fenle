@@ -154,11 +154,6 @@ function fmatterDetail(cellvalue, options, rowObject){
 		// 状态：支付中，支付失败，已撤销，已退款 -- 查看
 		return "<a href=\"javascript:getDetail('" + rowObject.bank_list + "')\">查看</a>";
 	}
-
-	/*
-	// 预授权 -- 查看，提交实际金额
-	return "<a href=\"javascript:getAwardDetail('" + rowObject.bank_list + "')\">查看</a> | <a href=\"javascript:applyDrawback('" rowObject.product + "','" + rowObject.amount + "','" + rowObject.bankacc_no + "','" + rowObject.bank_list+ "')\">退款</a> | <a href=\"javascript:cancel('" rowObject.product + "','" + rowObject.bank_list + "')\">撤销</a>";
-	*/
 }
 
 
