@@ -36,7 +36,7 @@ def list_data(db):
     t_trans_list = tables["trans_list"]
     trans_list = [dict(item) for item in
                   db.execute(t_trans_list.select()).fetchall()]
-    return JsonOkResponse(trans_list=trans_list)
+    return JsonOkResponse(rows=trans_list)
 
 
 @trans.route("/trans")
