@@ -118,7 +118,7 @@ def trade(db, product_type, safe_vars):
 
     interface_input = {
         'ver': '1.0',
-        'request_type': const.PRODUCT_TYPE.REQUEST_TYPE[product_type],
+        'request_type': const.PRODUCT_TYPE.TRADE_REQUEST_TYPE[product_type],
     }
 
     interface_input.update(safe_vars)

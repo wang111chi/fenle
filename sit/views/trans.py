@@ -48,3 +48,74 @@ def list_data(db):
 def show(db, safe_vars):
     return JsonOkResponse(
         trans=dbl.get_trans_by_bank_list(db, safe_vars["bank_list"]))
+
+
+@trans.route("/trans/cancel", methods=["POST"])
+@general("交易撤消")
+@db_conn
+@form_check({
+    "bank_list": F_str("给银行订单号") & "strict" & "required",
+})
+def cancel(db, safe_vars):
+    ok, msg = _cancel_or_refund(db, safe_vars["bank_list"])
+    if not ok:
+        return JsonErrorResponse(msg)
+
+    return JsonOkResponse()
+
+
+@trans.route("/trans/refund", methods=["POST"])
+@general("交易退货")
+@db_conn
+@form_check({
+    "bank_list": F_str("给银行订单号") & "strict" & "required",
+})
+def refund(db, safe_vars):
+    ok, msg = _cancel_or_refund(db, safe_vars["bank_list"], is_refund=True)
+    if not ok:
+        return JsonErrorResponse(msg)
+
+    return JsonOkResponse()
+
+
+def _cancel_or_refund(db, bank_list, is_refund=False):
+    trans_list = dbl.get_trans_by_bank_list(db, bank_list)
+    if trans_list is None:
+        return False, "交易单不存在"
+    if trans_list["status"] != const.TRANS_STATUS.OK:
+        return False, "交易单状态不允许退货"
+
+    interface_input = {
+        "ver": "1.0",
+        "request_type":
+        const.PRODUCT_TYPE.REFUND_REQUEST_TYPE[trans_list["product"]] if
+        is_refund else
+        const.PRODUCT_TYPE.CANCEL_REQUEST_TYPE[trans_list["product"]],
+    }
+
+    for param in (
+            "bank_type",
+            "valid_date",
+            "bankacc_no",
+            "amount",
+            "jf_deduct_money",
+            "bank_roll",
+            "bank_settle_time",
+            "bank_list",
+    ):
+        interface_input[param] = trans_list[param]
+
+    ok, msg = pi.call2(interface_input)
+    if not ok:
+        return False, msg
+
+    t_trans_list = tables["trans_list"]
+    db.execute(t_trans_list.update().where(
+        t_trans_list.c.bank_list == bank_list
+    ).values(
+        status=const.TRANS_STATUS.REFUND if
+        is_refund else const.TRANS_STATUS.CANCEL,
+        modify_time=datetime.datetime.now(),
+    ))
+
+    return True, ""
