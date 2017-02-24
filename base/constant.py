@@ -95,6 +95,12 @@ class TRANS_STATUS(object):
     MOBILE_CHECKING = 4  # 短信验证中
 
 
+class BUINESS_STATUS(object):
+    SUCCESS = 1  # 成功
+    FALSE = 2  # 失败
+    HANDLING = 3  # 处理中
+
+
 class MERCHANT_STATUS(object):
     FORBID = 1  # 封禁
     OPEN = 0  # 开放
@@ -192,13 +198,13 @@ class API_ERROR(object):
     SPID_NOT_EXIST = 207200
     MERCHANT_FORBID = 207201
 
-    DECRYPT_ERROR = 207366
-    SIGN_INVALID = 207367
-
     ACCOUNT_NOT_EXIST = 207300
     ACCOUNT_FREEZED = 207301
     BANK_NOT_EXIST = 207310
     BANK_CHANNEL_UNABLE = 207311
+
+    DECRYPT_ERROR = 207366
+    SIGN_INVALID = 207367
 
     MOBILE_NO_VALIDATA = 207400
     NO_EXPIRATION_DATE = 207401
@@ -219,6 +225,9 @@ class API_ERROR(object):
 
     NO_USER_PAY = 207701
     INSERT_ERROR = 207702
+    REPEAT_SETTLE = 207703
+
+    REFUND_LESS_BALANCE = 207801
 
     NAMES = {
         PARAM_ERROR: u"参数格式错误",
@@ -245,7 +254,8 @@ class API_ERROR(object):
         CONFIRM_ACCOUNT_NO_ERROR: u"二次确认用户银行卡号错误",
         LIST_STATUS_ERROR: u"订单状态错误",
         NO_USER_PAY: u"不支持用户付手续费情形",
-        INSERT_ERROR: u"数据库插入异常"}
+        INSERT_ERROR: u"数据库插入异常",
+        REFUND_LESS_BALANCE: u"余额不足退款"}
 
 
 class BANK_ID(object):

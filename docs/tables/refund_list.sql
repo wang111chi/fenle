@@ -2,9 +2,9 @@ create database if not exists fenle_fenqi_db;
 use fenle_fenqi_db;
 
 # 退款表
-# DROP TABLE IF EXISTS refund;
+# DROP TABLE IF EXISTS refund_list;
 
-CREATE TABLE `refund` (
+CREATE TABLE `refund_list` (
 `id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '退款单号',
 `spid` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户号',
 `list_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '交易单号',

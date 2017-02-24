@@ -14,7 +14,7 @@ CREATE TABLE `fenle_bankroll_list` (
   `pay_num` bigint(20) NOT NULL DEFAULT '0' COMMENT '实际去银行交易金额:可能是本金+分乐手续费',
   `fact_amount` bigint(20) NOT NULL DEFAULT '0' COMMENT '银行结算给分乐的金额(实际到账金额)',
   `income_num` bigint(20) NOT NULL DEFAULT '0' COMMENT '分乐收入/提成',
-  `money` bigint(20) NOT NULL DEFAULT '0' COMMENT '账户变动金额（有正负）',
+  `delta_money` bigint(20) NOT NULL DEFAULT '0' COMMENT '账户变动金额（有正负）',
   `bank_tid` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '给银行订单号',
   `bank_backid` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '银行返回订单号',
   `bank_type` int(11) NOT NULL COMMENT '银行类型',

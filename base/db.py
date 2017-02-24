@@ -23,11 +23,14 @@ t_sp_bank = meta.tables['sp_bank']
 t_bank_channel = meta.tables['bank_channel']
 t_fenle_bankroll_list = meta.tables['fenle_bankroll_list']
 t_sp_bankroll_list = meta.tables['sp_bankroll_list']
+t_sp_history = meta.tables['sp_balance_history']
+t_fenle_history = meta.tables['fenle_balance_history']
 t_sp_balance = meta.tables['sp_balance']
 t_fenle_balance = meta.tables['fenle_balance']
 t_callback_url = meta.tables['callback_url']
 t_task_log = meta.tables['task_log']
 t_task_footprint = meta.tables['task_footprint']
+t_refund_list = meta.tables['refund_list']
 
 
 # ########## redis #################

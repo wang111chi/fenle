@@ -18,9 +18,9 @@ CREATE TABLE `trans_list` (
   `bank_city` varchar(16) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '银行所在城市',
   `user_mobile` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '用户手机号',
   `user_name` varchar(16) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '付款人姓名',
-  `user_account_no` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '交易卡号',
-  `user_account_type` tinyint(4) NOT NULL DEFAULT '0' COMMENT '0  信用卡',
-  `user_account_attr` tinyint(6) NOT NULL DEFAULT '0' COMMENT '0－个人',
+  `account_no` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '交易卡号',
+  `account_type` tinyint(4) NOT NULL DEFAULT '0' COMMENT '0  信用卡',
+  `account_attr` tinyint(6) NOT NULL DEFAULT '0' COMMENT '0－个人',
   `pin_code` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '信用卡cvv2',
   `bank_valicode` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '银行下发的验证码',
   `valid_period` varchar(8) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '信用卡有效期',
@@ -63,7 +63,7 @@ CREATE TABLE `trans_list` (
   `extend_spinfo` varchar(256) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`list_id`),
   UNIQUE KEY `spid_sptid` (`spid`,`sp_tid`),
-  KEY `user_account_no_type` (`user_account_no`,`user_account_type`),
+  KEY `account_no_type` (`account_no`,`account_type`),
   KEY `create_time` (`create_time`),
   KEY `modify_time` (`modify_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
