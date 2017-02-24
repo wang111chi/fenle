@@ -24,13 +24,3 @@ home = Blueprint("home", __name__)
 @general("首页")
 def index():
     return redirect("/point")
-
-
-@home.route("/trans_list")
-@general("交易单列表")
-@db_conn
-def trans_list(db):
-    t_trans_list = tables["trans_list"]
-    trans_list = [dict(item) for item in
-                  db.execute(t_trans_list.select()).fetchall()]
-    return JsonOkResponse(trans_list=trans_list)
