@@ -1,13 +1,11 @@
 create database if not exists fenle_fenqi_db;
 use fenle_fenqi_db;
 
+# 商户信息表
 # DROP TABLE IF EXISTS merchant_info;
 
 CREATE TABLE `merchant_info` (
   `spid` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户外部编号',
-  `uid` int(10) unsigned NOT NULL COMMENT '内部编号',
-  `agent_uid` int(10) unsigned NOT NULL COMMENT '代理编号',
-  `parent_uid` int(10) unsigned NOT NULL COMMENT '上级商户uid',
   `sp_name` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户名称:可以是公司名，也可以是某个缩写',
   `fee_contract_no` int(11) DEFAULT NULL COMMENT '结算合同编号',
   `contract_no` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '业务合同编号',
@@ -22,9 +20,6 @@ CREATE TABLE `merchant_info` (
   `mer_key` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '商户密钥',
   `rsa_pub_key` text COLLATE utf8mb4_unicode_ci COMMENT '商户提交过来的rsa公钥',
   `status` tinyint(4) NOT NULL DEFAULT '0',
-  `withdraw_type` tinyint(4) NOT NULL DEFAULT '0',
   `memo` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '备注',
-  `ip` int(10) unsigned DEFAULT NULL,
-  PRIMARY KEY (`spid`),
-  UNIQUE KEY `uid` (`uid`)
+  PRIMARY KEY (`spid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
