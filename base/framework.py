@@ -12,6 +12,7 @@ from Crypto.Cipher import PKCS1_v1_5
 from Crypto.Signature import PKCS1_v1_5 as sign_PKCS1_v1_5
 from Crypto.Hash import SHA
 from sqlalchemy.sql import text, select
+from sqlalchemy import and_
 
 import config
 from base import dblogic as dbl
@@ -19,9 +20,22 @@ from base import logger
 from base.db import engine, meta
 from base.db import t_merchant_info
 from base.db import t_trans_list
+from base.db import t_sp_balance
 from base import util
 from base.xform import FormChecker
 from base import constant as const
+
+
+def _update_sp_balance(spid, account_class, balance, now,
+                       cur_type=const.CUR_TYPE.RMB):
+    """return a sql without execute"""
+    return t_sp_balance.update().where(and_(
+        t_sp_balance.c.spid == spid,
+        t_sp_balance.c.cur_type == cur_type,
+        t_sp_balance.c.account_class == account_class
+    )).values(
+        balance=t_sp_balance.c.balance + balance,
+        modify_time=now)
 
 
 def get_list(db, list_id, what_status=None):

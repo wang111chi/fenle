@@ -95,10 +95,28 @@ class TRANS_STATUS(object):
     MOBILE_CHECKING = 4  # 短信验证中
 
 
+class SETTLE_STATUS(object):
+    SETTLE_SUCCESS = 1  # 结算成功
+    SETTLE_FALSE = 2  # 结算失败
+    SETTLING = 3  # 结算中
+
+
+class REFUND_STATUS(object):
+    REFUND_SUCCESS = 1  # 退款成功
+    REFND_FALSE = 2  # 退款失败
+    REFUNDING = 3  # 退款中
+
+
 class BUINESS_STATUS(object):
-    SUCCESS = 1  # 成功
-    FALSE = 2  # 失败
-    HANDLING = 3  # 处理中
+    PAY_SUCCESS = 1  # 支付成功
+    PAY_FALSE = 2  # 支付失败
+    PAYING = 3  # 支付中
+    SETTLE_SUCCESS = 4  # 结算成功
+    SETTLE_FALSE = 5  # 结算失败
+    SETTLING = 6  # 结算中
+    REFUND_SUCCESS = 7  # 退款成功
+    REFND_FALSE = 8  # 退款失败
+    REFUNDING = 9  # 退款中
 
 
 class MERCHANT_STATUS(object):

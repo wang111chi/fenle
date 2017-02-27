@@ -17,6 +17,7 @@ from Crypto.Signature import PKCS1_v1_5 as sign_PKCS1_v1_5
 from Crypto.Hash import SHA
 
 from base.framework import get_list
+from base.framework import update_sp_balance
 from base.framework import get_sp_pubkey
 from base.framework import db_conn
 from base.framework import general
@@ -270,7 +271,7 @@ def cardpay_trade(db, safe_vars):
         'account_type': list_data['account_type'],
         'bank_type': list_data['bank_type']})
 
-    udp_sp_balance = _update_sp_balance(
+    udp_sp_balance = update_sp_balance(
         safe_vars['spid'], const.ACCOUNT_CLASS.B,
         list_data['paynum'], now)
 
@@ -348,7 +349,7 @@ def cardpay_refund(db, safe_vars):
     if now.date() == paysucc_time.date():
         # [TODO] 调用银行撤销接口
         # 更新status
-        udp_sp_balance = _update_sp_balance(
+        udp_sp_balance = update_sp_balance(
             safe_vars['spid'], const.ACCOUNT_CLASS.B,
             0 - list_ret['paynum'], now)
 
@@ -358,12 +359,17 @@ def cardpay_refund(db, safe_vars):
             balance=t_fenle_balance.c.balance - list_ret['paynum'],
             modify_time=now)
 
+        udp_trans_list = t_trans_list.update().where(
+            t_trans_list.c.list_id == safe_vars['list_id']).values(
+            refund_id=refund_id, modify_time=now)
+
         with transaction(db) as trans:
-            db.execute(t_refund_list.insert(), refund_data)
             db.execute(t_sp_history.insert(), sp_history_data)
             db.execute(udp_sp_balance)
             db.execute(t_fenle_history.insert(), fenle_history_data)
             db.execute(udp_fenle_balance)
+            db.execute(t_refund_list.insert(), refund_data)
+            db.execute(udp_trans_list)
             trans.finish()
         return
     elif list_ret['settle_time'] is None:
@@ -381,14 +387,19 @@ def cardpay_refund(db, safe_vars):
         ret_sel_b = db.execute(sel_b).first()
         b_balance = ret_sel_b['balance'] - ret_sel_b['freezing']
 
+        udp_trans_list = t_trans_list.update().where(
+            t_trans_list.c.list_id == safe_vars['list_id']).values(
+            refund_id=refund_id, modify_time=now)
+
         sp_history_data.update({'amount': sp_amount})
         fenle_history_data.update({'amount': sp_amount})
+
         if b_balance >= sp_amount:
-            udp_sp_balance = _update_sp_balance(
+            udp_sp_balance = update_sp_balance(
                 safe_vars['spid'], const.ACCOUNT_CLASS.B,
                 0 - sp_amount, now)
 
-            udp_spfen_balance = _update_sp_balance(
+            udp_spfen_balance = update_sp_balance(
                 config.FENLE_SPID, const.ACCOUNT_CLASS.C,
                 list_ret['bankfee'] - list_ret['fee'], now)
 
@@ -409,7 +420,7 @@ def cardpay_refund(db, safe_vars):
                 db.execute(t_sp_history.insert(), sp_history_data)
                 db.execute(udp_spfen_balance)
                 db.execute(t_refund_list.insert(), refund_data)
-
+                db.execute(udp_trans_list)
                 trans.finish()
         else:
             # [TODO] 调用银行退款接口
@@ -422,14 +433,14 @@ def cardpay_refund(db, safe_vars):
             ret_sel_c = db.execute(sel_c).first()
             c_balance = ret_sel_c['balance'] - ret_sel_c['freezing']
             if b_balance + c_balance >= sp_amount:
-                udp_sp_balance_b = _update_sp_balance(
+                udp_sp_balance_b = update_sp_balance(
                     safe_vars['spid'], const.ACCOUNT_CLASS.B, 0, now)
 
-                udp_sp_balance_c = _update_sp_balance(
+                udp_sp_balance_c = update_sp_balance(
                     safe_vars['spid'], const.ACCOUNT_CLASS.C,
                     b_balance - sp_amount, now)
 
-                udp_spfen_balance = _update_sp_balance(
+                udp_spfen_balance = update_sp_balance(
                     config.FENLE_SPID, const.ACCOUNT_CLASS.C,
                     list_ret['bank_fee'] - list_ret['fee'], now)
 
@@ -439,7 +450,6 @@ def cardpay_refund(db, safe_vars):
                     .values(balance=t_fenle_balance.c.balance - sp_amount,
                             modify_time=now)
                 with transaction(db) as trans:
-                    db.execute(t_refund_list.insert(), refund_data)
                     db.execute(t_sp_history.insert(), sp_history_data)
                     db.execute(udp_sp_balance_b)
                     db.execute(t_fenle_history.insert(), fenle_history_data)
@@ -452,6 +462,8 @@ def cardpay_refund(db, safe_vars):
                         'amount': list_ret['fee'] - list_ret['bank_fee']})
                     db.execute(t_sp_history.insert(), sp_history_data)
                     db.execute(udp_spfen_balance)
+                    db.execute(t_refund_list.insert(), refund_data)
+                    db.execute(udp_trans_list)
                     trans.finish()
             else:
                 return ApiJsonErrorResponse(
@@ -490,18 +502,6 @@ def cardpay_query(db, safe_vars):
     cipher_data = util.rsa_sign_and_encrypt_params(
         ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
     return ApiJsonOkResponse(cipher_data=cipher_data)
-
-
-def _update_sp_balance(spid, account_class, balance, now,
-                       cur_type=const.CUR_TYPE.RMB):
-    """return a sql without execute"""
-    return t_sp_balance.update().where(and_(
-        t_sp_balance.c.spid == spid,
-        t_sp_balance.c.cur_type == cur_type,
-        t_sp_balance.c.account_class == account_class
-    )).values(
-        balance=t_sp_balance.c.balance + balance,
-        modify_time=now)
 
 
 def _check_bank_channel(db, safe_vars):
