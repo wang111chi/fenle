@@ -88,7 +88,7 @@ def trade(db, product_type, safe_vars):
     trans_list_id = util.gen_trans_list_id(config.SPID, bank_type)
     t_trans_list = tables["trans_list"]
 
-    # 生成订单
+    # 生成交易单
     trans_list_data = {}
     trans_list_data.update(safe_vars)
     trans_list_data.update({

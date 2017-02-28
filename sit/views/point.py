@@ -46,3 +46,37 @@ def trade(db, safe_vars):
     if not ok:
         return JsonErrorResponse(msg)
     return JsonOkResponse(trans=msg)
+
+
+@point.route("/point/query/load")
+@general("积分查询页面载入")
+def query_load():
+    return TempResponse("point_query.html")
+
+
+@point.route("/point/query")
+@general("积分查询")
+@db_conn
+@form_check({
+    "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
+    "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
+    "valid_date": F_str("有效期") & "strict" & "required",
+    "bank_sms_time": F_str("银行下发短信时间") & "strict" & "required",
+    "bank_list": F_str("给银行订单号") & "strict" & "required",
+    "bank_validcode": F_str("银行验证码") & "strict" & "required",
+})
+def query(db, safe_vars):
+    # 调银行接口
+    interface_input = {
+        'ver': '1.0',
+        'request_type': '2008',
+    }
+
+    interface_input.update(safe_vars)
+    interface_input["bank_type"] = const.BANK_ID.GDB
+
+    ok, msg = pi.call2(interface_input)
+    if not ok:
+        return JsonErrorResponse(msg)
+
+    return JsonOkResponse(remain_point=msg["remainJf"])

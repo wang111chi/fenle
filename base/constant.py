@@ -113,6 +113,17 @@ class REFUND_STATUS(object):
     REFND_FALSE = 2  # 退款失败
 
 
+class REFUND:
+    class MODE:
+        CANCEL = 1  # 撤消
+        REFUND = 2  # 退货
+
+    class STATUS:
+        DOING = 0   # 退款中
+        OK = 1      # 退款成功
+        FAIL = 2    # 退款失败
+
+
 class MERCHANT_STATUS(object):
     FORBID = 1  # 封禁
     OPEN = 0  # 开放

@@ -25,4 +25,5 @@ exclude =
         *.js,
         *.css, 
         *.jpg,
-        *.png
+        *.png,
+	sit/tests/*
