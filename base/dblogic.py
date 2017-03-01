@@ -82,6 +82,14 @@ def get_trans_by_id(db, id_):
 
 
 def trade(db, product_type, safe_vars):
+    if product_type == const.PRODUCT_TYPE.PREAUTH_DONE:
+        parent = get_trans_by_id(db, safe_vars["parent_id"])
+        if parent is None:
+            return False, "预授权不存在"
+
+        if parent["status"] != const.TRANS_STATUS.OK:
+            return False, "预授权状态不允许完成"
+
     now = datetime.datetime.now()
 
     bank_type = const.BANK_ID.GDB
@@ -99,6 +107,9 @@ def trade(db, product_type, safe_vars):
         "create_time": now,
         "modify_time": now,
     })
+
+    if product_type == const.PRODUCT_TYPE.PREAUTH_DONE:
+        trans_list_data["pre_author_code"] = parent["pre_author_code"]
 
     try:
         db.execute(
@@ -124,6 +135,15 @@ def trade(db, product_type, safe_vars):
     interface_input.update(safe_vars)
     interface_input["bank_type"] = bank_type
 
+    if product_type == const.PRODUCT_TYPE.PREAUTH_DONE:
+        interface_input["pre_author_code"] = parent[
+            "pre_author_code"]
+        interface_input["pre_author_bank_settle_time"] = parent[
+            "bank_settle_time"]
+        interface_input["pre_author_bank_list"] = parent[
+            "bank_list"]
+        interface_input.pop("parent_id", None)
+
     ok, msg = pi.call2(interface_input)
     if not ok:
         db.execute(t_trans_list.update().where(
@@ -135,13 +155,20 @@ def trade(db, product_type, safe_vars):
 
         return False, msg
 
+    to_update = {
+        "status": const.TRANS_STATUS.OK,
+        "modify_time": datetime.datetime.now(),
+        "bank_roll": msg['bank_roll'],
+        "bank_settle_time": msg['bank_settle_time'],
+    }
+
+    if product_type == const.PRODUCT_TYPE.PREAUTH:
+        to_update["pre_author_code"] = msg['pre_author_code']
+
     db.execute(t_trans_list.update().where(
         t_trans_list.c.id == trans_list_id
     ).values(
-        bank_roll=msg['bank_roll'],
-        bank_settle_time=msg['bank_settle_time'],
-        status=const.TRANS_STATUS.OK,
-        modify_time=datetime.datetime.now(),
+        **to_update
     ))
 
     return True, get_trans_by_id(db, trans_list_id)

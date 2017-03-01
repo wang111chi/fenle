@@ -37,12 +37,16 @@ class PRODUCT_TYPE(object):
         POINT: '2009',
         POINT_CASH: '2012',
         CONSUME: '2005',
+        PREAUTH: '2015',
+        PREAUTH_DONE: '2017',
     }
     CANCEL_REQUEST_TYPE = {
         LAYAWAY: '2004',
         POINT: '2011',
         POINT_CASH: '2014',
         CONSUME: '2007',
+        PREAUTH: '2016',
+        PREAUTH_DONE: '2018',
     }
     REFUND_REQUEST_TYPE = {
         LAYAWAY: '2003',

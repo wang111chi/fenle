@@ -84,7 +84,11 @@ def _cancel_or_refund(db, bank_list, is_refund=False):
     if trans_list is None:
         return False, "交易单不存在"
     if trans_list["status"] != const.TRANS_STATUS.OK:
-        return False, "交易单状态不允许退货"
+        return False, "交易单状态不允许退款"
+    if is_refund and trans_list["product"] in (
+            const.PRODUCT_TYPE.PREAUTH,
+            const.PRODUCT_TYPE.PREAUTH_DONE):
+        return False, "交易单不支持退货"
 
     t_refund_list = tables["refund_list"]
 
@@ -124,6 +128,10 @@ def _cancel_or_refund(db, bank_list, is_refund=False):
             "bank_list",
     ):
         interface_input[param] = trans_list[param]
+
+    if trans_list["product"] in (const.PRODUCT_TYPE.PREAUTH,
+                                 const.PRODUCT_TYPE.PREAUTH_DONE):
+        interface_input["pre_author_code"] = trans_list["pre_author_code"]
 
     ok, msg = pi.call2(interface_input)
     if not ok:

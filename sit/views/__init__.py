@@ -2,4 +2,13 @@
 # -*- coding: utf-8 -*-
 #
 
-__all__ = ("home", "sms", "layaway", "point", "point_cash", "consume", "trans")
+__all__ = (
+    "home",
+    "sms",
+    "layaway",
+    "point",
+    "point_cash",
+    "consume",
+    "trans",
+    "preauth",
+)
