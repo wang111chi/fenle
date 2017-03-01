@@ -1,0 +1,22 @@
+{
+  "id": "111111111110012017030100000027",
+  "bank_list": "20170301154850",
+  "amount": 100,
+  "jf_deduct_money": 0,
+  "bankacc_no": "6225561643359372",
+  "mobile": "13987654321",
+  "valid_date": "2110",
+  "bank_sms_time": "0301155942",
+  "bank_type": 1001,
+  "div_term": null,
+  "bank_validcode": "000000",
+  "bank_roll": "706015154850",
+  "bank_settle_time": "0301155942",
+  "pre_author_code": "096245",
+  "product": 5,
+  "status": 1,
+  "create_time": "2017-03-01 15:48:57",
+  "modify_time": "2017-03-01 15:48:57",
+  "parent_id": null,
+  "refund_id": null
+}
