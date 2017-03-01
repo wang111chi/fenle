@@ -6,7 +6,7 @@ use fenle_fenqi_db;
 
 CREATE TABLE `user_bank` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键',
-  `account_no` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '卡号',
+  `bankacc_no` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '卡号',
   `account_type` tinyint(4) NOT NULL COMMENT '卡种 1信用卡、2借计卡、3公司账号',
   `true_name` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '户名',
   `idcard_no` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '办卡证件号',

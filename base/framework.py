@@ -4,6 +4,8 @@
 from functools import wraps
 from base64 import b64decode
 import urllib
+import json
+import datetime
 from contextlib import contextmanager, closing
 
 from flask import make_response, render_template, redirect, request
@@ -11,7 +13,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5
 from Crypto.Signature import PKCS1_v1_5 as sign_PKCS1_v1_5
 from Crypto.Hash import SHA
-from sqlalchemy.sql import text, select
+from sqlalchemy.sql import select
 from sqlalchemy import and_
 
 import config
@@ -19,56 +21,9 @@ from base import dblogic as dbl
 from base import logger
 from base.db import engine, meta
 from base.db import t_merchant_info
-from base.db import t_trans_list
-from base.db import t_sp_balance
 from base import util
 from base.xform import FormChecker
 from base import constant as const
-
-
-def _update_sp_balance(spid, account_class, balance, now,
-                       cur_type=const.CUR_TYPE.RMB):
-    """return a sql without execute"""
-    return t_sp_balance.update().where(and_(
-        t_sp_balance.c.spid == spid,
-        t_sp_balance.c.cur_type == cur_type,
-        t_sp_balance.c.account_class == account_class
-    )).values(
-        balance=t_sp_balance.c.balance + balance,
-        modify_time=now)
-
-
-def get_list(db, list_id, what_status=None):
-    sel = select([
-        t_trans_list.c.status,
-        t_trans_list.c.sp_userid,
-        t_trans_list.c.sp_tid,
-        t_trans_list.c.paynum,
-        t_trans_list.c.fee,
-        t_trans_list.c.cur_type,
-        t_trans_list.c.divided_term,
-        t_trans_list.c.fee_duty,
-        t_trans_list.c.memo,
-        t_trans_list.c.money,
-        t_trans_list.c.paysucc_time,
-        t_trans_list.c.product_type,
-        t_trans_list.c.bank_type]).where(
-        t_trans_list.c.list_id == list_id)
-    list_ret = db.execute(sel).first()
-    if list_ret is None:
-        return False, const.API_ERROR.LIST_ID_NOT_EXIST
-    if what_status == const.TRANS_STATUS.PAY_SUCCESS:
-        if list_ret['status'] != const.TRANS_STATUS.PAY_SUCCESS:
-            return False, const.API_ERROR.LIST_STATUS_ERROR
-    return True, list_ret
-
-
-def get_sp_pubkey(db, spid):
-    """从mysql获取商户公钥"""
-    s = select([t_merchant_info.c.rsa_pub_key]).where(
-        t_merchant_info.c.spid == spid)
-    merchant_ret = db.execute(s).first()
-    return merchant_ret['rsa_pub_key']
 
 
 def general(desc):
@@ -320,7 +275,6 @@ def api_form_check(settings, is_encrypted=True, var_name="safe_vars"):
 
 
 class Job(object):
-
     """A indicator to mark whether the job is finished."""
 
     def __init__(self):

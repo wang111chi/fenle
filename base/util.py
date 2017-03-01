@@ -215,7 +215,7 @@ def _gen_seq_by_redis(key, expire):
     return script(keys=[key], args=[])
 
 
-def gen_trans_list_id(spid, bank_type):
+def gen_trans_id(spid, bank_type):
     u"""生成交易单ID.
 
     10位的spid+4位银行类型+8位日期+8位序列号
@@ -227,7 +227,7 @@ def gen_trans_list_id(spid, bank_type):
                              bank_type,
                              datetime.date.today().strftime("%Y%m%d"))
 
-    key = "trans_list_id:%s" % key_prefix
+    key = "trans_id:%s" % key_prefix
     return ("%s%08d" % (key_prefix,
                         _gen_seq_by_redis(key, 60 * 60 * 24 + 60)))[:30]
 
@@ -249,18 +249,16 @@ def gen_refund_id(spid, bank_type):
                         _gen_seq_by_redis(key, 60 * 60 * 24 + 60)))[:30]
 
 
-def gen_bank_tid(bank_spid):
+def gen_bank_list():
     u"""生成给银行的订单号.
 
-    15位的银行子商户号+8位日期+6位时间+6位自增序列号
-
-    @param<bank_spid>: 银行子商户号
+    8位日期+6位自增序列号
     """
-    key_prefix = "%s%s" % (bank_spid,
-                           datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
+    key_prefix = datetime.datetime.now().strftime("%Y%m%d")
 
-    key = "bank_tid:%s" % key_prefix
-    return ("%s%06d" % (key_prefix, _gen_seq_by_redis(key, 1)))[:35]
+    key = "bank_list:%s" % key_prefix
+    return ("%s%06d" % (key_prefix, _gen_seq_by_redis(
+        key, 60 * 60 * 24 + 60)))[:14]
 
 
 class FileLock:

@@ -60,22 +60,24 @@ def index():
 @db_conn
 @api_form_check({
     "spid": (10 <= F_str("商户号") <= 10) & "strict" & "required",
-    "money": (F_int("订单交易金额")) & "strict" & "optional",
-    "account_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
-    "user_mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
+    "amount": (F_int("订单交易金额")) & "strict" & "optional",
+    "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
+    "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
     "bank_type": (F_str("银行代号") <= 4) & "strict" & "required",
+    "expiration_date": (F_str("有效期") <= 11) & "strict" & "required",
     "sign": (F_str("签名") <= 1024) & "strict" & "required",
     "encode_type": (F_str("") <= 5) & "strict" & "required" & (
         lambda v: (v in const.ENCODE_TYPE.ALL, v)),
 })
 def cardpay_validate(db, safe_vars):
     """ 处理逻辑"""
-    sel_sp_balance = select([t_sp_balance.c.spid]).where(
-        t_sp_balance.c.spid == safe_vars['spid'])
-    if db.execute(sel_sp_balance).first() is None:
-        return ApiJsonErrorResponse(const.API_ERROR.SP_BALANCE_NOT_EXIST)
+    now = datetime.datetime.now()
 
-    # 检查银行渠道是否可用，是否验证手机号
+    ret_balance = _check_balance(db, safe_vars['spid'])
+    if ret_balance is not None:
+        return ApiJsonErrorResponse(ret_balance)
+
+    # 检查银行渠道是否可用
     sel = select([t_bank_channel.c.is_enable]).where(
         t_bank_channel.c.bank_type == safe_vars['bank_type'])
     channel_ret = db.execute(sel).first()
@@ -85,25 +87,11 @@ def cardpay_validate(db, safe_vars):
         return ApiJsonErrorResponse(const.API_ERROR.BANK_CHANNEL_UNABLE)
 
     # 检查用户银行卡信息 user_bank
-    sel = select([t_user_bank.c.lstate]).where(
-        t_user_bank.c.account_no == safe_vars['account_no'])
-    user_bank_ret = db.execute(sel).first()
-    now = datetime.datetime.now()
-    if user_bank_ret is None:
-        user_bank_info = {
-            'account_no': safe_vars['account_no'],
-            'account_type': const.ACCOUNT_TYPE.CREDIT_CARD,
-            'bank_type': safe_vars['bank_type'],
-            'account_mobile': safe_vars['user_mobile'],
-            'status': const.USER_BANK_STATUS.INIT,
-            'lstate': const.LSTATE.VALID,
-            'create_time': now,
-            'modify_time': now}
-        db.execute(t_user_bank.insert(), user_bank_info)
-    else:
-        # 检查银行卡是否被冻结 user_bank
-        if user_bank_ret['lstate'] == const.LSTATE.HUNG:  # 冻结标志
-            return ApiJsonErrorResponse(const.API_ERROR.ACCOUNT_FREEZED)
+    ret_user_bank = _check_user_bank(
+        db, safe_vars['bankacc_no'], safe_vars['bank_type'],
+        safe_vars['mobile'], now)
+    if ret_user_bank is not None:
+        return ApiJsonErrorResponse(ret_user_bank)
 
     # 检查商户银行
     is_ok, ret_sp_bank = _check_sp_bank(
@@ -126,56 +114,50 @@ def cardpay_validate(db, safe_vars):
 @api_form_check({
     "bank_sms_time": (F_str("短信下发时间") <= 32) & "strict" & "required",
     "spid": (10 <= F_str("商户号") <= 10) & "strict" & "required",
-    "sp_userid": (F_str("用户号") <= 20) & "strict" & "optional",
-    "sp_tid": (F_str("支付订单号") <= 32) & "strict" & "required",
-    "money": (F_int("订单交易金额")) & "strict" & "required",
-    "cur_type": (F_int("币种类型", const.CUR_TYPE.RMB)) & "strict" & "optional",
+    "sp_uid": (F_str("用户号") <= 20) & "strict" & "optional",
+    "sp_list": (F_str("支付订单号") <= 32) & "strict" & "required",
+    "amount": (F_int("订单交易金额")) & "strict" & "required",
     "notify_url": (F_str("后台回调地址") <= 255) & "strict" & "required",
-    "errpage_url": (F_str("错误页面回调地址") <= 255) & "strict" & "optional",
     "memo": (F_str("订单备注") <= 255) & "strict" & "required",
     "attach": (F_str("附加数据") <= 255) & "strict" & "optional",
     "account_type": F_int("银行卡类型", const.ACCOUNT_TYPE.CREDIT_CARD) & (
-        "strict") & "required" & (lambda v: (v in const.ACCOUNT_TYPE.ALL, v)),
-    "account_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
-    "user_name": (F_str("付款人姓名") <= 16) & "strict" & "optional",
-    "user_mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
+        "strict") & "optional" & (lambda v: (v in const.ACCOUNT_TYPE.ALL, v)),
+    "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
+    "true_name": (F_str("付款人姓名") <= 16) & "strict" & "optional",
+    "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
     "bank_type": (F_str("银行代号") <= 4) & "strict" & "required",
-    "expiration_date": (F_str("有效期") <= 11) & "strict" & "optional",
+    "expiration_date": (F_str("有效期") <= 11) & "strict" & "required",
     "pin_code": (F_str("cvv2") <= 11) & "strict" & "optional",
-    "divided_term": (F_int("分期期数")) & "strict" & "required",
+    "div_term": (F_int("分期期数")) & "strict" & "required",
     "fee_duty": (F_int("手续费承担方")) & "strict" & "required" & (
         lambda v: (v in const.FEE_DUTY.ALL, v)),
-    "channel": (F_int("渠道类型", const.CHANNEL.API)) & "strict" & (
-        "required") & (lambda v: (v in const.CHANNEL.ALL, v)),
     "sign": (F_str("签名") <= 1024) & "strict" & "required",
     "encode_type": (F_str("") <= 5) & "strict" & "required" & (
         lambda v: (v in const.ENCODE_TYPE.ALL, v)),
-    "rist_ctrl": (F_str("风险控制数据") <= 10240) & "strict" & "optional",
 })
 def cardpay_trade(db, safe_vars):
     """ 处理逻辑"""
-    sel_sp_balance = select([t_sp_balance.c.spid]).where(and_(
-        t_sp_balance.c.spid == safe_vars['spid'],
-        t_sp_balance.c.cur_type == safe_vars['cur_type']))
-    if db.execute(sel_sp_balance).first() is None:
-        return ApiJsonErrorResponse(const.API_ERROR.SP_BALANCE_NOT_EXIST)
+    ret_balance = _check_balance(db, safe_vars['spid'], safe_vars['cur_type'])
+    if ret_balance is not None:
+        return ApiJsonErrorResponse(ret_balance)
 
     # 返回的参数
     ret_data = {'pay_type': const.PRODUCT_TYPE.FENQI}
-    for k in ('spid', 'sp_tid', 'money', 'cur_type', 'divided_term',
+    for k in ('spid', 'sp_list', 'amount', 'cur_type', 'divided_term',
               'fee_duty', 'encode_type'):
         ret_data[k] = safe_vars[k]
 
     sp_pubkey = get_sp_pubkey(db, safe_vars['spid'])
+
     # 检查商户订单号是否已经存在
     sel = select([t_trans_list.c.status, t_trans_list.c.list_id]).where(and_(
         t_trans_list.c.spid == safe_vars['spid'],
-        t_trans_list.c.sp_tid == safe_vars['sp_tid']))
+        t_trans_list.c.sp_list == safe_vars['sp_list']))
     list_ret = db.execute(sel).first()
     if list_ret is not None:   # 如果已经存在
         ret_data.update({
             "list_id": list_ret['list_id'],
-            "result": list_ret['status'], })
+            "result": list_ret['status']})
         cipher_data = util.rsa_sign_and_encrypt_params(
             ret_data,
             config.FENLE_PRIVATE_KEY,
@@ -192,28 +174,16 @@ def cardpay_trade(db, safe_vars):
         return ApiJsonErrorResponse(ret_channel)
     list_data['bank_channel'] = ret_channel['bank_channel']
     list_data['bank_fee'] = safe_vars[
-        'money'] * ret_channel['bank_fee_percent'] // 10000
+        'amount'] * ret_channel['bank_fee_percent'] // 10000
+
+    now = datetime.datetime.now()
 
     # 检查用户银行卡信息 user_bank
-    now = datetime.datetime.now()
-    sel = select([t_user_bank.c.lstate]).where(
-        t_user_bank.c.account_no == safe_vars['account_no'])
-    user_bank_ret = db.execute(sel).first()
-    if user_bank_ret is None:
-        user_bank_info = {
-            'account_no': safe_vars['account_no'],
-            'account_type': safe_vars['account_type'],
-            'bank_type': safe_vars['bank_type'],
-            'account_mobile': safe_vars['user_mobile'],
-            'status': const.USER_BANK_STATUS.INIT,
-            'lstate': const.LSTATE.VALID,
-            'create_time': now,
-            'modify_time': now}
-        db.execute(t_user_bank.insert(), user_bank_info)
-    else:
-        # 检查银行卡是否被冻结 user_bank
-        if user_bank_ret['lstate'] == const.LSTATE.HUNG:  # 冻结标志
-            return ApiJsonErrorResponse(const.API_ERROR.ACCOUNT_FREEZED)
+    ret_user_bank = _check_user_bank(
+        db, safe_vars['bankacc_no'], safe_vars['bank_type'],
+        safe_vars['mobile'], now)
+    if ret_user_bank is not None:
+        return ApiJsonErrorResponse(ret_user_bank)
 
     # 检查商户银行
     is_ok, ret_sp_bank = _check_sp_bank(
@@ -223,14 +193,14 @@ def cardpay_trade(db, safe_vars):
         return ApiJsonErrorResponse(ret_sp_bank)
     bank_spid = ret_sp_bank['bank_spid']
     list_data['fee']\
-        = safe_vars['money'] * ret_sp_bank['fee_percent'] // 10000
+        = safe_vars['amount'] * ret_sp_bank['fee_percent'] // 10000
 
     # 生成订单相关数据
     list_data.update({
         'list_id': util.gen_trans_list_id(
             safe_vars['spid'], safe_vars['bank_type']),
         'bank_tid': util.gen_bank_tid(bank_spid),
-        'bank_backid': "",
+        'bank_roll': "",
         'status': const.TRANS_STATUS.PAYING,  # 支付中
         'lstate': const.LSTATE.VALID,  # 有效的
         'create_time': now,
@@ -238,27 +208,24 @@ def cardpay_trade(db, safe_vars):
 
     # fee_duty  计算手续费生成金额
     if safe_vars['fee_duty'] == const.FEE_DUTY.BUSINESS:  # 商户付手续费
-        list_data.update({
-            'amount': safe_vars['money'],
-            'paynum': safe_vars['money']})
+        list_data.update({'amount': safe_vars['amount']})
     else:
         # 用户付手续费情形
         return ApiJsonErrorResponse(const.API_ERROR.NO_USER_PAY)
 
     # 更新订单字段
-    for k in (u'spid', u'sp_tid', u'cur_type', u'notify_url',
-              u'memo', u'account_no', u'account_type',
-              u'user_mobile', u'bank_type', u'divided_term',
+    for k in (u'spid', u'sp_list', u'cur_type', u'notify_url',
+              u'memo', u'bankacc_no', u'account_type',
+              u'mobile', u'bank_type', u'divided_term',
               u'fee_duty', u'channel'):
         list_data[k] = safe_vars[k]
-
     db.execute(t_trans_list.insert(), list_data)
 
     # TODO 调用银行支付请求接口,更新余额
     now = datetime.datetime.now()
     sp_history_data = {
         'biz': const.BIZ.TRANS,
-        'amount': list_data['paynum'],
+        'amount': list_data['amount'],
         'ref_str_id': list_data['list_id'],
         'create_time': now}
     fenle_history_data = sp_history_data.copy()
@@ -267,18 +234,18 @@ def cardpay_trade(db, safe_vars):
         'spid': safe_vars['spid'],
         'account_class': const.ACCOUNT_CLASS.B})
     fenle_history_data.update({
-        'account_no': list_data['account_no'],
+        'bankacc_no': list_data['bankacc_no'],
         'account_type': list_data['account_type'],
         'bank_type': list_data['bank_type']})
 
     udp_sp_balance = update_sp_balance(
         safe_vars['spid'], const.ACCOUNT_CLASS.B,
-        list_data['paynum'], now)
+        list_data['amount'], now)
 
     udp_fenle_balance = t_fenle_balance.update().where(and_(
-        t_fenle_balance.c.account_no == config.FENLE_ACCOUNT_NO,
+        t_fenle_balance.c.bankacc_no == config.FENLE_ACCOUNT_NO,
         t_fenle_balance.c.bank_type == config.FENLE_BANK_TYPE)).values(
-        balance=t_fenle_balance.c.balance + list_data['paynum'],
+        balance=t_fenle_balance.c.balance + list_data['amount'],
         modify_time=now)
 
     udp_trans_list = t_trans_list.update().where(
@@ -296,7 +263,7 @@ def cardpay_trade(db, safe_vars):
 
     ret_data.update({
         "list_id": list_data['list_id'],
-        "result": const.TRANS_STATUS.PAY_SUCCESS, })
+        "result": const.TRANS_STATUS.PAY_SUCCESS})
     cipher_data = util.rsa_sign_and_encrypt_params(
         ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
     return ApiJsonOkResponse(cipher_data=cipher_data)
@@ -333,7 +300,7 @@ def cardpay_refund(db, safe_vars):
 
     sp_history_data = {
         'biz': const.BIZ.REFUND,
-        'amount': list_ret['paynum'],
+        'amount': list_ret['amount'],
         'ref_str_id': refund_id,  # 退款单号
         'create_time': now}
     fenle_history_data = sp_history_data.copy()
@@ -342,7 +309,7 @@ def cardpay_refund(db, safe_vars):
         'spid': safe_vars['spid'],
         'account_class': const.ACCOUNT_CLASS.B})
     fenle_history_data.update({
-        'account_no': list_ret['account_no'],
+        'bankacc_no': list_ret['bankacc_no'],
         'account_type': list_ret['account_type'],
         'bank_type': list_ret['bank_type']})
 
@@ -351,12 +318,12 @@ def cardpay_refund(db, safe_vars):
         # 更新status
         udp_sp_balance = update_sp_balance(
             safe_vars['spid'], const.ACCOUNT_CLASS.B,
-            0 - list_ret['paynum'], now)
+            0 - list_ret['amount'], now)
 
         udp_fenle_balance = t_fenle_balance.update().where(and_(
-            t_fenle_balance.c.account_no == config.FENLE_ACCOUNT_NO,
+            t_fenle_balance.c.bankacc_no == config.FENLE_ACCOUNT_NO,
             t_fenle_balance.c.bank_type == config.FENLE_BANK_TYPE)).values(
-            balance=t_fenle_balance.c.balance - list_ret['paynum'],
+            balance=t_fenle_balance.c.balance - list_ret['amount'],
             modify_time=now)
 
         udp_trans_list = t_trans_list.update().where(
@@ -404,7 +371,7 @@ def cardpay_refund(db, safe_vars):
                 list_ret['bankfee'] - list_ret['fee'], now)
 
             udp_fenle_balance = t_fenle_balance.update().where(and_(
-                t_fenle_balance.c.account_no == config.FENLE_ACCOUNT_NO,
+                t_fenle_balance.c.bankacc_no == config.FENLE_ACCOUNT_NO,
                 t_fenle_balance.c.bank_type == config.FENLE_BANK_TYPE)).values(
                 balance=t_fenle_balance.c.balance - sp_amount,
                 modify_time=now)
@@ -445,7 +412,7 @@ def cardpay_refund(db, safe_vars):
                     list_ret['bank_fee'] - list_ret['fee'], now)
 
                 udp_fenle_balance = t_fenle_balance.update().where(and_(
-                    t_fenle_balance.c.account_no == config.FENLE_ACCOUNT_NO,
+                    t_fenle_balance.c.bankacc_no == config.FENLE_ACCOUNT_NO,
                     t_fenle_balance.c.bank_type == config.FENLE_BANK_TYPE))\
                     .values(balance=t_fenle_balance.c.balance - sp_amount,
                             modify_time=now)
@@ -490,9 +457,9 @@ def cardpay_query(db, safe_vars):
         return ApiJsonErrorResponse(list_ret)
     sp_pubkey = get_sp_pubkey(db, safe_vars['spid'])
     ret_data = dict(list_ret).copy()
-    ret_data.pop('paynum')
+    ret_data.pop('amount')
     ret_data.update({
-        "money": list_ret['paynum'],
+        "amount": list_ret['amount'],
         "sign": safe_vars["sign"],
         "encode_type": safe_vars["encode_type"],
         "spid": safe_vars['spid'],
@@ -502,6 +469,15 @@ def cardpay_query(db, safe_vars):
     cipher_data = util.rsa_sign_and_encrypt_params(
         ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
     return ApiJsonOkResponse(cipher_data=cipher_data)
+
+
+def _check_balance(db, spid, cur_type=const.CUR_TYPE.RMB):
+    sel_sp_balance = select([t_sp_balance.c.spid]).where(and_(
+        t_sp_balance.c.spid == spid,
+        t_sp_balance.c.cur_type == cur_type))
+    if db.execute(sel_sp_balance).first() is None:
+        return const.API_ERROR.SP_BALANCE_NOT_EXIST
+    return None
 
 
 def _check_bank_channel(db, safe_vars):
@@ -531,7 +507,7 @@ def _check_bank_channel(db, safe_vars):
 
         # 验证姓名
         if (channel_ret['singlepay_vmask'] & const.PAY_MASK.NAME) and \
-           (safe_vars['user_name'] is None):
+           (safe_vars['true_name'] is None):
             return False, const.API_ERROR.NO_USER_NAME
 
     fenqi_fee_percent = json.loads(channel_ret['fenqi_fee_percent'])
@@ -548,6 +524,29 @@ def _check_bank_channel(db, safe_vars):
     else:
         result['is_need_mobile'] = False
     return True, result
+
+
+def _check_user_bank(db, acc_no, bank_type, mobile, now):
+    """ 检查用户银行卡信息 user_bank"""
+    sel = select([t_user_bank.c.status]).where(
+        t_user_bank.c.bankacc_no == acc_no)
+    user_bank_ret = db.execute(sel).first()
+    now = datetime.datetime.now()
+    if user_bank_ret is None:
+        user_bank_info = {
+            'bankacc_no': acc_no,
+            'account_type': const.ACCOUNT_TYPE.CREDIT_CARD,
+            'bank_type': bank_type,
+            'account_mobile': mobile,
+            'status': const.USER_BANK_STATUS.INIT,
+            'create_time': now,
+            'modify_time': now}
+        db.execute(t_user_bank.insert(), user_bank_info)
+    else:
+        # 检查银行卡是否被冻结 user_bank
+        if user_bank_ret['status'] == const.USER_BANK_STATUS.FREEZING:  # 冻结标志
+            return const.API_ERROR.ACCOUNT_FREEZED
+    return None
 
 
 def _check_sp_bank(db, spid, bank_type, divided_term=6):
@@ -572,22 +571,22 @@ def _check_sp_bank(db, spid, bank_type, divided_term=6):
     return True, result
 
 
-def _check_list(db, list_id, user_mobile, sp_tid, account_no):
+def _check_list(db, list_id, mobile, sp_list, bankacc_no):
     """检查订单状态"""
     sel = select([
         t_trans_list.c.status,
-        t_trans_list.c.account_no,
-        t_trans_list.c.user_mobile,
+        t_trans_list.c.bankacc_no,
+        t_trans_list.c.mobile,
         t_trans_list.c.bank_type,
         t_trans_list.c.spid,
-        t_trans_list.c.sp_tid,
+        t_trans_list.c.sp_list,
         t_trans_list.c.cur_type,
         t_trans_list.c.fee_duty,
         t_trans_list.c.divided_term,
-        t_trans_list.c.paynum,
+        t_trans_list.c.amount,
         t_trans_list.c.fee,
         t_trans_list.c.bank_tid,
-        t_trans_list.c.bank_backid,
+        t_trans_list.c.bank_roll,
         t_trans_list.c.bank_fee]).where(
         t_trans_list.c.list_id == list_id)
     list_ret = db.execute(sel).first()
@@ -597,12 +596,12 @@ def _check_list(db, list_id, user_mobile, sp_tid, account_no):
     if list_ret['status'] != const.TRANS_STATUS.MOBILE_CHECKING:
         return False, const.API_ERROR.CONFIRM_STATUS_ERROR
 
-    if list_ret['user_mobile'] != user_mobile:
+    if list_ret['mobile'] != mobile:
         return False, const.API_ERROR.CONFIRM_MOBILE_ERROR
 
-    if list_ret['sp_tid'] != sp_tid:
+    if list_ret['sp_list'] != sp_list:
         return False, const.API_ERROR.CONFIRM_SPTID_ERROR
 
-    if list_ret['account_no'] != account_no:
+    if list_ret['bankacc_no'] != bankacc_no:
         return False, const.API_ERROR.CONFIRM_ACCOUNT_NO_ERROR
     return True, list_ret

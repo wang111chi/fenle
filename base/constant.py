@@ -23,11 +23,11 @@ class SETTLE_TYPE(object):
 
 
 class REQUEST_STATUS(object):
-    SUCCESS = 0                        # 请求成功
-    FAIL = 1                           # 请求失败
+    SUCCESS = 0  # 请求成功
+    FAIL = 1     # 请求失败
 
 
-class PRODUCT_TYPE(object):
+class PRODUCT(object):
     LAYAWAY = 1       # 分期
     POINT = 2         # 积分
     POINT_CASH = 3    # 积分+现金
@@ -98,7 +98,8 @@ class BIZ(object):
 class USER_BANK_STATUS(object):
     INIT = 0  # 初始化
     CERTIFIED = 1  # 经认证了的
-    LOG_OFF = 2  # 注销
+    FREEZING = 2  # 用户被冻结
+    LOG_OFF = 3  # 注销
 
 
 class TRANS_STATUS(object):
@@ -208,6 +209,8 @@ class API_ERROR(object):
     SPID_NOT_EXIST = 207200
     MERCHANT_FORBID = 207201
 
+    REPEAT_PAY = 207202
+
     ACCOUNT_NOT_EXIST = 207300
     ACCOUNT_FREEZED = 207301
     BANK_NOT_EXIST = 207310
@@ -222,6 +225,7 @@ class API_ERROR(object):
     NO_USER_NAME = 207403
 
     NO_SP_BANK = 207504
+    PRODUCT_NOT_EXIST = 207514
     DIVIDED_TERM_NOT_EXIST = 207505
     SP_BALANCE_NOT_EXIST = 207506
     FENLE_BALANCE_NOT_EXIST = 207507
@@ -246,6 +250,7 @@ class API_ERROR(object):
         DECRYPT_ERROR: u"解密失败",
         SIGN_INVALID: u"校验签名失败",
         ACCOUNT_NOT_EXIST: u"银行卡未注册",
+        REPEAT_PAY: u"订单已经存在了，请别重复提交",
         ACCOUNT_FREEZED: u"银行卡冻结",
         BANK_NOT_EXIST: u"分乐暂不支持该银行",
         BANK_CHANNEL_UNABLE: u"银行渠道不可用",
@@ -253,15 +258,11 @@ class API_ERROR(object):
         NO_EXPIRATION_DATE: u"有效期需要验证",
         NO_PIN_CODE: u"安全码需要验证",
         NO_USER_NAME: u"用户姓名需要验证",
+        PRODUCT_NOT_EXIST: u"服务产品不存在",
         NO_SP_BANK: u"商家银行没有相关服务",
         DIVIDED_TERM_NOT_EXIST: u"不存在这样的分期期数服务",
         SP_BALANCE_NOT_EXIST: u"商户余额账户不存在",
         FENLE_BALANCE_NOT_EXIST: u"分乐余额账户不存在",
-        LIST_ID_NOT_EXIST: u"二次确认中订单号错误",
-        CONFIRM_STATUS_ERROR: u"二次确认状态错误",
-        CONFIRM_MOBILE_ERROR: u"二次确认手机号错误",
-        CONFIRM_SPTID_ERROR: u"二次确认商户订单号错误",
-        CONFIRM_ACCOUNT_NO_ERROR: u"二次确认用户银行卡号错误",
         LIST_STATUS_ERROR: u"订单状态错误",
         NO_USER_PAY: u"不支持用户付手续费情形",
         INSERT_ERROR: u"数据库插入异常",

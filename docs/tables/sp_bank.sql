@@ -12,6 +12,7 @@ CREATE TABLE `sp_bank` (
   `bank_type` int(11) NOT NULL COMMENT '银行类型',
   `fenqi_fee_percent` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '分期手续费,万分之几，json字符串，分期期数作为键',
   `jifen_fee_percent` int(11) DEFAULT NULL COMMENT '积分手续费',
+  `cash_fee_percent` int(11) DEFAULT NULL COMMENT '现金手续费',
   `settle_type` tinyint(4) NOT NULL COMMENT '日结与月结',
   `create_time` datetime NOT NULL COMMENT '创建时间',
   `modify_time` datetime NOT NULL COMMENT '最后一次修改时间',

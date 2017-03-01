@@ -145,7 +145,6 @@ class TestCardpayApply(object):
     def insert_sp_bank(self, conn, spid, divided_term):
         sp_bank_data = {
             'spid': spid,
-            'bank_spid': spid + '12345',
             'bank_type': self.bank_type,
             'fenqi_fee_percent': json.dumps(divided_term),
             'divided_term': '6,12',

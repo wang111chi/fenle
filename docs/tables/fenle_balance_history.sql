@@ -6,7 +6,7 @@ use fenle_fenqi_db;
 
 CREATE TABLE `fenle_balance_history` (
 `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'ID主键',
-`account_no` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '账户号码',
+`bankacc_no` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '账户号码',
 `account_type` int(11) NOT NULL COMMENT '1真实的银行账号：如中国银行2 虚拟账号(收入，支付都是经过第三方支付公司)，如广发银行',
 `bank_type` int(11) NOT NULL COMMENT '银行4位代号',
 `biz` tinyint(4) NOT NULL COMMENT '业务类型，详见const.BIZ',
