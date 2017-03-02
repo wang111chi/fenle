@@ -29,9 +29,10 @@ from base.db import t_fenle_history
 import config
 
 
-def check_balance(db, spid, cur_type=const.CUR_TYPE.RMB):
-    sel_sp_balance = select([t_sp_balance.c.spid]).where(and_(
+def check_balance(db, account_class, spid, cur_type=const.CUR_TYPE.RMB):
+    sel_sp_balance = select([t_sp_balance.c.balance]).where(and_(
         t_sp_balance.c.spid == spid,
+        t_sp_balance.c.account_class == account_class,
         t_sp_balance.c.cur_type == cur_type))
     if db.execute(sel_sp_balance).first() is None:
         return False, const.API_ERROR.SP_BALANCE_NOT_EXIST
@@ -109,8 +110,8 @@ def check_bank_channel(db, product, bank_type, pin_code, name, div_term=6):
     elif product == const.PRODUCT.CONSUME:
         return True, channel_ret['cash_fee_percent']
     else:
-        return True, (channel_ret['jifen_fee_percent'],
-                      channel_ret['cash_fee_percent'])
+        return True, (channel_ret['cash_fee_percent'],
+                      channel_ret['jifen_fee_percent'])
 
 
 def check_sp_bank(db, product, spid, bank_type, div_term=6):
@@ -137,8 +138,8 @@ def check_sp_bank(db, product, spid, bank_type, div_term=6):
     elif product == const.PRODUCT.CONSUME:
         return True, sp_bank_ret['cash_fee_percent']
     else:
-        return True, (sp_bank_ret['jifen_fee_percent'],
-                      sp_bank_ret['cash_fee_percent'])
+        return True, (sp_bank_ret['cash_fee_percent'],
+                      sp_bank_ret['jifen_fee_percent'])
 
 
 def update_sp_balance(spid, account_class, balance, now,
@@ -187,7 +188,7 @@ def get_sp_pubkey(db, spid):
 
 
 def check_sign_md5(db, params):
-    # TODO: 从数据库获取key分配给商户
+    """ TODO: 从数据库获取key分配给商户"""
     key = "123456"
 
     sign = params["sign"]
@@ -240,12 +241,23 @@ def check_db_set(db, safe_vars, now, for_sms=False):
             return False, ret_repeat
 
         # 商户不付手续费
-        if safe_vars['fee_duty'] != const.FEE_DUTY.BUSINESS:
+        if safe_vars['fee_duty'] != const.FEE_DUTY.SP:
             return False, const.API_ERROR.NO_USER_PAY
 
     # 检查余额账户
     ok, ret_balance = check_balance(
-        db, safe_vars['spid'], safe_vars['cur_type'])
+        db, const.ACCOUNT_CLASS.B,
+        safe_vars['spid'], safe_vars['cur_type'])
+    if not ok:
+        return False, ret_balance
+    ok, ret_balance = check_balance(
+        db, const.ACCOUNT_CLASS.C,
+        safe_vars['spid'], safe_vars['cur_type'])
+    if not ok:
+        return False, ret_balance
+    ok, ret_balance = check_balance(
+        db, const.ACCOUNT_CLASS.C,
+        config.FENLE_SPID, safe_vars['cur_type'])
     if not ok:
         return False, ret_balance
 
@@ -285,14 +297,13 @@ def trade(db, product, safe_vars):
 
     list_data = {'product': product}
     if product == const.PRODUCT.POINT_CASH:
-
         list_data['bank_fee']\
-            = (safe_vars['amount'] * ret_channel[1] +
-               safe_vars['jf_deduct_money'] * ret_channel[0]) // 10000
+            = (safe_vars['amount'] * ret_channel[0] +
+               safe_vars['jf_deduct_money'] * ret_channel[1]) // 10000
 
         list_data['fee']\
-            = (safe_vars['amount'] * ret_sp_bank[1] +
-               safe_vars['jf_deduct_money'] * ret_sp_bank[0]) // 10000
+            = (safe_vars['amount'] * ret_sp_bank[0] +
+               safe_vars['jf_deduct_money'] * ret_sp_bank[1]) // 10000
     else:
         list_data['bank_fee']\
             = safe_vars['amount'] * ret_channel // 10000
