@@ -19,6 +19,8 @@ echo "making preauth request..." >&2
 
 ret=$(
     curl -s \
+         -d @data/bank_spid \
+         -d @data/terminal_id \
          -d amount=100 \
          -d @data/bankacc_no \
          -d @data/mobile \

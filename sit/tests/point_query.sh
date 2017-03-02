@@ -19,6 +19,8 @@ echo "making point query request..." >&2
 
 ret=$(
     curl -s -G \
+         -d @data/bank_spid \
+         -d @data/terminal_id \
          -d @data/bankacc_no \
          -d @data/mobile \
          -d @data/valid_date \

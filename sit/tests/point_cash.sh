@@ -19,6 +19,8 @@ echo "making point_cash request..." >&2
 
 ret=$(
     curl -s \
+         -d @data/bank_spid \
+         -d @data/terminal_id \
          -d amount=1000 \
          -d jf_deduct_money=100 \
          -d @data/bankacc_no \
