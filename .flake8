@@ -14,7 +14,7 @@ exclude =
 	Dockerfile*,
         uwsgi.ini,
         .gitignore,
-        base/xform.py,
+        xform.py,
         .flake8,
 	*.sql,
         *.yml,
