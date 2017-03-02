@@ -12,6 +12,9 @@ input=$(cat -)
 bank_list=$(echo $input | jq '.bank_list' | sed -e 's/^"//' -e 's/"$//')
 bank_sms_time=$(echo $input | jq '.bank_sms_time' | sed -e 's/^"//' -e 's/"$//')
 
+echo "sleeping 5 seconds..." >&2
+sleep 5
+
 echo "making point request..." >&2
 
 ret=$(

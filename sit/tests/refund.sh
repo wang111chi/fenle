@@ -11,6 +11,9 @@
 input=$(cat -)
 bank_list=$(echo $input | jq '.bank_list' | sed -e 's/^"//' -e 's/"$//')
 
+echo "sleeping 5 seconds..." >&2
+sleep 5
+
 echo "making refund request..." >&2
 
 ret=$(

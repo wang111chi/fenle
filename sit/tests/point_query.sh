@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 信用卡刷卡消费
+# 积分查询
 
 # 接收标准输入：
 # {
@@ -15,26 +15,25 @@ bank_sms_time=$(echo $input | jq '.bank_sms_time' | sed -e 's/^"//' -e 's/"$//')
 echo "sleeping 5 seconds..." >&2
 sleep 5
 
-echo "making consume request..." >&2
+echo "making point query request..." >&2
 
 ret=$(
-    curl -s \
-         -d amount=100 \
+    curl -s -G \
          -d @data/bankacc_no \
          -d @data/mobile \
          -d @data/valid_date \
          -d bank_validcode=000000 \
          -d bank_sms_time=$bank_sms_time \
          -d bank_list=$bank_list \
-         http://58.67.212.197:8081/consume/trade
+         http://58.67.212.197:8081/point/query
    )
 
 retcode=$(echo $ret | jq '.status')
 
 if [ $retcode -ne 0 ]; then
-    echo [fail] consume >&2
+    echo [fail] point query >&2
     echo $ret | jq '.' >&2
     exit 127
 fi
 
-echo $ret | jq '.trans'
+echo $ret | jq '.'

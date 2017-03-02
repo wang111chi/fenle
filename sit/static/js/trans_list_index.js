@@ -190,7 +190,7 @@ function sendDrawback(url, bank_list){
 
 			hideDrawback();
 			if (data.status == 0){
-				showMsg('【退款】提交成功');
+				showMsg('退款提交成功');
 			} else if (data.status == 1){
 				showMsg(data.message);
 			} else {
@@ -241,7 +241,7 @@ function sendCancel(url, bank_list){
 
 			hideCancel();
 			if (data.status == 0){
-				showMsg('【撤销】提交成功');
+				showMsg('撤销提交成功');
 			} else if (data.status == 1){
 				showMsg(data.message);
 			} else {
@@ -281,7 +281,7 @@ function getDetail(bank_list){
 			} else if ( data.status == 1 ){
 				showMsg(data.message);
 			} else {
-				showMsg('返回status,不为0或1');
+				showMsg('ERROR');
 			}
 		},
 		error:function(){
@@ -316,6 +316,10 @@ function showDetail(data){
 		data.product = '积分+分期';
 	} else if (data.product == 4 ){
 		data.product = '普通信用卡消费';
+	} else if (data.product == 5 ){
+		data.product = '预授权';
+	} else if (data.product == 6){
+		data.product = '预授权完成';
 	} else {
 		data.product = 'ERROR'; 
 	}
@@ -402,7 +406,7 @@ function preauthDetail(bank_list, id, bankacc_no, valid_date, mobile){
 			} else if ( data.status == 1 ){
 				showMsg(data.message);
 			} else {
-				showMsg('返回status,不为0或1');
+				showMsg('ERROR');
 			}
 		},
 		error:function(){
@@ -485,7 +489,7 @@ function submitForm(url, submit_data){
 			} else if (data.status == 1){
 				showMsg(data.message);
 			} else {
-				showMsg('其他信息');
+				showMsg('ERROR');
 			}
 		},
 		error:function(){
