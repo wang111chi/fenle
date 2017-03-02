@@ -6,6 +6,8 @@ use fenle_fenqi_db;
 
 CREATE TABLE `trans_list` (
   `id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '内部交易单号',
+  `bank_spid` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '银行子商户编号',
+  `terminal_id` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '终端编号',
   `bank_list` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '给银行订单号',
   `amount` bigint(20) NOT NULL DEFAULT '0' COMMENT '交易金额',
   `jf_deduct_money` bigint(20) NOT NULL DEFAULT '0' COMMENT '积分抵扣金额(积分+现金交易时用)',

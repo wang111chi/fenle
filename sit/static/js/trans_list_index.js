@@ -425,8 +425,11 @@ function preauthSubmit(bank_list, id, bankacc_no, valid_date, mobile){
 		return_data = {};
 
 		// 1-1 获取要素
+		var bank_spid = $('#bank_spid').val();
+		var terminal_id = $('#terminal_id').val();
+
 		var amount = $('#amount').val();
-		var captcha_data = {'amount':amount, 'bankacc_no':bankacc_no, 'valid_date':valid_date, 'mobile':mobile};
+		var captcha_data = {'bank_spid':bank_spid, 'terminal_id':terminal_id, 'amount':amount, 'bankacc_no':bankacc_no, 'valid_date':valid_date, 'mobile':mobile};
 
 		// 1-2 post
 		sendCaptcha('/sms/send', captcha_data);
@@ -436,11 +439,14 @@ function preauthSubmit(bank_list, id, bankacc_no, valid_date, mobile){
 	$('#submit').click(function(){
 
 		// 2-1 获取要素
+		var bank_spid = $('#bank_spid').val();
+		var terminal_id = $('#terminal_id').val();
+
 		var amount = $('#amount').val();
 		var bank_validcode = $('#bank_validcode').val();
 
 
-		var submit_data = $.extend(return_data, {'amount':amount, 'bankacc_no':bankacc_no, 'valid_date':valid_date, 'mobile':mobile, 'bank_validcode':bank_validcode, 'parent_id':id});
+		var submit_data = $.extend(return_data, {'bank_spid':bank_spid, 'terminal_id':terminal_id, 'amount':amount, 'bankacc_no':bankacc_no, 'valid_date':valid_date, 'mobile':mobile, 'bank_validcode':bank_validcode, 'parent_id':id});
 
 		// 2-3 post
 		submitForm('/preauth/done', submit_data);

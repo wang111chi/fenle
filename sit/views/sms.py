@@ -26,6 +26,8 @@ sms = Blueprint("sms", __name__)
 @sms.route("/sms/send", methods=["POST"])
 @general("银行下发验证码")
 @form_check({
+    "bank_spid": (F_str("商户号") <= 16) & "strict" & "required",
+    "terminal_id": (F_str("终端号") <= 16) & "strict" & "required",
     "amount": (F_int("订单交易金额")) & "strict" & "required",
     "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
     "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",

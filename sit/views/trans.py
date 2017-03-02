@@ -118,6 +118,8 @@ def _cancel_or_refund(db, bank_list, is_refund=False):
     }
 
     for param in (
+            "bank_spid",
+            "terminal_id",
             "bank_type",
             "valid_date",
             "bankacc_no",

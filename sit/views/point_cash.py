@@ -33,6 +33,8 @@ def load():
 @general("积分加现金交易")
 @db_conn
 @form_check({
+    "bank_spid": (F_str("商户号") <= 16) & "strict" & "required",
+    "terminal_id": (F_str("终端号") <= 16) & "strict" & "required",
     "amount": (F_int("现金金额")) & "strict" & "required",
     "jf_deduct_money": (F_int("积分抵扣金额")) & "strict" & "required",
     "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",

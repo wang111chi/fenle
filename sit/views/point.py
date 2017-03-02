@@ -33,6 +33,8 @@ def load():
 @general("积分交易")
 @db_conn
 @form_check({
+    "bank_spid": (F_str("商户号") <= 16) & "strict" & "required",
+    "terminal_id": (F_str("终端号") <= 16) & "strict" & "required",
     "amount": (F_int("积分抵扣金额")) & "strict" & "required",
     "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
     "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
@@ -58,6 +60,8 @@ def query_load():
 @general("积分查询")
 @db_conn
 @form_check({
+    "bank_spid": (F_str("商户号") <= 16) & "strict" & "required",
+    "terminal_id": (F_str("终端号") <= 16) & "strict" & "required",
     "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
     "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
     "valid_date": F_str("有效期") & "strict" & "required",
