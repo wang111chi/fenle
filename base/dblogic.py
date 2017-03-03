@@ -14,6 +14,7 @@ from Crypto.Hash import SHA
 from sqlalchemy.sql import select
 from sqlalchemy import and_
 
+from base import pp_interface as pi
 from base.framework import transaction
 from base import constant as const
 from base import util
@@ -73,10 +74,12 @@ def check_user_bank(db, acc_no, bank_type, mobile, now):
     return True, None
 
 
-def check_bank_channel(db, product, bank_type, pin_code, name, div_term=6):
+def check_bank_channel(db, product, bank_type, pin_code, name, div_term):
+    fee_percent = {'error_code': None}
     if product not in (const.PRODUCT.LAYAWAY, const.PRODUCT.POINT,
                        const.PRODUCT.POINT_CASH, const.PRODUCT.CONSUME):
-        return False, const.API_ERROR.PRODUCT_NOT_EXIST
+        fee_percent['error_code'] = const.API_ERROR.PRODUCT_NOT_EXIST
+        return False, fee_percent
     sel = select([t_bank_channel.c.status,
                   t_bank_channel.c.fenqi_fee_percent,
                   t_bank_channel.c.jifen_fee_percent,
@@ -85,40 +88,48 @@ def check_bank_channel(db, product, bank_type, pin_code, name, div_term=6):
         t_bank_channel.c.bank_type == bank_type)
     channel_ret = db.execute(sel).first()
     if channel_ret is None:
-        return False, const.API_ERROR.BANK_NOT_EXIST
+        fee_percent['error_code'] = const.API_ERROR.BANK_NOT_EXIST
+        return False, fee_percent
 
     if channel_ret['status'] == const.BOOLEAN.FALSE:  # 银行渠道不可用
-        return False, const.API_ERROR.BANK_CHANNEL_UNABLE
+        fee_percent['error_code'] = const.API_ERROR.BANK_CHANNEL_UNABLE
+        return False, fee_percent
 
     if channel_ret['interface_mask'] is not None:
         # 验证安全码
         if (channel_ret['interface_mask'] & const.PAY_MASK.PIN_CODE) and \
            (pin_code is None):
-            return False, const.API_ERROR.NO_PIN_CODE
+            fee_percent['error_code'] = const.API_ERROR.NO_PIN_CODE
+            return False, fee_percent
         # 验证姓名
         if (channel_ret['interface_mask'] & const.PAY_MASK.NAME) and \
            (name is None):
-            return False, const.API_ERROR.NO_USER_NAME
+            fee_percent['error_code'] = const.API_ERROR.NO_USER_NAME
+            return False, fee_percent
 
     if product == const.PRODUCT.LAYAWAY:
         fenqi_fee_percent = json.loads(channel_ret['fenqi_fee_percent'])
         if str(div_term) not in fenqi_fee_percent:
-            return False, const.API_ERROR.DIVIDED_TERM_NOT_EXIST
-        return True, fenqi_fee_percent[str(div_term)]
+            fee_percent['error_code'] = const.API_ERROR.DIV_TERM_NOT_EXIST
+            return False, fee_percent
+        fee_percent[product] = fenqi_fee_percent[str(div_term)]
     elif product == const.PRODUCT.POINT:
-        return True, channel_ret['jifen_fee_percent']
+        fee_percent[product] = channel_ret['jifen_fee_percent']
     elif product == const.PRODUCT.CONSUME:
-        return True, channel_ret['cash_fee_percent']
+        fee_percent[product] = channel_ret['cash_fee_percent']
     else:
-        return True, (channel_ret['cash_fee_percent'],
-                      channel_ret['jifen_fee_percent'])
+        fee_percent['cash'] = channel_ret['cash_fee_percent']
+        fee_percent['jifen'] = channel_ret['jifen_fee_percent']
+    return True, fee_percent
 
 
-def check_sp_bank(db, product, spid, bank_type, div_term=6):
+def check_sp_bank(db, product, spid, bank_type, div_term):
     """ 查 sp_bank 的 fenqi_fee_percent """
+    fee_percent = {'error_code': None}
     if product not in (const.PRODUCT.LAYAWAY, const.PRODUCT.POINT,
                        const.PRODUCT.POINT_CASH, const.PRODUCT.CONSUME):
-        return False, const.API_ERROR.PRODUCT_NOT_EXIST
+        fee_percent['error_code'] = const.API_ERROR.PRODUCT_NOT_EXIST
+        return False, fee_percent
     sel = select([
         t_sp_bank.c.fenqi_fee_percent,
         t_sp_bank.c.jifen_fee_percent,
@@ -127,19 +138,22 @@ def check_sp_bank(db, product, spid, bank_type, div_term=6):
             t_sp_bank.c.bank_type == bank_type))
     sp_bank_ret = db.execute(sel).first()
     if sp_bank_ret is None:
-        return False, const.API_ERROR.NO_SP_BANK
+        fee_percent['error_code'] = const.API_ERROR.NO_SP_BANK
+        return False, fee_percent
     if product == const.PRODUCT.LAYAWAY:
         fenqi_fee_percent = json.loads(sp_bank_ret['fenqi_fee_percent'])
         if str(div_term) not in fenqi_fee_percent:
-            return False, const.API_ERROR.DIVIDED_TERM_NOT_EXIST
-        return True, fenqi_fee_percent[str(div_term)]
+            fee_percent['error_code'] = const.API_ERROR.DIV_TERM_NOT_EXIST
+            return False, fee_percent
+        fee_percent[product] = fenqi_fee_percent[str(div_term)]
     elif product == const.PRODUCT.POINT:
-        return True, sp_bank_ret['jifen_fee_percent']
+        fee_percent[product] = sp_bank_ret['jifen_fee_percent']
     elif product == const.PRODUCT.CONSUME:
-        return True, sp_bank_ret['cash_fee_percent']
+        fee_percent[product] = sp_bank_ret['cash_fee_percent']
     else:
-        return True, (sp_bank_ret['cash_fee_percent'],
-                      sp_bank_ret['jifen_fee_percent'])
+        fee_percent['cash'] = sp_bank_ret['cash_fee_percent']
+        fee_percent['jifen'] = sp_bank_ret['jifen_fee_percent']
+    return True, fee_percent
 
 
 def update_sp_balance(spid, account_class, balance, now,
@@ -154,22 +168,24 @@ def update_sp_balance(spid, account_class, balance, now,
         modify_time=now)
 
 
-def get_list(db, list_id, what_status=None):
+def get_list(db, bank_list, what_status=None):
     sel = select([
+        t_trans_list.c.id,
         t_trans_list.c.status,
-        t_trans_list.c.sp_userid,
+        t_trans_list.c.spid,
+        t_trans_list.c.mobile,
+        t_trans_list.c.bank_type,
         t_trans_list.c.sp_tid,
-        t_trans_list.c.paynum,
+        t_trans_list.c.amount,
+        t_trans_list.c.bank_fee,
         t_trans_list.c.fee,
         t_trans_list.c.cur_type,
-        t_trans_list.c.divided_term,
-        t_trans_list.c.fee_duty,
-        t_trans_list.c.memo,
-        t_trans_list.c.money,
-        t_trans_list.c.paysucc_time,
-        t_trans_list.c.product_type,
-        t_trans_list.c.bank_type]).where(
-        t_trans_list.c.list_id == list_id)
+        t_trans_list.c.div_term,
+        t_trans_list.c.product,
+        t_trans_list.c.modify_time,
+    ]).where(
+        t_trans_list.c.bank_list == bank_list)
+
     list_ret = db.execute(sel).first()
     if list_ret is None:
         return False, const.API_ERROR.LIST_ID_NOT_EXIST
@@ -240,24 +256,25 @@ def check_db_set(db, safe_vars, now, for_sms=False):
         if not ok:   # 如果已经存在
             return False, ret_repeat
 
-        # 商户不付手续费
-        if safe_vars['fee_duty'] != const.FEE_DUTY.SP:
-            return False, const.API_ERROR.NO_USER_PAY
+        # 只支持信用卡
+        if safe_vars['account_type'] != const.ACCOUNT_TYPE.CREDIT_CARD:
+            return False, const.API_ERROR.ACCOUNT_TYPE_ERROR
+
+        # 只支持人民币
+        if safe_vars['cur_type'] != const.CUR_TYPE.RMB:
+            return False, const.API_ERROR.CUR_TYPE_ERROR
 
     # 检查余额账户
     ok, ret_balance = check_balance(
-        db, const.ACCOUNT_CLASS.B,
-        safe_vars['spid'], safe_vars['cur_type'])
+        db, const.ACCOUNT_CLASS.B, safe_vars['spid'])
     if not ok:
         return False, ret_balance
     ok, ret_balance = check_balance(
-        db, const.ACCOUNT_CLASS.C,
-        safe_vars['spid'], safe_vars['cur_type'])
+        db, const.ACCOUNT_CLASS.C, safe_vars['spid'])
     if not ok:
         return False, ret_balance
     ok, ret_balance = check_balance(
-        db, const.ACCOUNT_CLASS.C,
-        config.FENLE_SPID, safe_vars['cur_type'])
+        db, const.ACCOUNT_CLASS.C, config.FENLE_SPID)
     if not ok:
         return False, ret_balance
 
@@ -275,60 +292,84 @@ def trade(db, product, safe_vars):
     """ 处理逻辑"""
     now = datetime.datetime.now()
 
-    ret_db_set = check_db_set(db, safe_vars, now)
-    if ret_db_set is not None:
+    ok, ret_db_set = check_db_set(db, safe_vars, now)
+    if not ok:
         return False, ret_db_set
 
+    if product != const.PRODUCT.LAYAWAY:
+        safe_vars['div_term'] = 6
     # 检查银行渠道是否可用，
-    ok, ret_channel = check_bank_channel(
+    ok, bank_fee_percent = check_bank_channel(
         db, product,
         safe_vars['bank_type'], safe_vars['pin_code'],
         safe_vars['true_name'], safe_vars['div_term'])
     if not ok:
-        return False, ret_channel
+        return False, bank_fee_percent['error_code']
 
     # 检查商户银行
-    ok, ret_sp_bank = check_sp_bank(
+    ok, fenle_fee_percent = check_sp_bank(
         db, product,
         safe_vars['spid'], safe_vars['bank_type'],
         safe_vars['div_term'])
     if not ok:
-        return False, ret_sp_bank
-
-    list_data = {'product': product}
-    if product == const.PRODUCT.POINT_CASH:
-        list_data['bank_fee']\
-            = (safe_vars['amount'] * ret_channel[0] +
-               safe_vars['jf_deduct_money'] * ret_channel[1]) // 10000
-
-        list_data['fee']\
-            = (safe_vars['amount'] * ret_sp_bank[0] +
-               safe_vars['jf_deduct_money'] * ret_sp_bank[1]) // 10000
-    else:
-        list_data['bank_fee']\
-            = safe_vars['amount'] * ret_channel // 10000
-        list_data['fee']\
-            = safe_vars['amount'] * ret_sp_bank // 10000
+        return False, fenle_fee_percent
 
     # 生成订单相关数据
-    list_data.update({
-        'id': util.gen_trans_id(
-            safe_vars['spid'], safe_vars['bank_type']),
+    list_data = {
+        'id': util.gen_trans_id(safe_vars['spid'],
+                                safe_vars['bank_type']),
+        'fee_duty': const.FEE_DUTY.SP,
+        'product': product,
+        'channel': const.CHANNEL.API,
         'bank_list': util.gen_bank_list(),
         'status': const.TRANS_STATUS.PAYING,  # 支付中
         'create_time': now,
-        'modify_time': now})
+        'modify_time': now}
+
+    if product == const.PRODUCT.POINT_CASH:
+        list_data['bank_fee']\
+            = (safe_vars['amount'] * bank_fee_percent['cash'] +
+               safe_vars['jf_deduct_money'] *
+               bank_fee_percent['jifen']) // 10000
+
+        list_data['fee']\
+            = (safe_vars['amount'] * fenle_fee_percent['cash'] +
+               safe_vars['jf_deduct_money'] *
+               bank_fee_percent['jifen']) // 10000
+    else:
+        list_data['bank_fee']\
+            = safe_vars['amount'] * bank_fee_percent[product] // 10000
+        list_data['fee']\
+            = safe_vars['amount'] * fenle_fee_percent[product] // 10000
 
     # 更新订单字段
-    for k in ('spid', 'sp_list', 'amount',
-              'memo', 'bankacc_no', 'account_type',
-              'mobile', 'bank_type', 'jf_deduct_money',
-              'div_term', 'fee_duty', 'channel',
-              'bank_sms_time', 'bank_validcode'):
-        list_data[k] = safe_vars[k]
+    list_data.update(safe_vars)
+    list_data.pop('sign', None)
+    list_data.pop('encode_type', None)
+    # TODO 调用银行支付请求接口,更新余额
+    interface_input = {
+        'ver': '1.0',
+        'request_type': const.PRODUCT.TRADE_REQUEST_TYPE[product]}
+    for k in ('amount', 'bankacc_no', 'mobile', 'valid_date',
+              'bank_sms_time', 'bank_list', 'bank_validcode',
+              'bank_type'):
+        interface_input[k] = list_data[k]
+    if product == const.PRODUCT.LAYAWAY:
+        interface_input['div_term'] = list_data['div_term']
+    if product == const.PRODUCT.POINT_CASH:
+        interface_input['jf_deduct_money'] = list_data['jf_deduct_money']
+
+    ok, msg = pi.call2(interface_input)
+
+    if not ok:
+        list_data['status'] = const.TRANS_STATUS.PAY_FAIL
+    else:
+        list_data['status'] = const.TRANS_STATUS.PAY_SUCCESS
+        list_data['bank_roll'] = msg['bank_roll']  # 填入银行返回信息
+        list_data['bank_settle_time'] = msg['bank_settle_time']  # 填入银行返回信息
+
     db.execute(t_trans_list.insert(), list_data)
 
-    # TODO 调用银行支付请求接口,更新余额
     sp_history_data = {
         'biz': const.BIZ.TRANS,
         'amount': list_data['amount'],
@@ -336,28 +377,25 @@ def trade(db, product, safe_vars):
         'create_time': now}
     fenle_history_data = sp_history_data.copy()
 
-    sp_history_data.update({
-        'spid': safe_vars['spid'],
-        'account_class': const.ACCOUNT_CLASS.B})
-    fenle_history_data.update({
-        'bankacc_no': list_data['bankacc_no'],
-        'account_type': list_data['account_type'],
-        'bank_type': list_data['bank_type']})
-
     udp_sp_balance = update_sp_balance(
         safe_vars['spid'], const.ACCOUNT_CLASS.B,
         list_data['amount'], now)
+    sp_history_data.update({
+        'spid': safe_vars['spid'],
+        'account_class': const.ACCOUNT_CLASS.B})
 
     udp_fenle_balance = t_fenle_balance.update().where(and_(
         t_fenle_balance.c.bankacc_no == config.FENLE_ACCOUNT_NO,
         t_fenle_balance.c.bank_type == config.FENLE_BANK_TYPE)).values(
         balance=t_fenle_balance.c.balance + list_data['amount'],
         modify_time=now)
+    fenle_history_data.update({
+        'bankacc_no': config.FENLE_ACCOUNT_NO,
+        'bank_type': config.FENLE_BANK_TYPE})
 
     udp_trans_list = t_trans_list.update().where(
         t_trans_list.c.id == list_data['id']).values(
-        status=const.TRANS_STATUS.PAY_SUCCESS, modify_time=now,
-        paysucc_time=now)
+        status=const.TRANS_STATUS.PAY_SUCCESS, modify_time=now)
 
     with transaction(db) as trans:
         db.execute(t_sp_history.insert(), sp_history_data)
@@ -368,7 +406,7 @@ def trade(db, product, safe_vars):
         trans.finish()
 
     # 返回的参数
-    ret_data = {'product': const.PRODUCT_TYPE.FENQI,
+    ret_data = {'product': product,
                 'encode_type': const.ENCODE_TYPE.RSA}
     for k in ('spid', 'sp_list', 'amount', 'cur_type',
               'div_term', 'fee_duty'):

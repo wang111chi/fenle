@@ -66,7 +66,7 @@ def index():
     "bank_type": (F_str("银行代号") <= 4) & "strict" & "required",
     "expiration_date": (F_str("有效期") <= 11) & "strict" & "required",
     "sign": (F_str("签名") <= 1024) & "strict" & "required",
-    "encode_type": (F_str("") <= 5) & "strict" & "required" & (
+    "encode_type": (F_str("签名类型") <= 5) & "strict" & "required" & (
         lambda v: (v in const.ENCODE_TYPE.ALL, v)),
 })
 def cardpay_validate(db, safe_vars):

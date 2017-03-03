@@ -14,7 +14,7 @@ class CHANNEL(object):
     API = 1
     SP_SYSTEM = 2  # 商户系统
 
-    ALL = (API, SP_SYSTEM, )
+    ALL = (API, SP_SYSTEM)
 
 
 class SETTLE_TYPE(object):
@@ -105,13 +105,13 @@ class USER_BANK_STATUS(object):
 class TRANS_STATUS(object):
     PAYING = 0  # 支付中
     PAY_SUCCESS = 1  # 支付成功
-    PAY_FALSE = 2  # 支付失败
+    PAY_FAIL = 2  # 支付失败
 
 
 class REFUND_STATUS(object):
     REFUNDING = 0  # 退款中
     REFUND_SUCCESS = 1  # 退款成功
-    REFND_FALSE = 2  # 退款失败
+    REFND_FAIL = 2  # 退款失败
 
 
 class REFUND_STATUS(object):
@@ -167,8 +167,8 @@ class ACCOUNT_TYPE(object):
     ALL = (CREDIT_CARD, DEBIT_CARD)
 
     NAMES = {
-        DEBIT_CARD: u"借记卡",
-        CREDIT_CARD: u"信用卡"
+        CREDIT_CARD: u"信用卡",
+        DEBIT_CARD: u"借记卡"
     }
 
 
@@ -193,13 +193,13 @@ class FENLE_ACCOUNT(object):
 
 
 class FEE_DUTY(object):
-    BUSINESS = 1
-    CUSTOM = 2
+    SP = 1
+    USER = 2
 
-    ALL = (BUSINESS, CUSTOM)
+    ALL = (SP, USER)
     NAMES = {
-        BUSINESS: u"商户",
-        CUSTOM: u"用户",
+        SP: u"商户",
+        USER: u"用户",
     }
 
 
@@ -213,6 +213,8 @@ class API_ERROR(object):
 
     ACCOUNT_NOT_EXIST = 207300
     ACCOUNT_FREEZED = 207301
+    ACCOUNT_TYPE_ERROR = 207302
+    CUR_TYPE_ERROR = 207303
     BANK_NOT_EXIST = 207310
     BANK_CHANNEL_UNABLE = 207311
 
@@ -226,7 +228,7 @@ class API_ERROR(object):
 
     NO_SP_BANK = 207504
     PRODUCT_NOT_EXIST = 207514
-    DIVIDED_TERM_NOT_EXIST = 207505
+    DIV_TERM_NOT_EXIST = 207505
     SP_BALANCE_NOT_EXIST = 207506
     FENLE_BALANCE_NOT_EXIST = 207507
 
@@ -253,6 +255,8 @@ class API_ERROR(object):
         REPEAT_PAY: u"订单已经存在了，请别重复提交",
         ACCOUNT_FREEZED: u"银行卡冻结",
         BANK_NOT_EXIST: u"分乐暂不支持该银行",
+        ACCOUNT_TYPE_ERROR: u"分乐暂不支持此银行卡类型",
+        CUR_TYPE_ERROR: u"分乐暂不支持此币种类型",
         BANK_CHANNEL_UNABLE: u"银行渠道不可用",
         MOBILE_NO_VALIDATA: u"手机号验证码不存在",
         NO_EXPIRATION_DATE: u"有效期需要验证",
@@ -260,7 +264,7 @@ class API_ERROR(object):
         NO_USER_NAME: u"用户姓名需要验证",
         PRODUCT_NOT_EXIST: u"服务产品不存在",
         NO_SP_BANK: u"商家银行没有相关服务",
-        DIVIDED_TERM_NOT_EXIST: u"不存在这样的分期期数服务",
+        DIV_TERM_NOT_EXIST: u"不存在这样的分期期数服务",
         SP_BALANCE_NOT_EXIST: u"商户余额账户不存在",
         FENLE_BALANCE_NOT_EXIST: u"分乐余额账户不存在",
         LIST_STATUS_ERROR: u"订单状态错误",
