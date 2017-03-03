@@ -151,6 +151,8 @@ def _cancel_or_refund(db, bank_list, is_refund=False):
         db.execute(t_refund_list.update().where(
             t_refund_list.c.id == refund_id
         ).values(
+            bank_roll=msg["bank_roll"],
+            bank_settle_time=msg["bank_settle_time"],
             status=const.TRANS_STATUS.OK,
             modify_time=datetime.datetime.now(),
         ))

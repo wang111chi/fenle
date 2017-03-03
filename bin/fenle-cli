@@ -206,6 +206,18 @@ def sit_mysql():
     start_and_wait_mysql(db_service_name="mysql_sit")
 
 
+@sit.command('tools', context_settings=dict(
+    ignore_unknown_options=True,
+))
+@click.argument('args', nargs=-1, type=click.UNPROCESSED)
+def sit_tools(args):
+    u"""a wrapper to run scripts in sit tools."""
+    cmdline = ['docker-compose', "-f", "docker-compose.yml",
+               "-f", "docker-compose.adhoc.yml",
+               "run", "sit_tools"] + list(args)
+    subprocess.call(cmdline)
+
+
 @cli.command('tools', context_settings=dict(
     ignore_unknown_options=True,
 ))

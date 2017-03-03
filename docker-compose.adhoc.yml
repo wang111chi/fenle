@@ -18,7 +18,7 @@ services:
      - .:/fenle
     entrypoint: ../mysql/wait-for-mysql.py python ipython-entrypoint.py
     depends_on:
-     - mysql
+     - mysql_sit
      - redis
   tools:
     build:
@@ -28,3 +28,11 @@ services:
      - .:/fenle
     depends_on:
      - mysql
+  sit_tools:
+    build:
+      context: .
+      dockerfile: sit/tools/Dockerfile
+    volumes:
+     - .:/fenle
+    depends_on:
+     - mysql_sit
