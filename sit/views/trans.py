@@ -103,6 +103,7 @@ def _cancel_or_refund(db, bank_list, is_refund=False):
         trans_id=trans_list["id"],
         mode=const.REFUND.MODE.REFUND if is_refund else
         const.REFUND.MODE.CANCEL,
+        product=trans_list["product"],
         status=const.REFUND.STATUS.DOING,
         create_time=now,
         modify_time=now,

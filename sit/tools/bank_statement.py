@@ -4,6 +4,8 @@ import importme
 
 import datetime
 
+from sqlalchemy import select, text
+
 import config
 from base import constant as const
 from base.db import engine, tables
@@ -41,7 +43,24 @@ def main():
     print(trans_list)
 
     # 退款单
-    # t_refund_list = tables["refund_list"]
+    t_refund_list = tables["refund_list"]
+    s = select([
+        text("refund_list.*")
+    ]).select_from(
+        t_refund_list.join(
+            t_trans_list,
+            t_refund_list.c.trans_id == t_trans_list.c.id)
+    ).where(
+        t_refund_list.c.status == const.REFUND.STATUS.OK
+    ).where(
+        t_refund_list.c.product == const.PRODUCT_TYPE.POINT
+    ).where(
+        t_refund_list.c.bank_settle_time < bank_settle_time_e
+    ).where(
+        t_refund_list.c.bank_settle_time >= bank_settle_time_b
+    )
+
+    print(s)
 
 
 if __name__ == "__main__":
