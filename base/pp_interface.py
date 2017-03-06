@@ -21,10 +21,49 @@ def call2(params, host=config.PP_SERVER_HOST, port=config.PP_SERVER_PORT):
     bank_ret = msg
     if bank_ret["result"] != '0':
         if bank_ret.get("bank_time_out", '') == 'true':
+            revoke(params, host, port)
             return False, "银行超时"
         return False, bank_ret["res_info"]
 
     return True, bank_ret
+
+
+REVOKE_REQUEST_CODE_MAPPING = {
+    '2005': '2101',
+    '2002': '2102',
+    '2009': '2103',
+    '2012': '2104',
+
+    '2007': '2105',
+    '2004': '2106',
+    '2011': '2107',
+    '2014': '2108',
+
+    '2015': '2109',
+    '2016': '2110',
+    '2017': '2111',
+    '2018': '2112',
+}
+
+
+def revoke(params, host, port):
+    logger.get("pp-interface").debug(
+        'try to revoke, params: {}'.format(params)
+    )
+    request_type = params.get('request_type')
+    revoke_request_code = REVOKE_REQUEST_CODE_MAPPING.get(request_type)
+    if revoke_request_code is None:
+        logger.get('pp-interface').debug(
+            'revoke request code not found, do not need to revoke?')
+        return
+
+    params['request_type'] = revoke_request_code
+    params['external_call'] = 1
+    ok, msg = call2(params, host=host, port=port)
+    if not ok:
+        logger.get('pp-interface').debug('revoke fail: {}'.format(msg))
+    logger.get('pp-interface').debug(
+        'revoke params: {}\nmsg returned: {}'.format(params, msg))
 
 
 def call(params, host=config.PP_SERVER_HOST, port=config.PP_SERVER_PORT):

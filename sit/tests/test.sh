@@ -3,10 +3,10 @@
 function enter_test() {
     echo 测试$1...
     stage=$1
-    sleep 5
 }
 
 function leave_test() {
+    echo -n "$(date "+%Y-%m-%d %H:%M:%S") " >> $f
     if [ $? -eq 0 ]; then
         echo $stage 成功 >> $f
     else
@@ -102,8 +102,15 @@ done
 
 eval f=\$$OPTIND
 f=${f:-/dev/stdout}
-echo -n >$f
+# echo -n >$f
 
+is_first=0
 for operation in $operations; do
+    if [ $is_first -eq 1 ]; then
+        sleep 5
+        echo
+        echo "---------------------"
+    fi
     $operation
+    is_first=1
 done
