@@ -132,6 +132,9 @@ def _cancel_or_refund(db, bank_list, is_refund=False):
     ):
         interface_input[param] = trans_list[param]
 
+    if trans_list["product"] == const.PRODUCT_TYPE.LAYAWAY:
+        interface_input["div_term"] = trans_list["div_term"]
+
     if trans_list["product"] in (const.PRODUCT_TYPE.PREAUTH,
                                  const.PRODUCT_TYPE.PREAUTH_DONE):
         interface_input["pre_author_code"] = trans_list["pre_author_code"]
