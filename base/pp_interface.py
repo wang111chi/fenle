@@ -59,11 +59,15 @@ def revoke(params, host, port):
 
     params['request_type'] = revoke_request_code
     params['external_call'] = 1
+
+    # TODO: for testing environment which is too slow
+    # to serve two successive requests!
+    import time
+    time.sleep(5)
+
     ok, msg = call2(params, host=host, port=port)
     if not ok:
         logger.get('pp-interface').debug('revoke fail: {}'.format(msg))
-    logger.get('pp-interface').debug(
-        'revoke params: {}\nmsg returned: {}'.format(params, msg))
 
 
 def call(params, host=config.PP_SERVER_HOST, port=config.PP_SERVER_PORT):
