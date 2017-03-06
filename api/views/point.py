@@ -4,10 +4,10 @@
 from flask import Blueprint
 
 from base.framework import general, db_conn
-from base.framework import api_form_check
-from base.framework import JsonOkResponse, JsonErrorResponse, TempResponse
+from base.framework import api_form_check, form_check
+from base.framework import ApiJsonOkResponse, ApiJsonErrorResponse
+from base.framework import TempResponse
 from base.xform import F_mobile, F_str, F_int, F_datetime
-from base.xform import form_check
 from base import constant as const
 from base import dblogic as dbl
 from base import pp_interface as pi
@@ -44,8 +44,8 @@ point = Blueprint("point", __name__)
 def trade(db, safe_vars):
     ok, msg = dbl.trade(db, const.PRODUCT.POINT, safe_vars)
     if not ok:
-        return JsonErrorResponse(msg)
-    return JsonOkResponse(trans=msg)
+        return ApiJsonErrorResponse(msg)
+    return ApiJsonOkResponse(trans=msg)
 
 
 @point.route("/point/query/load")
@@ -74,5 +74,5 @@ def query(db, safe_vars):
     interface_input["bank_type"] = const.BANK_ID.GDB
     ok, msg = pi.call2(interface_input)
     if not ok:
-        return JsonErrorResponse(msg)
-    return JsonOkResponse(remain_point=msg["remainJf"])
+        return ApiJsonErrorResponse(msg)
+    return ApiJsonOkResponse(remain_point=msg["remainJf"])

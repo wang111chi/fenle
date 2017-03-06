@@ -20,7 +20,7 @@ CREATE TABLE `fenle_balance` (
   `create_time` datetime NOT NULL COMMENT '创建时间',
   `modify_time` datetime NOT NULL COMMENT '最后修改时间',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `account_no_bank_type` (`account_no`,`bank_type`),
+  UNIQUE KEY `bankacc_no_bank_type` (`bankacc_no`,`bank_type`),
   KEY `create_time` (`create_time`),
   KEY `modify_time` (`modify_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

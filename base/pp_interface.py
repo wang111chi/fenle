@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import datetime
+
 import socket
 import urllib
 from werkzeug.datastructures import MultiDict
+
+from base import constant as const
 
 
 def call(params, host='172.18.0.1', port=31001):
@@ -43,3 +47,15 @@ def _recv_all(s):
         chunks.append(chunk)
 
     return b''.join(chunks)
+
+
+def call_def(input_data):
+    if input_data['ver'] != '1.0':
+        return False, const.API_ERROR.PARAM_ERROR
+    elif input_data['request_type'] == '2001':
+        return True, None
+    else:
+        msg = {
+            'bank_roll': '5432109876',
+            'bank_settle_time': datetime.datetime.now()}
+        return True, msg

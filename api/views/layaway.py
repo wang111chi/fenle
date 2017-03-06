@@ -4,7 +4,8 @@
 from flask import Blueprint
 
 from base.framework import general, db_conn, api_form_check
-from base.framework import JsonOkResponse, JsonErrorResponse, TempResponse
+from base.framework import ApiJsonOkResponse, ApiJsonErrorResponse
+from base.framework import TempResponse
 from base.xform import F_mobile, F_str, F_int, F_datetime
 from base import constant as const
 from base import dblogic as dbl
@@ -42,5 +43,5 @@ layaway = Blueprint("layaway", __name__)
 def trade(db, safe_vars):
     ok, msg = dbl.trade(db, const.PRODUCT.LAYAWAY, safe_vars)
     if not ok:
-        return JsonErrorResponse(msg)
-    return JsonOkResponse(trans=msg)
+        return ApiJsonErrorResponse(msg)
+    return ApiJsonOkResponse(trans=msg)

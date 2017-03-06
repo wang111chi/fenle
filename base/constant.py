@@ -126,8 +126,8 @@ class MERCHANT_STATUS(object):
 
 
 class BANK_VALITYPE(object):
-    MOBILE_VALID = 0x0001
-    MOBILE_NOT_VALID = 0x0002
+    MOBILE_VALID = 0
+    MOBILE_NOT_VALID = 1
 
 
 class PAY_MASK(object):

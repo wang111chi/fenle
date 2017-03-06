@@ -30,13 +30,22 @@ from base.db import t_fenle_history
 import config
 
 
-def check_balance(db, account_class, spid, cur_type=const.CUR_TYPE.RMB):
+def check_sp_balance(db, account_class, spid, cur_type=const.CUR_TYPE.RMB):
     sel_sp_balance = select([t_sp_balance.c.balance]).where(and_(
         t_sp_balance.c.spid == spid,
         t_sp_balance.c.account_class == account_class,
         t_sp_balance.c.cur_type == cur_type))
     if db.execute(sel_sp_balance).first() is None:
         return False, const.API_ERROR.SP_BALANCE_NOT_EXIST
+    return True, None
+
+
+def check_fenle_balance(db, fenle_account_no, bank_type):
+    sel_fenle_balance = select([t_fenle_balance.c.id]).where(and_(
+        t_fenle_balance.c.bankacc_no == fenle_account_no,
+        t_fenle_balance.c.bank_type == bank_type))
+    if db.execute(sel_fenle_balance).first() is None:
+        return False, const.API_ERROR.FENLE_BALANCE_NOT_EXIST
     return True, None
 
 
@@ -265,18 +274,22 @@ def check_db_set(db, safe_vars, now, for_sms=False):
             return False, const.API_ERROR.CUR_TYPE_ERROR
 
     # 检查余额账户
-    ok, ret_balance = check_balance(
+    ok, ret_balance = check_sp_balance(
         db, const.ACCOUNT_CLASS.B, safe_vars['spid'])
     if not ok:
         return False, ret_balance
-    ok, ret_balance = check_balance(
+    ok, ret_balance = check_sp_balance(
         db, const.ACCOUNT_CLASS.C, safe_vars['spid'])
     if not ok:
         return False, ret_balance
-    ok, ret_balance = check_balance(
+    ok, ret_balance = check_sp_balance(
         db, const.ACCOUNT_CLASS.C, config.FENLE_SPID)
     if not ok:
         return False, ret_balance
+    ok, fenle_balance = check_fenle_balance(
+        db, config.FENLE_ACCOUNT_NO, config.FENLE_BANK_TYPE)
+    if not ok:
+        return False, fenle_balance
 
     now = datetime.datetime.now()
     # 检查用户银行卡信息 user_bank
@@ -312,7 +325,7 @@ def trade(db, product, safe_vars):
         safe_vars['spid'], safe_vars['bank_type'],
         safe_vars['div_term'])
     if not ok:
-        return False, fenle_fee_percent
+        return False, fenle_fee_percent['error_code']
 
     # 生成订单相关数据
     list_data = {
@@ -359,7 +372,7 @@ def trade(db, product, safe_vars):
     if product == const.PRODUCT.POINT_CASH:
         interface_input['jf_deduct_money'] = list_data['jf_deduct_money']
 
-    ok, msg = pi.call2(interface_input)
+    ok, msg = pi.call_def(interface_input)
 
     if not ok:
         list_data['status'] = const.TRANS_STATUS.PAY_FAIL
@@ -410,7 +423,7 @@ def trade(db, product, safe_vars):
                 'encode_type': const.ENCODE_TYPE.RSA}
     for k in ('spid', 'sp_list', 'amount', 'cur_type',
               'div_term', 'fee_duty'):
-        ret_data[k] = safe_vars[k]
+        ret_data[k] = list_data[k]
     sp_pubkey = get_sp_pubkey(db, safe_vars['spid'])
     ret_data.update({
         "id": list_data['id'],

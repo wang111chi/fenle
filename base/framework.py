@@ -17,7 +17,6 @@ from sqlalchemy.sql import select
 from sqlalchemy import and_
 
 import config
-from base import dblogic as dbl
 from base import logger
 from base.db import engine, meta
 from base.db import t_merchant_info

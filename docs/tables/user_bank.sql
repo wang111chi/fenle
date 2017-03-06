@@ -22,5 +22,5 @@ CREATE TABLE `user_bank` (
   `create_time` datetime NOT NULL COMMENT '记录创建时间',
   `modify_time` datetime NOT NULL COMMENT '最后修改时间',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `bank_type_account_no` (`bank_type`,`account_no`)
+  UNIQUE KEY `bankacc_no_type` (`bank_type`, `bankacc_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
