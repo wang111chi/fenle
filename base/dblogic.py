@@ -185,14 +185,14 @@ def get_list(db, bank_list, what_status=None):
         t_trans_list.c.spid,
         t_trans_list.c.mobile,
         t_trans_list.c.bank_type,
-        t_trans_list.c.sp_tid,
+        t_trans_list.c.sp_list,
         t_trans_list.c.amount,
         t_trans_list.c.bank_fee,
         t_trans_list.c.fee,
         t_trans_list.c.cur_type,
         t_trans_list.c.div_term,
         t_trans_list.c.product,
-        t_trans_list.c.modify_time,
+        t_trans_list.c.modify_time
     ]).where(
         t_trans_list.c.bank_list == bank_list)
 
@@ -211,6 +211,17 @@ def get_sp_pubkey(db, spid):
         t_merchant_info.c.spid == spid)
     merchant_ret = db.execute(s).first()
     return merchant_ret['rsa_pub_key']
+
+
+def get_terminal_spid(db, spid, bank_type):
+    """从mysql获取商户公钥"""
+    s = select([
+        t_sp_bank.c.bank_spid,
+        t_sp_bank.c.terminal_no]).where(and_(
+            t_sp_bank.c.spid == spid,
+            t_sp_bank.c.bank_type == bank_type))
+    sp_bank_ret = db.execute(s).first()
+    return sp_bank_ret['terminal_no'], sp_bank_ret['ban_spid']
 
 
 def check_sign_md5(db, params):
@@ -428,7 +439,7 @@ def trade(db, product, safe_vars):
     ret_data = {'product': product,
                 'encode_type': const.ENCODE_TYPE.RSA}
     for k in ('spid', 'sp_list', 'amount', 'cur_type',
-              'div_term', 'fee_duty'):
+              'div_term', 'fee_duty', 'bank_list'):
         ret_data[k] = list_data[k]
 
     sp_pubkey = get_sp_pubkey(db, safe_vars['spid'])

@@ -44,11 +44,7 @@ def settle(db):
     if list_ret.first() is None:
         return False, const.API_ERROR.LIST_ID_NOT_EXIST
 
-    # 用户付手续费情形
-    if list_ret['fee_duty'] == const.FEE_DUTY.CUSTOM:
-        return ApiJsonErrorResponse(const.API_ERROR.NO_USER_PAY)
     now = datetime.datetime.now()
-
     sp_history_data = {
         'biz': const.BIZ.SETTLE,
         'create_time': now}

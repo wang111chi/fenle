@@ -16,14 +16,14 @@ from Crypto.Cipher import PKCS1_v1_5
 from Crypto.Signature import PKCS1_v1_5 as sign_PKCS1_v1_5
 from Crypto.Hash import SHA
 
-from base.framework import db_conn, general, api_form_check
+from base.framework import db_conn, general
+from base.framework import form_check, api_form_check
 from base.framework import ApiJsonErrorResponse, ApiJsonOkResponse
 from base.framework import TempResponse, transaction
 from base.xform import F_mobile, F_str, F_int, F_datetime
 from base import constant as const
 from base import dblogic as dbl
 from base import util
-from base.xform import FormChecker
 from base.db import t_sp_balance
 from base.db import t_sp_history
 from base.db import t_fenle_balance
@@ -37,10 +37,10 @@ import config
 trans = Blueprint("trans", __name__)
 
 
-@trans.route("/cardpay/query")
+@trans.route("/trans/query")
 @general("单笔查询接口")
 @db_conn
-@api_form_check({
+@form_check({
     "sign": (F_str("签名") <= 1024) & "strict" & "required",
     "encode_type": (F_str("") <= 5) & "strict" & "required" & (
         lambda v: (v in const.ENCODE_TYPE.ALL, v)),
@@ -87,7 +87,7 @@ def _check_list(db, list_id, mobile, sp_list, bankacc_no):
         t_trans_list.c.bank_tid,
         t_trans_list.c.bank_roll,
         t_trans_list.c.bank_fee]).where(
-        t_trans_list.c.list_id == list_id)
+        t_trans_list.c.id == list_id)
     list_ret = db.execute(sel).first()
     if list_ret is None:
         return False, const.API_ERROR.LIST_ID_NOT_EXIST
@@ -106,27 +106,28 @@ def _check_list(db, list_id, mobile, sp_list, bankacc_no):
     return True, list_ret
 
 
-@trans.route("/cardpay/refund")
+@trans.route("/trans/refund")
 @general("退款接口")
 @db_conn
 @api_form_check({
     "sign": (F_str("签名") <= 1024) & "strict" & "required",
     "encode_type": (F_str("") <= 5) & "strict" & "required" & (
         lambda v: (v in const.ENCODE_TYPE.ALL, v)),
+    "spid": (10 <= F_str("商户号") <= 10) & "strict" & "required",
     "bank_list": F_str("给银行订单号") & "strict" & "required",
 })
 def refund(db, safe_vars):
-    ok, msg = _cancel_or_refund(db, safe_vars["bank_list"], is_refund=True)
+    ok, msg = _cancel_or_refund(db, safe_vars["bank_list"])
     if not ok:
         return ApiJsonErrorResponse(msg)
-    return ApiJsonOkResponse()
+    return ApiJsonOkResponse(trans=msg)
 
 
-def _cancel_or_refund(db, bank_list, is_refund=False):
+def _cancel_or_refund(db, bank_list):
     is_ok, list_ret = dbl.get_list(
         db, bank_list, const.TRANS_STATUS.PAY_SUCCESS)
     if not is_ok:
-        return ApiJsonErrorResponse(list_ret)
+        return False, list_ret
 
     now = datetime.datetime.now()
     # 退款单号
@@ -139,7 +140,7 @@ def _cancel_or_refund(db, bank_list, is_refund=False):
         'list_id': list_ret['id'],
         'create_time': now,
         'modify_time': now,
-        'status': const.BUINESS_STATUS.SUCCESS}
+        'status': const.REFUND_STATUS.REFUNDING}
 
     sp_history_data = {
         'biz': const.BIZ.REFUND,
@@ -156,6 +157,12 @@ def _cancel_or_refund(db, bank_list, is_refund=False):
         'bankacc_no': config.FENLE_ACCOUNT_NO,
         'bank_type': config.FENLE_BANK_TYPE})
 
+    ret_data = {'refund_id': refund_id,
+                'amount': list_ret['amount']}  # 返回的数据
+    for i in ('spid', 'list_id', 'status', 'modify_time'):
+        ret_data[i] = refund_data[i]
+    sp_pubkey = dbl.get_sp_pubkey(db, list_ret['spid'])
+
     if now.date() == list_ret['modify_time'].date():
         # [TODO] 调用银行撤销接口
         # 更新status
@@ -170,7 +177,7 @@ def _cancel_or_refund(db, bank_list, is_refund=False):
             modify_time=now)
 
         udp_trans_list = t_trans_list.update().where(
-            t_trans_list.c.list_id == list_ret['list_id']).values(
+            t_trans_list.c.id == list_ret['id']).values(
             refund_id=refund_id, modify_time=now)
 
         with transaction(db) as trans:
@@ -181,11 +188,18 @@ def _cancel_or_refund(db, bank_list, is_refund=False):
             db.execute(t_refund_list.insert(), refund_data)
             db.execute(udp_trans_list)
             trans.finish()
-        return
+
+        ret_data.update({"status": const.REFUND_STATUS.REFUND_SUCCESS})
+        cipher_data = util.rsa_sign_and_encrypt_params(
+            ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
+        return True, cipher_data
     elif list_ret['settle_time'] is None:
         refund_data.update({'status': const.BUSINESS_STATUS.HANDLING})
         db.execute(t_refund_list.insert(), refund_data)
         # 保存退款单，异步处理
+        cipher_data = util.rsa_sign_and_encrypt_params(
+            ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
+        return True, cipher_data
     else:
         sp_amount = list_ret['amount'] - list_ret['bank_fee']
         sel_b = select([
@@ -198,7 +212,7 @@ def _cancel_or_refund(db, bank_list, is_refund=False):
         b_balance = ret_sel_b['balance'] - ret_sel_b['freezing']
 
         udp_trans_list = t_trans_list.update().where(
-            t_trans_list.c.list_id == list_ret['id']).values(
+            t_trans_list.c.id == list_ret['id']).values(
             refund_id=refund_id, modify_time=now)
 
         sp_history_data.update({'amount': sp_amount})
@@ -232,6 +246,10 @@ def _cancel_or_refund(db, bank_list, is_refund=False):
                 db.execute(t_refund_list.insert(), refund_data)
                 db.execute(udp_trans_list)
                 trans.finish()
+            ret_data.update({"status": const.REFUND_STATUS.REFUND_SUCCESS})
+            cipher_data = util.rsa_sign_and_encrypt_params(
+                ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
+            return True, cipher_data
         else:
             # [TODO] 调用银行退款接口
             sel_c = select([
@@ -275,7 +293,9 @@ def _cancel_or_refund(db, bank_list, is_refund=False):
                     db.execute(t_refund_list.insert(), refund_data)
                     db.execute(udp_trans_list)
                     trans.finish()
+                ret_data.update({"status": const.REFUND_STATUS.REFUND_SUCCESS})
+                cipher_data = util.rsa_sign_and_encrypt_params(
+                    ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
+                return True, cipher_data
             else:
-                return ApiJsonErrorResponse(
-                    const.API_ERROR.REFUND_LESS_BALANCE)
-    return
+                return False, const.API_ERROR.REFUND_LESS_BALANCE

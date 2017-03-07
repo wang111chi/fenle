@@ -34,7 +34,7 @@ from base.framework import general, api_form_check
 from base.xform import F_str
 
 
-class TestCardpayApply(object):
+class TestTrans(object):
     # 测试参数模板
     spid = '1' * 10
     sp_private_key = config.TEST_MERCHANT_PRIVATE_KEY
@@ -160,10 +160,6 @@ class TestCardpayApply(object):
             util.rsa_encrypt(urlencoded_params, config.FENLE_PUB_KEY))
         return {"cipher_data": cipher_data}
 
-    def test_home(self, client):
-        home_rsp = client.get('/')
-        return home_rsp
-
     def sms_send(self, client, predict_ret):
         sms_data = dict((k, self.params[k]) for k in (
             'encode_type', 'spid', 'true_name', 'pin_code',
@@ -234,7 +230,7 @@ class TestCardpayApply(object):
             params = util.rsa_decrypt(
                 json_rsp['trans'],
                 config.TEST_MERCHANT_PRIVATE_KEY)
-            return params['id'][0]
+            return params['bank_list'][0]
 
     def test_trade_spid_check(self, client, db):
         self.insert_merchant(db, '23' * 5, const.MERCHANT_STATUS.OPEN)
@@ -336,6 +332,46 @@ class TestCardpayApply(object):
         self.layaway_trade(
             client, params, const.API_ERROR.REPEAT_PAY)
 
+    def refund(self, client, bank_list, predict_ret):
+        query_param = {"encode_type": "MD5",
+                       "spid": self.params['spid'],
+                       "bank_list": bank_list}
+        query_params = self.sign_encrypt_md5(
+            self.key, query_param)
+        rsp = client.get('/trans/refund', query_string=query_params)
+        assert rsp.status_code == 200
+        json_rsp = json.loads(rsp.data)
+        assert json_rsp["retcode"] == predict_ret
+        if predict_ret == 0:
+            params = util.rsa_decrypt(
+                json_rsp['trans'],
+                config.TEST_MERCHANT_PRIVATE_KEY)
+            return params['status'][0]
+
+    def test_refund_spid(self, client, db):
+        self.refund(client, '543212345', const.API_ERROR.SPID_NOT_EXIST)
+
+    def test_refund_sp(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.FORBID)
+        self.refund(client, '543212345', const.API_ERROR.MERCHANT_FORBID)
+
+    def test_refund_list(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.refund(client, '543212345', const.API_ERROR.LIST_ID_NOT_EXIST)
+
+    def test_refund(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+        params = self.params.copy()
+        params['bank_sms_time'] = self.now
+        params['bank_validcode'] = self.bank_validcode
+
+        bank_list = self.layaway_trade(
+            client, params, const.REQUEST_STATUS.SUCCESS)
+        self.refund(client, bank_list, const.REQUEST_STATUS.SUCCESS)
+
     """
     def test_query_listid_check(self, client):
         qry_data = {
@@ -403,7 +439,7 @@ class TestCardpayApply(object):
             config.TEST_MERCHANT_PRIVATE_KEY)
         logger.debug(params)
 
-    def test_cardpay_trade_rsa(self, client):
+    def test_layaway_trade_rsa(self, client):
         params = self.params
 
         # RSA签名 + RSA加密
@@ -412,14 +448,13 @@ class TestCardpayApply(object):
             config.TEST_MERCHANT_PRIVATE_KEY,
             config.FENLE_PUB_KEY
         )
-
         query_params = {"cipher_data": cipher_data}
         resp = client.get('/cardpay/trade', query_string=query_params)
 
         assert resp.status_code == 200
         # json_resp = json.loads(resp.data)
         # assert json_resp["retcode"] == 0
-    """
+     """
 
 
 def test_api_form_check_not_encrypted(db):
