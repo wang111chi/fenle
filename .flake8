@@ -19,4 +19,4 @@ exclude =
 	*.sql,
         *.yml,
         *.docx,
-        requirements.txt
+        *.txt
