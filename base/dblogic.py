@@ -121,6 +121,7 @@ def check_bank_channel(db, product, bank_type, pin_code, name, div_term):
         if str(div_term) not in fenqi_fee_percent:
             fee_percent['error_code'] = const.API_ERROR.DIV_TERM_NOT_EXIST
             return False, fee_percent
+        # review by liyuan: FIXME: div_term是外部输入，这里可能KeyError
         fee_percent[product] = fenqi_fee_percent[str(div_term)]
     elif product == const.PRODUCT.POINT:
         fee_percent[product] = channel_ret['jifen_fee_percent']
@@ -310,6 +311,7 @@ def trade(db, product, safe_vars):
         return False, ret_db_set
 
     if product != const.PRODUCT.LAYAWAY:
+        # review by liyuan: FIXME：包括下面用到div_term的地方
         safe_vars['div_term'] = 6
     # 检查银行渠道是否可用，
     ok, bank_fee_percent = check_bank_channel(
@@ -348,6 +350,7 @@ def trade(db, product, safe_vars):
         list_data['fee']\
             = (safe_vars['amount'] * fenle_fee_percent['cash'] +
                safe_vars['jf_deduct_money'] *
+               # review by liyuan: FIXME: bank_fee_percent?
                bank_fee_percent['jifen']) // 10000
     else:
         list_data['bank_fee']\
@@ -381,6 +384,7 @@ def trade(db, product, safe_vars):
         list_data['bank_roll'] = msg['bank_roll']  # 填入银行返回信息
         list_data['bank_settle_time'] = msg['bank_settle_time']  # 填入银行返回信息
 
+    # review by liyuan: FIXME: 不是在这里才插入，应该是在请求银行之前插入
     db.execute(t_trans_list.insert(), list_data)
 
     sp_history_data = {
@@ -406,6 +410,8 @@ def trade(db, product, safe_vars):
         'bankacc_no': config.FENLE_ACCOUNT_NO,
         'bank_type': config.FENLE_BANK_TYPE})
 
+    # review by liyuan: FIXME: modify_time不能取发银行之前缓存的now
+    # 银行返回的bank_roll和bank_settle_time也是在这里更改的
     udp_trans_list = t_trans_list.update().where(
         t_trans_list.c.id == list_data['id']).values(
         status=const.TRANS_STATUS.PAY_SUCCESS, modify_time=now)
@@ -424,10 +430,12 @@ def trade(db, product, safe_vars):
     for k in ('spid', 'sp_list', 'amount', 'cur_type',
               'div_term', 'fee_duty'):
         ret_data[k] = list_data[k]
+
     sp_pubkey = get_sp_pubkey(db, safe_vars['spid'])
     ret_data.update({
         "id": list_data['id'],
         "result": const.TRANS_STATUS.PAY_SUCCESS})
+    # review by liyuan: FIXME：这里不应返回cipher_data，在外层去处理签名加密
     cipher_data = util.rsa_sign_and_encrypt_params(
         ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
     return True, cipher_data
