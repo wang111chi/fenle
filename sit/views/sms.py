@@ -28,7 +28,7 @@ sms = Blueprint("sms", __name__)
 @form_check({
     "bank_spid": F_str("商户号", format=r"^\d{15}$") & "strict" & "required",
     "terminal_id": F_str("终端号", format=r"^\d{8}$") & "strict" & "required",
-    "amount": (F_int("订单交易金额")) & "strict" & "required",
+    "amount": (F_int("订单交易金额") >= 0) & "strict" & "required",
     "bankacc_no": F_str("付款人帐号", format=r"(^\d{16}$)|(^\d{19}$)") &
     "strict" & "required",
     "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",

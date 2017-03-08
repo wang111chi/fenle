@@ -122,7 +122,6 @@ def cli(date):
 
 def main(present_date, products, trade):
     db = engine.connect()
-    present_date = datetime.date(2017, 3, 3)
 
     bank_settle_time_b = present_date.strftime("%m%d")
     bank_settle_time_e = (present_date +
@@ -173,7 +172,9 @@ def main(present_date, products, trade):
 
     filename = "{}/files/{}_{}.txt".format(
         dir_, trade, present_date.strftime("%Y%m%d"))
+
     with open(filename, mode="wb") as f:
+        lines = []
         for trans in trans_list + refund_list:
             fields = handle_trans(trans)
             assert len(fields) == 24
@@ -182,7 +183,8 @@ def main(present_date, products, trade):
             fields = map(lambda fl: (
                 fl[0] + b" " * max(0, fl[1] - len(fl[0])))[:fl[1]],
                 zip(fields, FIELDS_LENGTH))
-            f.write(b"".join(fields) + b"\r\n")
+            lines.append(b"".join(fields))
+        f.write(b"\r\n".join(lines))
 
 
 def handle_trans(trans):
