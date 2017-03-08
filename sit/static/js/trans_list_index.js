@@ -438,6 +438,9 @@ function preauthSubmit(bank_list, id, bankacc_no, valid_date, mobile){
 	// 2. 提交
 	$('#submit').click(function(){
 
+		if (!checkEmpty(return_data.bank_list,'请先发送验证码')) return false;
+		if (!checkEmpty(return_data.bank_sms_time,'请先发送验证码')) return false;
+
 		// 2-1 获取要素
 		var bank_spid = $('#bank_spid').val();
 		var terminal_id = $('#terminal_id').val();
@@ -451,6 +454,15 @@ function preauthSubmit(bank_list, id, bankacc_no, valid_date, mobile){
 		// 2-3 post
 		submitForm('/preauth/done', submit_data);
 	});	
+}
+
+function checkEmpty(text,show_msg){
+	if (text == '' || text == undefined || text == null) {
+		showMsg(show_msg);
+		return false;
+	} else {
+		return true;
+	}
 }
 
 
