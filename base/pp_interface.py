@@ -8,6 +8,26 @@ import urllib
 from werkzeug.datastructures import MultiDict
 
 from base import constant as const
+from base import logger
+import config
+
+
+def call2(params, host=config.PP_SERVER_HOST, port=config.PP_SERVER_PORT):
+    ok, msg = call(params, host, port)
+    if not ok:
+        return False, msg
+
+    logger.get("pp-interface").debug(
+        'params: {}\nmsg returned: {}'.format(params, msg))
+
+    bank_ret = msg
+    if bank_ret["result"] != '0':
+        if bank_ret.get("bank_time_out", '') == 'true':
+            revoke(params, host, port)
+            return False, "银行超时"
+        return False, bank_ret["res_info"]
+
+    return True, bank_ret
 
 
 def call(params, host='172.18.0.1', port=31001):
@@ -52,12 +72,52 @@ def _recv_all(s):
 def call_def(input_data):
     if input_data['ver'] != '1.0':
         return False, const.API_ERROR.PARAM_ERROR
-
     # review by liyuan: FIXME
     elif input_data['request_type'] == '2001':
-        return True, None
+        msg = {'bank_sms_time': datetime.datetime.now()}
+        return True, msg
     else:
         msg = {
             'bank_roll': '5432109876',
             'bank_settle_time': datetime.datetime.now()}
         return True, msg
+
+
+REVOKE_REQUEST_CODE_MAPPING = {
+    '2005': '2101',
+    '2002': '2102',
+    '2009': '2103',
+    '2012': '2104',
+    '2007': '2105',
+    '2004': '2106',
+    '2011': '2107',
+    '2014': '2108',
+    '2015': '2109',
+    '2016': '2110',
+    '2017': '2111',
+    '2018': '2112',
+}
+
+
+def revoke(params, host, port):
+    logger.get("pp-interface").debug(
+        'try to revoke, params: {}'.format(params)
+    )
+    request_type = params.get('request_type')
+    revoke_request_code = REVOKE_REQUEST_CODE_MAPPING.get(request_type)
+    if revoke_request_code is None:
+        logger.get('pp-interface').debug(
+            'revoke request code not found, do not need to revoke?')
+        return
+
+    params['request_type'] = revoke_request_code
+    params['external_call'] = 1
+
+    # TODO: for testing environment which is too slow
+    # to serve two successive requests!
+    import time
+    time.sleep(5)
+
+    ok, msg = call2(params, host=host, port=port)
+    if not ok:
+        logger.get('pp-interface').debug('revoke fail: {}'.format(msg))

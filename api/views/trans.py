@@ -120,7 +120,10 @@ def refund(db, safe_vars):
     ok, msg = _cancel_or_refund(db, safe_vars["bank_list"])
     if not ok:
         return ApiJsonErrorResponse(msg)
-    return ApiJsonOkResponse(trans=msg)
+    sp_pubkey = dbl.get_sp_pubkey(db, safe_vars['spid'])
+    cipher_data = util.rsa_sign_and_encrypt_params(
+        msg, config.FENLE_PRIVATE_KEY, sp_pubkey)
+    return ApiJsonOkResponse(trans=cipher_data)
 
 
 def _cancel_or_refund(db, bank_list):
@@ -161,7 +164,6 @@ def _cancel_or_refund(db, bank_list):
                 'amount': list_ret['amount']}  # 返回的数据
     for i in ('spid', 'list_id', 'status', 'modify_time'):
         ret_data[i] = refund_data[i]
-    sp_pubkey = dbl.get_sp_pubkey(db, list_ret['spid'])
 
     if now.date() == list_ret['modify_time'].date():
         # [TODO] 调用银行撤销接口
@@ -188,18 +190,13 @@ def _cancel_or_refund(db, bank_list):
             db.execute(t_refund_list.insert(), refund_data)
             db.execute(udp_trans_list)
             trans.finish()
-
         ret_data.update({"status": const.REFUND_STATUS.REFUND_SUCCESS})
-        cipher_data = util.rsa_sign_and_encrypt_params(
-            ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
-        return True, cipher_data
+        return True, ret_data
     elif list_ret['settle_time'] is None:
         refund_data.update({'status': const.BUSINESS_STATUS.HANDLING})
         db.execute(t_refund_list.insert(), refund_data)
         # 保存退款单，异步处理
-        cipher_data = util.rsa_sign_and_encrypt_params(
-            ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
-        return True, cipher_data
+        return True, ret_data
     else:
         sp_amount = list_ret['amount'] - list_ret['bank_fee']
         sel_b = select([
@@ -247,9 +244,7 @@ def _cancel_or_refund(db, bank_list):
                 db.execute(udp_trans_list)
                 trans.finish()
             ret_data.update({"status": const.REFUND_STATUS.REFUND_SUCCESS})
-            cipher_data = util.rsa_sign_and_encrypt_params(
-                ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
-            return True, cipher_data
+            return True, ret_data
         else:
             # [TODO] 调用银行退款接口
             sel_c = select([
@@ -294,8 +289,6 @@ def _cancel_or_refund(db, bank_list):
                     db.execute(udp_trans_list)
                     trans.finish()
                 ret_data.update({"status": const.REFUND_STATUS.REFUND_SUCCESS})
-                cipher_data = util.rsa_sign_and_encrypt_params(
-                    ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
-                return True, cipher_data
+                return True, ret_data
             else:
                 return False, const.API_ERROR.REFUND_LESS_BALANCE

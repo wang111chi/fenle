@@ -121,7 +121,6 @@ def check_bank_channel(db, product, bank_type, pin_code, name, div_term):
         if str(div_term) not in fenqi_fee_percent:
             fee_percent['error_code'] = const.API_ERROR.DIV_TERM_NOT_EXIST
             return False, fee_percent
-        # review by liyuan: FIXME: div_term是外部输入，这里可能KeyError
         fee_percent[product] = fenqi_fee_percent[str(div_term)]
     elif product == const.PRODUCT.POINT:
         fee_percent[product] = channel_ret['jifen_fee_percent']
@@ -286,22 +285,22 @@ def check_db_set(db, safe_vars, now, for_sms=False):
             return False, const.API_ERROR.CUR_TYPE_ERROR
 
     # 检查余额账户
-    ok, ret_balance = check_sp_balance(
+    ok, balance_error = check_sp_balance(
         db, const.ACCOUNT_CLASS.B, safe_vars['spid'])
     if not ok:
-        return False, ret_balance
-    ok, ret_balance = check_sp_balance(
+        return False, balance_error
+    ok, balance_error = check_sp_balance(
         db, const.ACCOUNT_CLASS.C, safe_vars['spid'])
     if not ok:
-        return False, ret_balance
-    ok, ret_balance = check_sp_balance(
+        return False, balance_error
+    ok, balance_error = check_sp_balance(
         db, const.ACCOUNT_CLASS.C, config.FENLE_SPID)
     if not ok:
-        return False, ret_balance
-    ok, fenle_balance = check_fenle_balance(
+        return False, balance_error
+    ok, balance_error = check_fenle_balance(
         db, config.FENLE_ACCOUNT_NO, config.FENLE_BANK_TYPE)
     if not ok:
-        return False, fenle_balance
+        return False, balance_error
 
     now = datetime.datetime.now()
     # 检查用户银行卡信息 user_bank
@@ -317,18 +316,15 @@ def trade(db, product, safe_vars):
     """ 处理逻辑"""
     now = datetime.datetime.now()
 
-    ok, ret_db_set = check_db_set(db, safe_vars, now)
+    ok, error_code = check_db_set(db, safe_vars, now)
     if not ok:
-        return False, ret_db_set
+        return False, error_code
 
-    if product != const.PRODUCT.LAYAWAY:
-        # review by liyuan: FIXME：包括下面用到div_term的地方
-        safe_vars['div_term'] = 6
     # 检查银行渠道是否可用，
     ok, bank_fee_percent = check_bank_channel(
         db, product,
         safe_vars['bank_type'], safe_vars['pin_code'],
-        safe_vars['true_name'], safe_vars['div_term'])
+        safe_vars['true_name'], safe_vars.get('div_term'))
     if not ok:
         return False, bank_fee_percent['error_code']
 
@@ -336,7 +332,7 @@ def trade(db, product, safe_vars):
     ok, fenle_fee_percent = check_sp_bank(
         db, product,
         safe_vars['spid'], safe_vars['bank_type'],
-        safe_vars['div_term'])
+        safe_vars.get('div_term'))
     if not ok:
         return False, fenle_fee_percent['error_code']
 
@@ -361,8 +357,7 @@ def trade(db, product, safe_vars):
         list_data['fee']\
             = (safe_vars['amount'] * fenle_fee_percent['cash'] +
                safe_vars['jf_deduct_money'] *
-               # review by liyuan: FIXME: bank_fee_percent?
-               bank_fee_percent['jifen']) // 10000
+               fenle_fee_percent['jifen']) // 10000
     else:
         list_data['bank_fee']\
             = safe_vars['amount'] * bank_fee_percent[product] // 10000
@@ -373,6 +368,9 @@ def trade(db, product, safe_vars):
     list_data.update(safe_vars)
     list_data.pop('sign', None)
     list_data.pop('encode_type', None)
+
+    db.execute(t_trans_list.insert(), list_data)
+
     # TODO 调用银行支付请求接口,更新余额
     interface_input = {
         'ver': '1.0',
@@ -387,16 +385,24 @@ def trade(db, product, safe_vars):
         interface_input['jf_deduct_money'] = list_data['jf_deduct_money']
 
     ok, msg = pi.call_def(interface_input)
+    now = datetime.datetime.now()
 
     if not ok:
-        list_data['status'] = const.TRANS_STATUS.PAY_FAIL
-    else:
-        list_data['status'] = const.TRANS_STATUS.PAY_SUCCESS
-        list_data['bank_roll'] = msg['bank_roll']  # 填入银行返回信息
-        list_data['bank_settle_time'] = msg['bank_settle_time']  # 填入银行返回信息
+        udp_trans_list = t_trans_list.update().where(
+            t_trans_list.c.id == list_data['id']).values(
+            status=const.TRANS_STATUS.PAY_FAIL,
+            modify_time=now)
+        db.execute(udp_trans_list)
+        # FIXME
+        return False, const.API_ERROR.BANK_ERROR
 
-    # review by liyuan: FIXME: 不是在这里才插入，应该是在请求银行之前插入
-    db.execute(t_trans_list.insert(), list_data)
+    udp_trans_list = t_trans_list.update().where(
+        t_trans_list.c.id == list_data['id']).values(
+        bank_roll=msg['bank_roll'],
+        bank_settle_time=msg['bank_settle_time'],
+        status=const.TRANS_STATUS.PAY_SUCCESS,
+        modify_time=now)
+    db.execute(udp_trans_list)
 
     sp_history_data = {
         'biz': const.BIZ.TRANS,
@@ -421,12 +427,6 @@ def trade(db, product, safe_vars):
         'bankacc_no': config.FENLE_ACCOUNT_NO,
         'bank_type': config.FENLE_BANK_TYPE})
 
-    # review by liyuan: FIXME: modify_time不能取发银行之前缓存的now
-    # 银行返回的bank_roll和bank_settle_time也是在这里更改的
-    udp_trans_list = t_trans_list.update().where(
-        t_trans_list.c.id == list_data['id']).values(
-        status=const.TRANS_STATUS.PAY_SUCCESS, modify_time=now)
-
     with transaction(db) as trans:
         db.execute(t_sp_history.insert(), sp_history_data)
         db.execute(udp_sp_balance)
@@ -440,13 +440,9 @@ def trade(db, product, safe_vars):
                 'encode_type': const.ENCODE_TYPE.RSA}
     for k in ('spid', 'sp_list', 'amount', 'cur_type',
               'div_term', 'fee_duty', 'bank_list'):
-        ret_data[k] = list_data[k]
+        ret_data[k] = list_data.get(k)
 
-    sp_pubkey = get_sp_pubkey(db, safe_vars['spid'])
     ret_data.update({
         "id": list_data['id'],
         "result": const.TRANS_STATUS.PAY_SUCCESS})
-    # review by liyuan: FIXME：这里不应返回cipher_data，在外层去处理签名加密
-    cipher_data = util.rsa_sign_and_encrypt_params(
-        ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)
-    return True, cipher_data
+    return True, ret_data

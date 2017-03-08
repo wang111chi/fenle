@@ -72,8 +72,7 @@ def send(db, safe_vars):
 
     ret_data = {
         'bank_list': input_data['bank_list'],
-        # review by liyuan: FIXME
-        "bank_sms_time": now}  # 此处为银行返回时间
+        "bank_sms_time": msg['bank_sms_time']}  # 此处为银行返回时间
     sp_pubkey = dbl.get_sp_pubkey(db, safe_vars['spid'])
     cipher_data = util.rsa_sign_and_encrypt_params(
         ret_data, config.FENLE_PRIVATE_KEY, sp_pubkey)

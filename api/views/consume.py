@@ -9,6 +9,8 @@ from base.framework import TempResponse
 from base.xform import F_mobile, F_str, F_int, F_datetime
 from base import constant as const
 from base import dblogic as dbl
+from base import util
+import config
 
 consume = Blueprint("consume", __name__)
 
@@ -42,4 +44,7 @@ def trade(db, safe_vars):
     ok, msg = dbl.trade(db, const.PRODUCT.CONSUME, safe_vars)
     if not ok:
         return ApiJsonErrorResponse(msg)
-    return ApiJsonOkResponse(trans=msg)
+    sp_pubkey = dbl.get_sp_pubkey(db, safe_vars['spid'])
+    cipher_data = util.rsa_sign_and_encrypt_params(
+        msg, config.FENLE_PRIVATE_KEY, sp_pubkey)
+    return ApiJsonOkResponse(trans=cipher_data)

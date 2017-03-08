@@ -3,6 +3,8 @@
 
 # put application's specific default settings here
 
+PP_SERVER_HOST = '127.0.0.1'
+PP_SERVER_PORT = 31001
 FENLE_ACCOUNT_NO = 6222011817002918231
 FENLE_SPID = "fenle_spid"
 FENLE_BANK_TYPE = 1004
