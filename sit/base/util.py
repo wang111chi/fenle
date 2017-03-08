@@ -295,3 +295,18 @@ class FileLock:
 
     def __del__(self):
         self.release()
+
+
+def show_app(app):
+    for rule in app.url_map.iter_rules():
+        endpoint = rule.endpoint
+        try:
+            m, f = endpoint.split(".")
+        except:
+            continue
+        handler = getattr(
+            __import__('views.' + m, globals(), locals(), [f]), f)
+        print(rule.rule)
+        print(list(rule.methods & {"POST", "GET"})[0])
+        print(handler.desc)
+        print()

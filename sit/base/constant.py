@@ -9,12 +9,47 @@ class BOOLEAN(object):
     ALL = (FALSE, TRUE)
 
 
+class PRODUCT_TYPE(object):
+    LAYAWAY = 1       # 分期
+    POINT = 2         # 积分
+    POINT_CASH = 3    # 积分+现金
+    CONSUME = 4       # 普通信用卡消费
+    PREAUTH = 5       # 预授权
+    PREAUTH_DONE = 6  # 预授权完成
+
+    TRADE_REQUEST_TYPE = {
+        LAYAWAY: '2002',
+        POINT: '2009',
+        POINT_CASH: '2012',
+        CONSUME: '2005',
+        PREAUTH: '2015',
+        PREAUTH_DONE: '2017',
+    }
+
+    CANCEL_REQUEST_TYPE = {
+        LAYAWAY: '2004',
+        POINT: '2011',
+        POINT_CASH: '2014',
+        CONSUME: '2007',
+        PREAUTH: '2016',
+        PREAUTH_DONE: '2018',
+    }
+
+    REFUND_REQUEST_TYPE = {
+        LAYAWAY: '2003',
+        POINT: '2010',
+        POINT_CASH: '2013',
+        CONSUME: '2006',
+    }
+
+
 class CHANNEL(object):
 
     API = 1
     SP_SYSTEM = 2  # 商户系统
+    GATA = 3  # 网关
 
-    ALL = (API, SP_SYSTEM, )
+    ALL = (API, SP_SYSTEM, GATA)
 
 
 class SETTLE_TYPE(object):
@@ -25,31 +60,6 @@ class SETTLE_TYPE(object):
 class REQUEST_STATUS(object):
     SUCCESS = 0                        # 请求成功
     FAIL = 1                           # 请求失败
-
-
-class PRODUCT_TYPE(object):
-    LAYAWAY = 1       # 分期
-    POINT = 2         # 积分
-    POINT_CASH = 3    # 积分+现金
-    CONSUME = 4       # 普通信用卡消费
-    TRADE_REQUEST_TYPE = {
-        LAYAWAY: '2002',
-        POINT: '2009',
-        POINT_CASH: '2012',
-        CONSUME: '2005',
-    }
-    CANCEL_REQUEST_TYPE = {
-        LAYAWAY: '2004',
-        POINT: '2011',
-        POINT_CASH: '2014',
-        CONSUME: '2007',
-    }
-    REFUND_REQUEST_TYPE = {
-        LAYAWAY: '2003',
-        POINT: '2010',
-        POINT_CASH: '2013',
-        CONSUME: '2006',
-    }
 
 
 class ENCODE_TYPE(object):
@@ -95,6 +105,12 @@ class BIZ(object):
     # ARREARS_OUT = 10  # 欠款出
 
 
+class LSTATE(object):
+    VALID = 1  # 有效
+    HUNG = 2  # 挂起
+    INVALID = 3  # 作废
+
+
 class USER_BANK_STATUS(object):
     INIT = 0  # 初始化
     CERTIFIED = 1  # 经认证了的
@@ -102,26 +118,35 @@ class USER_BANK_STATUS(object):
 
 
 class TRANS_STATUS(object):
-    PAYING = 0  # 支付中
-    PAY_SUCCESS = 1  # 支付成功
-    PAY_FALSE = 2  # 支付失败
+    DOING = 0   # 支付中
+    OK = 1      # 支付成功
+    FAIL = 2    # 支付失败
+    CANCEL = 3  # 撤消
+    REFUND = 4  # 退款
 
 
-class REFUND_STATUS(object):
-    REFUNDING = 0  # 退款中
-    REFUND_SUCCESS = 1  # 退款成功
-    REFND_FALSE = 2  # 退款失败
+class REFUND:
+    class MODE:
+        CANCEL = 1  # 撤消
+        REFUND = 2  # 退货
 
-
-class REFUND_STATUS(object):
-    REFUNDING = 0  # 退款中
-    REFUND_SUCCESS = 1  # 退款成功
-    REFND_FALSE = 2  # 退款失败
+    class STATUS:
+        DOING = 0   # 退款中
+        OK = 1      # 退款成功
+        FAIL = 2    # 退款失败
 
 
 class MERCHANT_STATUS(object):
     FORBID = 1  # 封禁
     OPEN = 0  # 开放
+
+
+class LIST_SIGN:
+    u"""流水标记"""
+
+    WELL = 0  # 正常
+    RUSHED = 1  # 被冲正
+    RUSHING = 2  # 冲正
 
 
 class BANK_VALITYPE(object):
@@ -208,13 +233,13 @@ class API_ERROR(object):
     SPID_NOT_EXIST = 207200
     MERCHANT_FORBID = 207201
 
+    DECRYPT_ERROR = 207366
+    SIGN_INVALID = 207367
+
     ACCOUNT_NOT_EXIST = 207300
     ACCOUNT_FREEZED = 207301
     BANK_NOT_EXIST = 207310
     BANK_CHANNEL_UNABLE = 207311
-
-    DECRYPT_ERROR = 207366
-    SIGN_INVALID = 207367
 
     MOBILE_NO_VALIDATA = 207400
     NO_EXPIRATION_DATE = 207401
@@ -235,9 +260,6 @@ class API_ERROR(object):
 
     NO_USER_PAY = 207701
     INSERT_ERROR = 207702
-    REPEAT_SETTLE = 207703
-
-    REFUND_LESS_BALANCE = 207801
 
     NAMES = {
         PARAM_ERROR: u"参数格式错误",
@@ -264,8 +286,7 @@ class API_ERROR(object):
         CONFIRM_ACCOUNT_NO_ERROR: u"二次确认用户银行卡号错误",
         LIST_STATUS_ERROR: u"订单状态错误",
         NO_USER_PAY: u"不支持用户付手续费情形",
-        INSERT_ERROR: u"数据库插入异常",
-        REFUND_LESS_BALANCE: u"余额不足退款"}
+        INSERT_ERROR: u"数据库插入异常"}
 
 
 class BANK_ID(object):
