@@ -12,6 +12,14 @@
 # }
 
 input=$(cat -)
+
+status=$(echo $input | jq '.status')
+op=$(echo $input | jq '.op')
+if [ "$status" == 1 -a "$op" != "" ]; then
+    echo $input | jq '.'
+    exit 127
+fi
+
 parent_id=$(echo $input | jq '.id' | sed -e 's/^"//' -e 's/"$//')
 
 # 先发送验证码
@@ -65,7 +73,7 @@ retcode=$(echo $ret | jq '.status')
 
 if [ $retcode -ne 0 ]; then
     echo [fail] preauth done >&2
-    echo $ret | jq '.' >&2
+    echo $ret | jq '. | {status: .status, message: .message, op: "preauth_done"}'
     exit 127
 fi
 

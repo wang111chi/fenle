@@ -9,6 +9,14 @@
 # }
 
 input=$(cat -)
+
+status=$(echo $input | jq '.status')
+op=$(echo $input | jq '.op')
+if [ "$status" == 1 -a "$op" != "" ]; then
+    echo $input | jq '.'
+    exit 127
+fi
+
 bank_list=$(echo $input | jq '.bank_list' | sed -e 's/^"//' -e 's/"$//')
 bank_sms_time=$(echo $input | jq '.bank_sms_time' | sed -e 's/^"//' -e 's/"$//')
 
@@ -36,7 +44,7 @@ retcode=$(echo $ret | jq '.status')
 
 if [ $retcode -ne 0 ]; then
     echo [fail] layaway >&2
-    echo $ret | jq '.' >&2
+    echo $ret | jq '. | {status: .status, message: .message, op: "layaway"}'
     exit 127
 fi
 

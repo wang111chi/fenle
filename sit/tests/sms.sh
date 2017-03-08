@@ -2,6 +2,7 @@
 
 # 发送验证码
 echo "sending sms code..." >&2
+
 ret=$(
     curl -s \
          -d @data/bank_spid \
@@ -17,7 +18,7 @@ retcode=$(echo $ret | jq '.status')
 
 if [ $retcode -ne 0 ]; then
     echo [fail] send sms code >&2
-    echo $ret | jq '.' >&2
+    echo $ret | jq '. | {status: .status, message: .message, op: "send_sms"}'
     exit 127
 fi
 
