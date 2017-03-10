@@ -30,7 +30,7 @@ sms = Blueprint("sms", __name__)
     "true_name": (F_str("付款人姓名") <= 16) & "strict" & "optional",
     "pin_code": (F_str("cvv2") <= 11) & "strict" & "optional",
     "attach": (F_str("附加数据") <= 255) & "strict" & "optional",
-    "bank_type": (F_str("银行代号") <= 4) & "strict" & "required",
+    "bank_type": F_int("银行代号") & "strict" & "required",
     "amount": (F_int("订单交易金额")) & "strict" & "required",
     "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
     "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",

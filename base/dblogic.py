@@ -30,6 +30,7 @@ from base.db import t_fenle_history
 import config
 
 
+"""
 def check_sp_balance(db, account_class, spid, cur_type=const.CUR_TYPE.RMB):
     sel_sp_balance = select([t_sp_balance.c.balance]).where(and_(
         t_sp_balance.c.spid == spid,
@@ -47,6 +48,7 @@ def check_fenle_balance(db, fenle_account_no, bank_type):
     if db.execute(sel_fenle_balance).first() is None:
         return False, const.API_ERROR.FENLE_BALANCE_NOT_EXIST
     return True, None
+"""
 
 
 def check_repeat_list(db, spid, sp_list, bank_type, mobile,
@@ -59,6 +61,9 @@ def check_repeat_list(db, spid, sp_list, bank_type, mobile,
         t_trans_list.c.mobile,
         t_trans_list.c.bankacc_no,
         t_trans_list.c.amount,
+        t_trans_list.c.cur_type,
+        t_trans_list.c.bank_list,
+        t_trans_list.c.fee_duty,
         t_trans_list.c.product]).where(and_(
             t_trans_list.c.spid == spid,
             t_trans_list.c.sp_list == sp_list))
@@ -75,17 +80,21 @@ def check_repeat_list(db, spid, sp_list, bank_type, mobile,
     if list_ret['amount'] != amount:
         return False, const.API_ERROR.REPEAT_PAY_AMOUNT_ERROR, None
 
-    if list_ret['bank_type'] != mobile:
+    if list_ret['bank_type'] != bank_type:
         return False, const.API_ERROR.REPEAT_PAY_BANKTYPE_ERROR, None
-    return True, list_ret, True
+
+    list_ret = dict(list_ret)
+    ret_data = {'spid': spid,
+                'sp_list': sp_list,
+                'encode_type': const.ENCODE_TYPE.RSA}
+    for k in ('amount', 'cur_type', 'product', 'id',
+              'fee_duty', 'bank_list', 'status'):
+        ret_data[k] = list_ret.get(k)
+    return True, ret_data, True
 
 
 def check_bank_channel(db, product, bank_type, pin_code, name, div_term):
     fee_percent = {'error_code': None}
-    if product not in (const.PRODUCT.LAYAWAY, const.PRODUCT.POINT,
-                       const.PRODUCT.POINT_CASH, const.PRODUCT.CONSUME):
-        fee_percent['error_code'] = const.API_ERROR.PRODUCT_NOT_EXIST
-        return False, fee_percent
     sel = select([t_bank_channel.c.status,
                   t_bank_channel.c.fenqi_fee_percent,
                   t_bank_channel.c.jifen_fee_percent,
@@ -132,10 +141,6 @@ def check_bank_channel(db, product, bank_type, pin_code, name, div_term):
 def check_sp_bank(db, product, spid, bank_type, div_term):
     """ 查 sp_bank 的 fenqi_fee_percent """
     fee_percent = {'error_code': None}
-    if product not in (const.PRODUCT.LAYAWAY, const.PRODUCT.POINT,
-                       const.PRODUCT.POINT_CASH, const.PRODUCT.CONSUME):
-        fee_percent['error_code'] = const.API_ERROR.PRODUCT_NOT_EXIST
-        return False, fee_percent
     sel = select([
         t_sp_bank.c.fenqi_fee_percent,
         t_sp_bank.c.jifen_fee_percent,
@@ -282,7 +287,7 @@ def get_terminal_spid(db, spid, bank_type):
             t_sp_bank.c.spid == spid,
             t_sp_bank.c.bank_type == bank_type))
     sp_bank_ret = db.execute(s).first()
-    return sp_bank_ret['terminal_no'], sp_bank_ret['ban_spid']
+    return sp_bank_ret['terminal_no'], sp_bank_ret['bank_spid']
 
 
 def check_sign_md5(db, params):
@@ -329,7 +334,13 @@ def check_sign_rsa(db, params):
 
 
 def trade(db, product, safe_vars):
-    """ 处理逻辑"""
+    """ 处理逻辑
+
+    if product not in (
+        const.PRODUCT.LAYAWAY, const.PRODUCT.POINT,
+        const.PRODUCT.POINT_CASH, const.PRODUCT.CONSUME):
+        return False, const.API_ERROR.PRODUCT_NOT_EXIST
+    """
 
     now = datetime.datetime.now()
     # 检查用户银行卡信息 user_bank
@@ -401,8 +412,12 @@ def trade(db, product, safe_vars):
     db.execute(t_trans_list.insert(), list_data)
 
     # TODO 调用银行支付请求接口,更新余额
+    terminal_no, bank_spid = get_terminal_spid(
+        db, list_data['spid'], list_data['bank_type'])
     interface_input = {
         'ver': '1.0',
+        'terminal_no': terminal_no,
+        'bank_spid': bank_spid,
         'request_type': const.PRODUCT.TRADE_REQUEST_TYPE[product]}
     for k in ('amount', 'bankacc_no', 'mobile', 'valid_date',
               'bank_sms_time', 'bank_list', 'bank_validcode',

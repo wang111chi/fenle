@@ -115,12 +115,12 @@ class SpModel():
             'modify_time': self.now}
         conn.execute(t_user_bank.insert(), user_bank_info)
 
-    def insert_channel(self, conn, is_enable, vmask=0):
+    def insert_channel(self, conn, is_enable, fee_percent_json, vmask=0):
         bank_data = {
             'bank_type': self.params['bank_type'],
             'bank_valitype': const.BANK_VALITYPE.MOBILE_VALID,  # 修改此处决定是否验证手机号
             'interface_mask': vmask,
-            'fenqi_fee_percent': json.dumps({6: 300, 12: 400}),
+            'fenqi_fee_percent': json.dumps(fee_percent_json),
             'jifen_fee_percent': 0,
             'cash_fee_percent': 200,
             'settle_type': const.SETTLE_TYPE.DAY_SETTLE,
@@ -204,20 +204,20 @@ class TestSms(SpModel):
     def test_sms_channel_check(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.FALSE)
+        self.insert_channel(db, const.BOOLEAN.FALSE, {6: 500, 12: 600})
         self.sms_send(client, const.API_ERROR.BANK_CHANNEL_UNABLE)
 
     def test_sms_spbank_check(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, '57' * 5, {6: 500, 12: 600})
         self.sms_send(client, const.API_ERROR.NO_SP_BANK)
 
     def test_sms_banksys_ok(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
         with mock.patch("base.pp_interface.call_def") as cd:
@@ -228,7 +228,7 @@ class TestSms(SpModel):
     def test_sms_banksys_err(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
         with mock.patch("base.pp_interface.call_def") as cd:
@@ -278,14 +278,41 @@ class Trans(SpModel):
     def test_trade_channel_check(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.FALSE)
+        self.insert_channel(db, const.BOOLEAN.FALSE, {6: 500, 12: 600})
         self.layaway_trade(
             client, self.params, const.API_ERROR.BANK_CHANNEL_UNABLE)
+
+    def test_trade_channel_div_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {8: 500, 12: 600})
+        self.layaway_trade(
+            client, self.params, const.API_ERROR.DIV_TERM_NOT_EXIST)
+
+    def test_trade_channel_pin_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600},
+                            const.PAY_MASK.PIN_CODE)
+        param = self.params.copy()
+        param.pop('pin_code', None)
+        self.layaway_trade(
+            client, param, const.API_ERROR.NO_PIN_CODE)
+
+    def test_trade_channel_name_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600},
+                            const.PAY_MASK.NAME)
+        param = self.params.copy()
+        param.pop('true_name', None)
+        self.layaway_trade(
+            client, param, const.API_ERROR.NO_USER_NAME)
 
     def test_trade_spbank_spid_check(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, '57' * 5, {6: 500, 12: 600})
         self.layaway_trade(
             client, self.params, const.API_ERROR.NO_SP_BANK)
@@ -293,17 +320,16 @@ class Trans(SpModel):
     def test_trade_spbank_div_check(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
-        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
-        params = self.params.copy()
-        params['div_term'] = 8
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
+        self.insert_sp_bank(db, self.spid, {8: 500, 12: 600})
+        param = self.params.copy()
         self.layaway_trade(
-            client, params, const.API_ERROR.DIV_TERM_NOT_EXIST)
+            client, param, const.API_ERROR.DIV_TERM_NOT_EXIST)
 
     def test_trade_banksys_err(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
         with mock.patch("base.pp_interface.call_def") as cd:
@@ -314,7 +340,7 @@ class Trans(SpModel):
     def test_trade_banksys_ok(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
         with mock.patch("base.pp_interface.call_def") as cd:
@@ -327,7 +353,7 @@ class Trans(SpModel):
     def test_trade_repeat(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
         with mock.patch("base.pp_interface.call_def") as cd:
@@ -353,6 +379,8 @@ class Trans(SpModel):
         param['bank_type'] = 1000
         self.layaway_trade(
             client, param, const.API_ERROR.REPEAT_PAY_BANKTYPE_ERROR)
+        self.layaway_trade(
+            client, self.params, const.REQUEST_STATUS.SUCCESS)
 
 
 class TestRefund_TransQuery(Trans):
@@ -379,7 +407,7 @@ class TestRefund_TransQuery(Trans):
     def test_query(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
         params = self.params.copy()
 
@@ -422,7 +450,7 @@ class TestRefund_TransQuery(Trans):
     def test_refund_theday(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
         params = self.params.copy()
 
@@ -437,7 +465,7 @@ class TestRefund_TransQuery(Trans):
     def test_refund_bank_settled(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
         params = self.params.copy()
         with mock.patch("base.pp_interface.call_def") as cd:
@@ -456,7 +484,7 @@ class TestRefund_TransQuery(Trans):
     def test_refund_before_c2b(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
         params = self.params.copy()
         with mock.patch("base.pp_interface.call_def") as cd:
@@ -475,7 +503,7 @@ class TestRefund_TransQuery(Trans):
     def test_refund_after_c2b(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
         params = self.params.copy()
 
@@ -514,7 +542,7 @@ class TestPointCash(SpModel):
     def test_pointcash_banksys_err(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
         with mock.patch("base.pp_interface.call_def") as cd:
@@ -525,7 +553,7 @@ class TestPointCash(SpModel):
     def test_pointcash_banksys_ok(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
         with mock.patch("base.pp_interface.call_def") as cd:
@@ -552,7 +580,7 @@ class TestPoint(SpModel):
     def test_point_banksys_err(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
         with mock.patch("base.pp_interface.call_def") as cd:
@@ -563,7 +591,7 @@ class TestPoint(SpModel):
     def test_point_banksys_ok(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
         with mock.patch("base.pp_interface.call_def") as cd:
@@ -596,7 +624,7 @@ class TestConsume(SpModel):
     def test_consume_banksys_err(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
         with mock.patch("base.pp_interface.call_def") as cd:
@@ -607,7 +635,7 @@ class TestConsume(SpModel):
     def test_consume_banksys_ok(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
         with mock.patch("base.pp_interface.call_def") as cd:

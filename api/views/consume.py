@@ -33,8 +33,8 @@ consume = Blueprint("consume", __name__)
         "strict") & "optional" & (lambda v: (v in const.CUR_TYPE.ALL, v)),
     "account_type": F_int("银行卡类型", const.ACCOUNT_TYPE.CREDIT_CARD) & (
         "strict") & "optional" & (lambda v: (v in const.ACCOUNT_TYPE.ALL, v)),
-    "bank_type": (F_str("银行代号") <= 4) & "strict" & "required",
-    "amount": (F_int("订单交易金额")) & "strict" & "required",
+    "bank_type": F_int("银行代号") & "strict" & "required",
+    "amount": F_int("订单交易金额") & "strict" & "required",
     "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
     "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
     "valid_date": (F_str("有效期") <= 11) & "strict" & "required",
