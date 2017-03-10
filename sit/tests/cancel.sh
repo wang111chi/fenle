@@ -12,7 +12,8 @@ input=$(cat -)
 
 status=$(echo $input | jq '.status')
 op=$(echo $input | jq '.op')
-if [ "$status" == 1 -a "$op" != "" ]; then
+
+if [ "$status" == 1 -a "$op" != "null" ]; then
     echo $input | jq '.'
     exit 127
 fi
@@ -29,6 +30,8 @@ ret=$(
          -d bank_list=$bank_list \
          http://58.67.212.197:8081/trans/cancel
    )
+
+echo $ret
 
 retcode=$(echo $ret | jq '.status')
 

@@ -87,4 +87,5 @@ def query(db, safe_vars):
     if not ok:
         return JsonErrorResponse(msg)
 
-    return JsonOkResponse(remain_point=msg["remainJf"])
+    return JsonOkResponse(remain_point=msg["remainJf"],
+                          deduct_money=msg["deductMoney"])

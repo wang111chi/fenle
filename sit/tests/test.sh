@@ -9,6 +9,7 @@ function leave_test() {
     status=$?
     echo -n "$(date "+%Y-%m-%d %H:%M:%S") " >> $f
     if [ $status -eq 0 ]; then
+        echo $1 | jq '.'
         echo $stage 成功 >> $f
     else
         echo -n $stage "失败 " >> $f
