@@ -7,9 +7,9 @@ import hashlib
 from base64 import b64encode
 from base64 import b64decode
 import json
-from unittest.mock import patch
+from unittest import mock
 
-from datetime import datetime
+import datetime
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5
 from Crypto.Signature import PKCS1_v1_5 as sign_PKCS1_v1_5
@@ -33,13 +33,14 @@ from base import constant as const
 from base.framework import ApiJsonErrorResponse
 from base.framework import general, api_form_check
 from base.xform import F_str
+from base import dblogic as dbl
 
 
 class SpMode(object):
     """商户端模型"""
 
     # 测试参数模板
-    now = datetime.now()
+    now = datetime.datetime.now()
     spid = '1' * 10
     sp_private_key = config.TEST_MERCHANT_PRIVATE_KEY
     params = {
@@ -189,10 +190,6 @@ class TestSms(SpMode):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.FORBID)
         self.sms_send(client, const.API_ERROR.MERCHANT_FORBID)
 
-    def test_sms_balance_check(self, client, db):
-        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
-        self.sms_send(client, const.API_ERROR.SP_BALANCE_NOT_EXIST)
-
     def test_sms_usrbank_check(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
@@ -217,12 +214,26 @@ class TestSms(SpMode):
         self.insert_sp_bank(db, '57' * 5, {6: 500, 12: 600})
         self.sms_send(client, const.API_ERROR.NO_SP_BANK)
 
-    def test_sms_check(self, client, db):
+    def test_sms_banksys_ok(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
         self.insert_channel(db, const.BOOLEAN.TRUE)
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
-        self.sms_send(client, const.REQUEST_STATUS.SUCCESS)
+
+        with mock.patch("base.pp_interface.call_def") as cd:
+            cd.return_value = (True, {
+                "bank_sms_time": self.now})
+            self.sms_send(client, const.REQUEST_STATUS.SUCCESS)
+
+    def test_sms_banksys_err(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+
+        with mock.patch("base.pp_interface.call_def") as cd:
+            cd.return_value = (False, const.API_ERROR.BANK_ERROR)
+            self.sms_send(client, const.API_ERROR.BANK_ERROR)
 
 
 class Trans(SpMode):
@@ -250,18 +261,6 @@ class Trans(SpMode):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.FORBID)
         self.layaway_trade(
             client, self.params, const.API_ERROR.MERCHANT_FORBID)
-
-    def test_trade_account_type_check(self, client, db):
-        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
-        params = self.params.copy()
-        params['account_type'] = 1
-        self.layaway_trade(
-            client, params, const.API_ERROR.ACCOUNT_TYPE_ERROR)
-
-    def test_trade_balance_check(self, client, db):
-        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
-        self.layaway_trade(
-            client, self.params, const.API_ERROR.SP_BALANCE_NOT_EXIST)
 
     def test_trade_userbank_check(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
@@ -307,7 +306,7 @@ class Trans(SpMode):
         self.insert_channel(db, const.BOOLEAN.TRUE)
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
-        with patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call_def") as cd:
             cd.return_value = (False, None)
             self.layaway_trade(
                 client, self.params, const.API_ERROR.BANK_ERROR)
@@ -318,10 +317,10 @@ class Trans(SpMode):
         self.insert_channel(db, const.BOOLEAN.TRUE)
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
-        with patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call_def") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": datetime.now()})
+                "bank_settle_time": self.now})
             self.layaway_trade(
                 client, self.params, const.REQUEST_STATUS.SUCCESS)
 
@@ -331,20 +330,39 @@ class Trans(SpMode):
         self.insert_channel(db, const.BOOLEAN.TRUE)
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
-        self.layaway_trade(
-            client, self.params, const.REQUEST_STATUS.SUCCESS)
+        with mock.patch("base.pp_interface.call_def") as cd:
+            cd.return_value = (True, {
+                "bank_roll": '5432109876',
+                "bank_settle_time": self.now})
+            self.layaway_trade(
+                client, self.params, const.REQUEST_STATUS.SUCCESS)
         # 测试重复调用的反应
+        param = self.params.copy()
+        param['mobile'] = '11100000000'
         self.layaway_trade(
-            client, self.params, const.API_ERROR.REPEAT_PAY)
+            client, param, const.API_ERROR.REPEAT_PAY_MOBILE_ERROR)
+        param['mobile'] = self.params['mobile']
+        param['bankacc_no'] = '1' * 16
+        self.layaway_trade(
+            client, param, const.API_ERROR.REPEAT_PAY_ACCOUNTNO_ERROR)
+        param['bankacc_no'] = self.params['bankacc_no']
+        param['amount'] = 11111
+        self.layaway_trade(
+            client, param, const.API_ERROR.REPEAT_PAY_AMOUNT_ERROR)
+        param['amount'] = self.params['amount']
+        param['bank_type'] = 1000
+        self.layaway_trade(
+            client, param, const.API_ERROR.REPEAT_PAY_BANKTYPE_ERROR)
 
 
-class TestPointCash(SpMode):
-    params = {'jf_deduct_money': 3000}
-    params.update(SpMode.params)
-
-    def point_cash(self, client, params, predict_ret):
-        query_params = self.sign_encrypt_md5(self.key, params)
-        rsp = client.get('/point_cash/trade', query_string=query_params)
+class TestRefund_TransQuery(Trans):
+    def trans_query(self, client, bank_list, predict_ret):
+        query_param = {"encode_type": "MD5",
+                       "spid": self.params['spid'],
+                       "bank_list": bank_list}
+        query_params = self.sign_encrypt_md5(
+            self.key, query_param)
+        rsp = client.get('/trans/query', query_string=query_params)
         assert rsp.status_code == 200
         json_rsp = json.loads(rsp.data)
         assert json_rsp["retcode"] == predict_ret
@@ -352,72 +370,28 @@ class TestPointCash(SpMode):
             params = util.rsa_decrypt(
                 json_rsp['trans'],
                 config.TEST_MERCHANT_PRIVATE_KEY)
-            return params['bank_list'][0]
+            return params
 
-    def test_pointcash_banksys_err(self, client, db):
+    def test_query_banklist_err(self, client):
+        return self.trans_query(
+            client, '1' * 10, const.API_ERROR.LIST_ID_NOT_EXIST)
+
+    def test_query(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
         self.insert_channel(db, const.BOOLEAN.TRUE)
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+        params = self.params.copy()
 
-        with patch("base.pp_interface.call_def") as cd:
-            cd.return_value = (False, None)
-            self.point_cash(
-                client, self.params, const.API_ERROR.BANK_ERROR)
-
-    def test_pointcash_banksys_ok(self, client, db):
-        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
-        self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
-        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
-
-        with patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call_def") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": datetime.now()})
-            self.point_cash(
-                client, self.params, const.REQUEST_STATUS.SUCCESS)
+                "bank_settle_time": self.now})
+            bank_list = self.layaway_trade(
+                client, params, const.REQUEST_STATUS.SUCCESS)
+        return self.trans_query(
+            client, bank_list, const.REQUEST_STATUS.SUCCESS)
 
-
-class TestPoint(SpMode):
-    def point(self, client, params, predict_ret):
-        query_params = self.sign_encrypt_md5(self.key, params)
-        rsp = client.get('/point/trade', query_string=query_params)
-        assert rsp.status_code == 200
-        json_rsp = json.loads(rsp.data)
-        assert json_rsp["retcode"] == predict_ret
-        if predict_ret == 0:
-            params = util.rsa_decrypt(
-                json_rsp['trans'],
-                config.TEST_MERCHANT_PRIVATE_KEY)
-            return params['bank_list'][0]
-
-    def test_point_banksys_err(self, client, db):
-        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
-        self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
-        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
-
-        with patch("base.pp_interface.call_def") as cd:
-            cd.return_value = (False, None)
-            self.point(
-                client, self.params, const.API_ERROR.BANK_ERROR)
-
-    def test_point_banksys_ok(self, client, db):
-        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
-        self.insert_balance(db)
-        self.insert_channel(db, const.BOOLEAN.TRUE)
-        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
-
-        with patch("base.pp_interface.call_def") as cd:
-            cd.return_value = (True, {
-                "bank_roll": '5432109876',
-                "bank_settle_time": datetime.now()})
-            self.point(
-                client, self.params, const.REQUEST_STATUS.SUCCESS)
-
-
-class TestRefund(Trans):
     def refund(self, client, bank_list, predict_ret):
         query_param = {"encode_type": "MD5",
                        "spid": self.params['spid'],
@@ -445,18 +419,289 @@ class TestRefund(Trans):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.refund(client, '543212345', const.API_ERROR.LIST_ID_NOT_EXIST)
 
-    def test_refund(self, client, db):
+    def test_refund_theday(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
         self.insert_channel(db, const.BOOLEAN.TRUE)
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
         params = self.params.copy()
 
-        bank_list = self.layaway_trade(
-            client, params, const.REQUEST_STATUS.SUCCESS)
+        with mock.patch("base.pp_interface.call_def") as cd:
+            cd.return_value = (True, {
+                "bank_roll": '5432109876',
+                "bank_settle_time": self.now})
+            bank_list = self.layaway_trade(
+                client, params, const.REQUEST_STATUS.SUCCESS)
         self.refund(client, bank_list, const.REQUEST_STATUS.SUCCESS)
 
+    def test_refund_bank_settled(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+        params = self.params.copy()
+
+        with mock.patch("base.pp_interface.call_def") as cd:
+            cd.return_value = (True, {
+                "bank_roll": '5432109876',
+                "bank_settle_time": None})
+            bank_list = self.layaway_trade(
+                client, params, const.REQUEST_STATUS.SUCCESS)
+
+        target = self.now + datetime.timedelta(days=1)
+        with mock.patch.object(datetime, 'datetime',
+                               mock.Mock(wraps=datetime.datetime)) as patched:
+            patched.now.return_value = target
+            self.refund(client, bank_list, const.REQUEST_STATUS.SUCCESS)
+
+    def test_refund_before_c2b(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+        params = self.params.copy()
+
+        with mock.patch("base.pp_interface.call_def") as cd:
+            cd.return_value = (True, {
+                "bank_roll": '5432109876',
+                "bank_settle_time": self.now})
+            bank_list = self.layaway_trade(
+                client, params, const.REQUEST_STATUS.SUCCESS)
+
+        target = self.now + datetime.timedelta(days=1)
+        with mock.patch.object(datetime, 'datetime',
+                               mock.Mock(wraps=datetime.datetime)) as patched:
+            patched.now.return_value = target
+            self.refund(client, bank_list, const.REQUEST_STATUS.SUCCESS)
+
+    def test_refund_after_c2b(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+        params = self.params.copy()
+
+        with mock.patch("base.pp_interface.call_def") as cd:
+            cd.return_value = (True, {
+                "bank_roll": '5432109876',
+                "bank_settle_time": self.now})
+            bank_list = self.layaway_trade(
+                client, params, const.REQUEST_STATUS.SUCCESS)
+
+        ok, a_list = dbl.get_list(db, bank_list)
+        dbl.settle_a_list(db, a_list, self.now)
+        target = self.now + datetime.timedelta(days=1)
+        with mock.patch.object(datetime, 'datetime',
+                               mock.Mock(wraps=datetime.datetime)) as patched:
+            patched.now.return_value = target
+            self.refund(client, bank_list, const.REQUEST_STATUS.SUCCESS)
+
+
+class TestPointCash(SpMode):
+    params = {'jf_deduct_money': 3000}
+    params.update(SpMode.params)
+
+    def point_cash(self, client, params, predict_ret):
+        query_params = self.sign_encrypt_md5(self.key, params)
+        rsp = client.get('/point_cash/trade', query_string=query_params)
+        assert rsp.status_code == 200
+        json_rsp = json.loads(rsp.data)
+        assert json_rsp["retcode"] == predict_ret
+        if predict_ret == 0:
+            params = util.rsa_decrypt(
+                json_rsp['trans'],
+                config.TEST_MERCHANT_PRIVATE_KEY)
+            return params['bank_list'][0]
+
+    def test_pointcash_banksys_err(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+
+        with mock.patch("base.pp_interface.call_def") as cd:
+            cd.return_value = (False, None)
+            self.point_cash(
+                client, self.params, const.API_ERROR.BANK_ERROR)
+
+    def test_pointcash_banksys_ok(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+
+        with mock.patch("base.pp_interface.call_def") as cd:
+            cd.return_value = (True, {
+                "bank_roll": '5432109876',
+                "bank_settle_time": self.now})
+            self.point_cash(
+                client, self.params, const.REQUEST_STATUS.SUCCESS)
+
+
+class TestPoint(SpMode):
+    def point(self, client, params, predict_ret):
+        query_params = self.sign_encrypt_md5(self.key, params)
+        rsp = client.get('/point/trade', query_string=query_params)
+        assert rsp.status_code == 200
+        json_rsp = json.loads(rsp.data)
+        assert json_rsp["retcode"] == predict_ret
+        if predict_ret == 0:
+            params = util.rsa_decrypt(
+                json_rsp['trans'],
+                config.TEST_MERCHANT_PRIVATE_KEY)
+            return params['bank_list'][0]
+
+    def test_point_banksys_err(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+
+        with mock.patch("base.pp_interface.call_def") as cd:
+            cd.return_value = (False, None)
+            self.point(
+                client, self.params, const.API_ERROR.BANK_ERROR)
+
+    def test_point_banksys_ok(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+
+        with mock.patch("base.pp_interface.call_def") as cd:
+            cd.return_value = (True, {
+                "bank_roll": '5432109876',
+                "bank_settle_time": self.now})
+            self.point(
+                client, self.params, const.REQUEST_STATUS.SUCCESS)
     """
+    def test_point_query(self, client):
+        query_param = dict((k, self.params[k]) for k in (
+            'bankacc_no', 'mobile', 'valid_date',
+            'bank_sms_time', 'bank_validcode'))
+    """
+
+
+class TestConsume(SpMode):
+    def consume(self, client, params, predict_ret):
+        query_params = self.sign_encrypt_md5(self.key, params)
+        rsp = client.get('/consume/trade', query_string=query_params)
+        assert rsp.status_code == 200
+        json_rsp = json.loads(rsp.data)
+        assert json_rsp["retcode"] == predict_ret
+        if predict_ret == 0:
+            params = util.rsa_decrypt(
+                json_rsp['trans'],
+                config.TEST_MERCHANT_PRIVATE_KEY)
+            return params['bank_list'][0]
+
+    def test_consume_banksys_err(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+
+        with mock.patch("base.pp_interface.call_def") as cd:
+            cd.return_value = (False, None)
+            self.consume(
+                client, self.params, const.API_ERROR.BANK_ERROR)
+
+    def test_consume_banksys_ok(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+
+        with mock.patch("base.pp_interface.call_def") as cd:
+            cd.return_value = (True, {
+                "bank_roll": '5432109876',
+                "bank_settle_time": self.now})
+            self.consume(
+                client, self.params, const.REQUEST_STATUS.SUCCESS)
+
+    """
+    def test_query_listid_check(self, client):
+        qry_data = {
+            "encode_type": "MD5",
+            "list_id": "543223",  # 给一个不存在的list_id
+            "spid": self.spid,
+            "channel": const.CHANNEL.API}
+        query_params = self.sign_encrypt_md5(self.key, qry_data)
+        rsp = client.get('/cardpay/query', query_string=query_params)
+        assert rsp.status_code == 200
+        json_rsp = json.loads(rsp.data)
+        assert json_rsp["retcode"] == const.API_ERROR.LIST_ID_NOT_EXIST
+
+    def test_query_spid_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_VALID,
+            const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+
+        # 测试验证手机号的支付请求
+        list_id = self.cardpay_trade(
+            client, self.params,
+            const.REQUEST_STATUS.SUCCESS)
+        qry_data = {
+            "encode_type": "MD5",
+            "list_id": list_id,
+            "spid": "56" * 5,  # 给一个不存在的 spid
+            "channel": const.CHANNEL.API}
+
+        query_params = self.sign_encrypt_md5(self.key, qry_data)
+        qry_rsp = client.get(
+            '/cardpay/query', query_string=query_params)
+        assert qry_rsp.status_code == 200
+        json_qry_rsp = json.loads(qry_rsp.data)
+        assert json_qry_rsp["retcode"] == const.API_ERROR.SPID_NOT_EXIST
+
+    def test_query_check(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(
+            db, const.BANK_VALITYPE.MOBILE_VALID,
+            const.BOOLEAN.TRUE)
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+
+        # 测试验证手机号的支付请求
+        list_id = self.cardpay_trade(
+            client, self.params,
+            const.REQUEST_STATUS.SUCCESS)
+        # 测试正确的查询
+        qry_data = {
+            "encode_type": "MD5",
+            "list_id": list_id,
+            "spid": self.spid,
+            "channel": const.CHANNEL.API}
+        query_params = self.sign_encrypt_md5(self.key, qry_data)
+        spid_qry = client.get(
+            '/cardpay/query', query_string=query_params)
+        assert spid_qry.status_code == 200
+        json_spid_qry = json.loads(spid_qry.data)
+        assert json_spid_qry["retcode"] == const.REQUEST_STATUS.SUCCESS
+        params = util.rsa_decrypt(
+            json_spid_qry['cipher_data'],
+            config.TEST_MERCHANT_PRIVATE_KEY)
+        logger.debug(params)
+
+    def test_layaway_trade_rsa(self, client):
+        params = self.params
+
+        # RSA签名 + RSA加密
+        cipher_data = util.rsa_sign_and_encrypt_params(
+            params,
+            config.TEST_MERCHANT_PRIVATE_KEY,
+            config.FENLE_PUB_KEY
+        )
+        query_params = {"cipher_data": cipher_data}
+        resp = client.get('/cardpay/trade', query_string=query_params)
+
+        assert resp.status_code == 200
+        # json_resp = json.loads(resp.data)
+        # assert json_resp["retcode"] == 0
+
     def test_query_listid_check(self, client):
         qry_data = {
             "encode_type": "MD5",

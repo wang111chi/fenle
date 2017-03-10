@@ -49,38 +49,35 @@ def check_fenle_balance(db, fenle_account_no, bank_type):
     return True, None
 
 
-def check_repeat_list(db, spid, sp_list):
+def check_repeat_list(db, spid, sp_list, bank_type, mobile,
+                      bankacc_no, amount):
     """ 检查订单号是否已经存在"""
-    sel = select([t_trans_list.c.id]).where(and_(
-        t_trans_list.c.spid == spid,
-        t_trans_list.c.sp_list == sp_list))
+    sel = select([
+        t_trans_list.c.id,
+        t_trans_list.c.status,
+        t_trans_list.c.bank_type,
+        t_trans_list.c.mobile,
+        t_trans_list.c.bankacc_no,
+        t_trans_list.c.amount,
+        t_trans_list.c.product]).where(and_(
+            t_trans_list.c.spid == spid,
+            t_trans_list.c.sp_list == sp_list))
     list_ret = db.execute(sel).first()
-    if list_ret is not None:   # 如果已经存在
-        return False, const.API_ERROR.REPEAT_PAY
-    return True, None
+    if list_ret is None:
+        return True, None, False
 
+    if list_ret['mobile'] != mobile:
+        return False, const.API_ERROR.REPEAT_PAY_MOBILE_ERROR, None
 
-def check_user_bank(db, acc_no, bank_type, mobile, now):
-    """ 检查用户银行卡信息 user_bank"""
-    sel = select([t_user_bank.c.status]).where(
-        t_user_bank.c.bankacc_no == acc_no)
-    user_bank_ret = db.execute(sel).first()
-    now = datetime.datetime.now()
-    if user_bank_ret is None:
-        user_bank_info = {
-            'bankacc_no': acc_no,
-            'account_type': const.ACCOUNT_TYPE.CREDIT_CARD,
-            'bank_type': bank_type,
-            'account_mobile': mobile,
-            'status': const.USER_BANK_STATUS.INIT,
-            'create_time': now,
-            'modify_time': now}
-        db.execute(t_user_bank.insert(), user_bank_info)
-    else:
-        # 检查银行卡是否被冻结 user_bank
-        if user_bank_ret['status'] == const.USER_BANK_STATUS.FREEZING:  # 冻结标志
-            return False, const.API_ERROR.ACCOUNT_FREEZED
-    return True, None
+    if list_ret['bankacc_no'] != bankacc_no:
+        return False, const.API_ERROR.REPEAT_PAY_ACCOUNTNO_ERROR, None
+
+    if list_ret['amount'] != amount:
+        return False, const.API_ERROR.REPEAT_PAY_AMOUNT_ERROR, None
+
+    if list_ret['bank_type'] != mobile:
+        return False, const.API_ERROR.REPEAT_PAY_BANKTYPE_ERROR, None
+    return True, list_ret, True
 
 
 def check_bank_channel(db, product, bank_type, pin_code, name, div_term):
@@ -177,6 +174,69 @@ def update_sp_balance(spid, account_class, balance, now,
         modify_time=now)
 
 
+def settle_a_list(db, a_list, now):
+    """B2C"""
+
+    sp_history_data = {
+        'spid': a_list['spid'],
+        'account_class': const.ACCOUNT_CLASS.B,
+        'amount': a_list['amount'],
+        'biz': const.BIZ.SETTLE,
+        'ref_str_id': a_list['id'],
+        'create_time': now}
+
+    udp_sp_balance_b = update_sp_balance(
+        a_list['spid'], const.ACCOUNT_CLASS.B,
+        0 - a_list['amount'], now)
+
+    udp_sp_balance_c = update_sp_balance(
+        a_list['spid'], const.ACCOUNT_CLASS.C,
+        a_list['amount'] - a_list['fee'], now)
+
+    udp_spfen_balance = update_sp_balance(
+        config.FENLE_SPID, const.ACCOUNT_CLASS.C,
+        a_list['fee'] - a_list['bank_fee'], now)
+
+    with transaction(db) as trans:
+        db.execute(udp_sp_balance_b)
+        db.execute(t_sp_history.insert(), sp_history_data)
+
+        db.execute(udp_sp_balance_c)
+        sp_history_data.update({
+            'amount': a_list['amount'] - a_list['fee'],
+            'account_class': const.ACCOUNT_CLASS.C})
+        db.execute(t_sp_history.insert(), sp_history_data)
+
+        db.execute(udp_spfen_balance)
+        sp_history_data.update({
+            'amount': a_list['fee'] - a_list['bank_fee'],
+            'spid': config.FENLE_SPID})
+        db.execute(t_sp_history.insert(), sp_history_data)
+        trans.finish()
+
+
+def check_user_bank(db, acc_no, bank_type, mobile, now):
+    """ 检查用户银行卡信息 user_bank"""
+    sel = select([t_user_bank.c.status]).where(
+        t_user_bank.c.bankacc_no == acc_no)
+    user_bank_ret = db.execute(sel).first()
+    if user_bank_ret is None:
+        user_bank_info = {
+            'bankacc_no': acc_no,
+            'account_type': const.ACCOUNT_TYPE.CREDIT_CARD,
+            'bank_type': bank_type,
+            'account_mobile': mobile,
+            'status': const.USER_BANK_STATUS.INIT,
+            'create_time': now,
+            'modify_time': now}
+        db.execute(t_user_bank.insert(), user_bank_info)
+    else:
+        # 检查银行卡是否被冻结 user_bank
+        if user_bank_ret['status'] == const.USER_BANK_STATUS.FREEZING:  # 冻结标志
+            return False, const.API_ERROR.ACCOUNT_FREEZED
+    return True, None
+
+
 def get_list(db, bank_list, what_status=None):
     sel = select([
         t_trans_list.c.id,
@@ -188,10 +248,12 @@ def get_list(db, bank_list, what_status=None):
         t_trans_list.c.amount,
         t_trans_list.c.bank_fee,
         t_trans_list.c.fee,
+        t_trans_list.c.fee_duty,
         t_trans_list.c.cur_type,
         t_trans_list.c.div_term,
         t_trans_list.c.product,
-        t_trans_list.c.modify_time
+        t_trans_list.c.modify_time,
+        t_trans_list.c.bank_settle_time
     ]).where(
         t_trans_list.c.bank_list == bank_list)
 
@@ -266,59 +328,26 @@ def check_sign_rsa(db, params):
     return verifier.verify(h, sign)
 
 
-def check_db_set(db, safe_vars, now, for_sms=False):
-    """检查系统相关设置"""
-
-    if not for_sms:
-        # 检查订单号是否已经存在
-        ok, ret_repeat = check_repeat_list(
-            db, safe_vars['spid'], safe_vars['sp_list'])
-        if not ok:   # 如果已经存在
-            return False, ret_repeat
-
-        # 只支持信用卡
-        if safe_vars['account_type'] != const.ACCOUNT_TYPE.CREDIT_CARD:
-            return False, const.API_ERROR.ACCOUNT_TYPE_ERROR
-
-        # 只支持人民币
-        if safe_vars['cur_type'] != const.CUR_TYPE.RMB:
-            return False, const.API_ERROR.CUR_TYPE_ERROR
-
-    # 检查余额账户
-    ok, balance_error = check_sp_balance(
-        db, const.ACCOUNT_CLASS.B, safe_vars['spid'])
-    if not ok:
-        return False, balance_error
-    ok, balance_error = check_sp_balance(
-        db, const.ACCOUNT_CLASS.C, safe_vars['spid'])
-    if not ok:
-        return False, balance_error
-    ok, balance_error = check_sp_balance(
-        db, const.ACCOUNT_CLASS.C, config.FENLE_SPID)
-    if not ok:
-        return False, balance_error
-    ok, balance_error = check_fenle_balance(
-        db, config.FENLE_ACCOUNT_NO, config.FENLE_BANK_TYPE)
-    if not ok:
-        return False, balance_error
+def trade(db, product, safe_vars):
+    """ 处理逻辑"""
 
     now = datetime.datetime.now()
     # 检查用户银行卡信息 user_bank
-    ok, ret_user_bank = check_user_bank(
+    ok, error_code = check_user_bank(
         db, safe_vars['bankacc_no'], safe_vars['bank_type'],
         safe_vars['mobile'], now)
     if not ok:
-        return False, ret_user_bank
-    return True, None
-
-
-def trade(db, product, safe_vars):
-    """ 处理逻辑"""
-    now = datetime.datetime.now()
-
-    ok, error_code = check_db_set(db, safe_vars, now)
-    if not ok:
         return False, error_code
+
+    # 检查订单是否已经存在
+    ok, msg, is_repeat = check_repeat_list(
+        db, safe_vars['spid'], safe_vars['sp_list'],
+        safe_vars['bank_type'], safe_vars['mobile'],
+        safe_vars['bankacc_no'], safe_vars['amount'])
+    if not ok:
+        return False, msg  # msg is error_code
+    if is_repeat:
+        return True, msg  # msg is list_ret
 
     # 检查银行渠道是否可用，
     ok, bank_fee_percent = check_bank_channel(

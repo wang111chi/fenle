@@ -73,9 +73,8 @@ class HTTP_METHOD(object):
 
 class CUR_TYPE(object):
     RMB = 0     # 人民币
-    DOLLAR = 1  # 美元
 
-    ALL = (RMB, DOLLAR)
+    ALL = (RMB,)
 
 
 class BIZ(object):
@@ -112,12 +111,6 @@ class REFUND_STATUS(object):
     REFUNDING = 0  # 退款中
     REFUND_SUCCESS = 1  # 退款成功
     REFND_FAIL = 2  # 退款失败
-
-
-class REFUND_STATUS(object):
-    REFUNDING = 0  # 退款中
-    REFUND_SUCCESS = 1  # 退款成功
-    REFND_FALSE = 2  # 退款失败
 
 
 class MERCHANT_STATUS(object):
@@ -162,13 +155,11 @@ class ACCOUNT_TYPE(object):
     u"""银行卡类型."""
 
     CREDIT_CARD = 0
-    DEBIT_CARD = 1
 
-    ALL = (CREDIT_CARD, DEBIT_CARD)
+    ALL = (CREDIT_CARD, )
 
     NAMES = {
         CREDIT_CARD: u"信用卡",
-        DEBIT_CARD: u"借记卡"
     }
 
 
@@ -208,7 +199,10 @@ class API_ERROR(object):
     DECRYPT_ERROR = 207366
     SIGN_INVALID = 207367
 
-    REPEAT_PAY = 207202
+    REPEAT_PAY_MOBILE_ERROR = 207211
+    REPEAT_PAY_ACCOUNTNO_ERROR = 207212
+    REPEAT_PAY_AMOUNT_ERROR = 207213
+    REPEAT_PAY_BANKTYPE_ERROR = 207215
 
     SPID_NOT_EXIST = 207200
     MERCHANT_FORBID = 207201
@@ -248,7 +242,10 @@ class API_ERROR(object):
         DECRYPT_ERROR: u"解密失败",
         SIGN_INVALID: u"校验签名失败",
         ACCOUNT_NOT_EXIST: u"银行卡未注册",
-        REPEAT_PAY: u"订单已经存在了，请别重复提交",
+        REPEAT_PAY_MOBILE_ERROR: u"重复提交手机号错误",
+        REPEAT_PAY_ACCOUNTNO_ERROR: u"重复提交银行卡号错误",
+        REPEAT_PAY_AMOUNT_ERROR: u"重复提交金额错误",
+        REPEAT_PAY_BANKTYPE_ERROR: u"重复提交银行类别错误",
         ACCOUNT_FREEZED: u"银行卡冻结",
         BANK_NOT_EXIST: u"分乐暂不支持该银行",
         ACCOUNT_TYPE_ERROR: u"分乐暂不支持此银行卡类型",

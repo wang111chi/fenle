@@ -56,7 +56,7 @@ def trade(db, safe_vars):
 @point.route("/point/query")
 @general("积分查询")
 @db_conn
-@form_check({
+@api_form_check({
     "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
     "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
     "valid_date": F_str("有效期") & "strict" & "required",
@@ -71,7 +71,7 @@ def query(db, safe_vars):
         'request_type': '2008'}
     interface_input.update(safe_vars)
     interface_input["bank_type"] = const.BANK_ID.GDB
-    ok, msg = pi.call2(interface_input)
+    ok, msg = pi.call_def(interface_input)
     if not ok:
         return ApiJsonErrorResponse(msg)
     return ApiJsonOkResponse(remain_point=msg["remainJf"])

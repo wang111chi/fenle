@@ -3,14 +3,15 @@
 
 from flask import Blueprint
 
-from base.framework import general, db_conn, api_form_check
+from base.framework import general, db_conn
+from base.framework import api_form_check
 from base.framework import ApiJsonOkResponse, ApiJsonErrorResponse
-from base.framework import TempResponse
 from base.xform import F_mobile, F_str, F_int, F_datetime
 from base import constant as const
 from base import dblogic as dbl
 from base import util
 import config
+
 
 consume = Blueprint("consume", __name__)
 

@@ -39,8 +39,10 @@ sms = Blueprint("sms", __name__)
 def send(db, safe_vars):
     now = datetime.datetime.now()
 
-    # 检查商户余额和用户银行
-    ok, error_code = dbl.check_db_set(db, safe_vars, now, for_sms=True)
+    # 检查用户银行卡信息 user_bank
+    ok, error_code = dbl.check_user_bank(
+        db, safe_vars['bankacc_no'], safe_vars['bank_type'],
+        safe_vars['mobile'], now)
     if not ok:
         return ApiJsonErrorResponse(error_code)
 
