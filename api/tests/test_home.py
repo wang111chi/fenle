@@ -36,7 +36,7 @@ from base.xform import F_str
 from base import dblogic as dbl
 
 
-class SpMode(object):
+class SpModel():
     """商户端模型"""
 
     # 测试参数模板
@@ -164,7 +164,7 @@ class SpMode(object):
         return {"cipher_data": cipher_data}
 
 
-class TestSms(SpMode):
+class TestSms(SpModel):
     def sms_send(self, client, predict_ret):
         sms_data = dict((k, self.params[k]) for k in (
             'encode_type', 'spid', 'true_name', 'pin_code',
@@ -236,9 +236,9 @@ class TestSms(SpMode):
             self.sms_send(client, const.API_ERROR.BANK_ERROR)
 
 
-class Trans(SpMode):
+class Trans(SpModel):
     params = {'div_term': 6}
-    params.update(SpMode.params)
+    params.update(SpModel.params)
 
     def layaway_trade(self, client, params, predict_ret):
         query_params = self.sign_encrypt_md5(self.key, params)
@@ -440,7 +440,6 @@ class TestRefund_TransQuery(Trans):
         self.insert_channel(db, const.BOOLEAN.TRUE)
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
         params = self.params.copy()
-
         with mock.patch("base.pp_interface.call_def") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
@@ -460,7 +459,6 @@ class TestRefund_TransQuery(Trans):
         self.insert_channel(db, const.BOOLEAN.TRUE)
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
         params = self.params.copy()
-
         with mock.patch("base.pp_interface.call_def") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
@@ -497,9 +495,9 @@ class TestRefund_TransQuery(Trans):
             self.refund(client, bank_list, const.REQUEST_STATUS.SUCCESS)
 
 
-class TestPointCash(SpMode):
+class TestPointCash(SpModel):
     params = {'jf_deduct_money': 3000}
-    params.update(SpMode.params)
+    params.update(SpModel.params)
 
     def point_cash(self, client, params, predict_ret):
         query_params = self.sign_encrypt_md5(self.key, params)
@@ -538,7 +536,7 @@ class TestPointCash(SpMode):
                 client, self.params, const.REQUEST_STATUS.SUCCESS)
 
 
-class TestPoint(SpMode):
+class TestPoint(SpModel):
     def point(self, client, params, predict_ret):
         query_params = self.sign_encrypt_md5(self.key, params)
         rsp = client.get('/point/trade', query_string=query_params)
@@ -582,7 +580,7 @@ class TestPoint(SpMode):
     """
 
 
-class TestConsume(SpMode):
+class TestConsume(SpModel):
     def consume(self, client, params, predict_ret):
         query_params = self.sign_encrypt_md5(self.key, params)
         rsp = client.get('/consume/trade', query_string=query_params)
@@ -618,172 +616,6 @@ class TestConsume(SpMode):
                 "bank_settle_time": self.now})
             self.consume(
                 client, self.params, const.REQUEST_STATUS.SUCCESS)
-
-    """
-    def test_query_listid_check(self, client):
-        qry_data = {
-            "encode_type": "MD5",
-            "list_id": "543223",  # 给一个不存在的list_id
-            "spid": self.spid,
-            "channel": const.CHANNEL.API}
-        query_params = self.sign_encrypt_md5(self.key, qry_data)
-        rsp = client.get('/cardpay/query', query_string=query_params)
-        assert rsp.status_code == 200
-        json_rsp = json.loads(rsp.data)
-        assert json_rsp["retcode"] == const.API_ERROR.LIST_ID_NOT_EXIST
-
-    def test_query_spid_check(self, client, db):
-        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
-        self.insert_balance(db)
-        self.insert_channel(
-            db, const.BANK_VALITYPE.MOBILE_VALID,
-            const.BOOLEAN.TRUE)
-        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
-
-        # 测试验证手机号的支付请求
-        list_id = self.cardpay_trade(
-            client, self.params,
-            const.REQUEST_STATUS.SUCCESS)
-        qry_data = {
-            "encode_type": "MD5",
-            "list_id": list_id,
-            "spid": "56" * 5,  # 给一个不存在的 spid
-            "channel": const.CHANNEL.API}
-
-        query_params = self.sign_encrypt_md5(self.key, qry_data)
-        qry_rsp = client.get(
-            '/cardpay/query', query_string=query_params)
-        assert qry_rsp.status_code == 200
-        json_qry_rsp = json.loads(qry_rsp.data)
-        assert json_qry_rsp["retcode"] == const.API_ERROR.SPID_NOT_EXIST
-
-    def test_query_check(self, client, db):
-        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
-        self.insert_balance(db)
-        self.insert_channel(
-            db, const.BANK_VALITYPE.MOBILE_VALID,
-            const.BOOLEAN.TRUE)
-        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
-
-        # 测试验证手机号的支付请求
-        list_id = self.cardpay_trade(
-            client, self.params,
-            const.REQUEST_STATUS.SUCCESS)
-        # 测试正确的查询
-        qry_data = {
-            "encode_type": "MD5",
-            "list_id": list_id,
-            "spid": self.spid,
-            "channel": const.CHANNEL.API}
-        query_params = self.sign_encrypt_md5(self.key, qry_data)
-        spid_qry = client.get(
-            '/cardpay/query', query_string=query_params)
-        assert spid_qry.status_code == 200
-        json_spid_qry = json.loads(spid_qry.data)
-        assert json_spid_qry["retcode"] == const.REQUEST_STATUS.SUCCESS
-        params = util.rsa_decrypt(
-            json_spid_qry['cipher_data'],
-            config.TEST_MERCHANT_PRIVATE_KEY)
-        logger.debug(params)
-
-    def test_layaway_trade_rsa(self, client):
-        params = self.params
-
-        # RSA签名 + RSA加密
-        cipher_data = util.rsa_sign_and_encrypt_params(
-            params,
-            config.TEST_MERCHANT_PRIVATE_KEY,
-            config.FENLE_PUB_KEY
-        )
-        query_params = {"cipher_data": cipher_data}
-        resp = client.get('/cardpay/trade', query_string=query_params)
-
-        assert resp.status_code == 200
-        # json_resp = json.loads(resp.data)
-        # assert json_resp["retcode"] == 0
-
-    def test_query_listid_check(self, client):
-        qry_data = {
-            "encode_type": "MD5",
-            "list_id": "543223",  # 给一个不存在的list_id
-            "spid": self.spid,
-            "channel": const.CHANNEL.API}
-        query_params = self.sign_encrypt_md5(self.key, qry_data)
-        rsp = client.get('/cardpay/query', query_string=query_params)
-        assert rsp.status_code == 200
-        json_rsp = json.loads(rsp.data)
-        assert json_rsp["retcode"] == const.API_ERROR.LIST_ID_NOT_EXIST
-
-    def test_query_spid_check(self, client, db):
-        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
-        self.insert_balance(db)
-        self.insert_channel(
-            db, const.BANK_VALITYPE.MOBILE_VALID,
-            const.BOOLEAN.TRUE)
-        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
-
-        # 测试验证手机号的支付请求
-        list_id = self.cardpay_trade(
-            client, self.params,
-            const.REQUEST_STATUS.SUCCESS)
-        qry_data = {
-            "encode_type": "MD5",
-            "list_id": list_id,
-            "spid": "56" * 5,  # 给一个不存在的 spid
-            "channel": const.CHANNEL.API}
-
-        query_params = self.sign_encrypt_md5(self.key, qry_data)
-        qry_rsp = client.get(
-            '/cardpay/query', query_string=query_params)
-        assert qry_rsp.status_code == 200
-        json_qry_rsp = json.loads(qry_rsp.data)
-        assert json_qry_rsp["retcode"] == const.API_ERROR.SPID_NOT_EXIST
-
-    def test_query_check(self, client, db):
-        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
-        self.insert_balance(db)
-        self.insert_channel(
-            db, const.BANK_VALITYPE.MOBILE_VALID,
-            const.BOOLEAN.TRUE)
-        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
-
-        # 测试验证手机号的支付请求
-        list_id = self.cardpay_trade(
-            client, self.params,
-            const.REQUEST_STATUS.SUCCESS)
-        # 测试正确的查询
-        qry_data = {
-            "encode_type": "MD5",
-            "list_id": list_id,
-            "spid": self.spid,
-            "channel": const.CHANNEL.API}
-        query_params = self.sign_encrypt_md5(self.key, qry_data)
-        spid_qry = client.get(
-            '/cardpay/query', query_string=query_params)
-        assert spid_qry.status_code == 200
-        json_spid_qry = json.loads(spid_qry.data)
-        assert json_spid_qry["retcode"] == const.REQUEST_STATUS.SUCCESS
-        params = util.rsa_decrypt(
-            json_spid_qry['cipher_data'],
-            config.TEST_MERCHANT_PRIVATE_KEY)
-        logger.debug(params)
-
-    def test_layaway_trade_rsa(self, client):
-        params = self.params
-
-        # RSA签名 + RSA加密
-        cipher_data = util.rsa_sign_and_encrypt_params(
-            params,
-            config.TEST_MERCHANT_PRIVATE_KEY,
-            config.FENLE_PUB_KEY
-        )
-        query_params = {"cipher_data": cipher_data}
-        resp = client.get('/cardpay/trade', query_string=query_params)
-
-        assert resp.status_code == 200
-        # json_resp = json.loads(resp.data)
-        # assert json_resp["retcode"] == 0
-     """
 
 
 def test_api_form_check_not_encrypted(db):

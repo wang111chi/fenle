@@ -53,6 +53,7 @@ def trade(db, safe_vars):
     return ApiJsonOkResponse(trans=cipher_data)
 
 
+"""
 @point.route("/point/query")
 @general("积分查询")
 @db_conn
@@ -75,3 +76,4 @@ def query(db, safe_vars):
     if not ok:
         return ApiJsonErrorResponse(msg)
     return ApiJsonOkResponse(remain_point=msg["remainJf"])
+"""
