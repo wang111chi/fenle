@@ -7,3 +7,6 @@ __pycache__/
 *.swp
 .coverage
 htmlcov
+GPATH
+GRTAGS
+GTAGS
