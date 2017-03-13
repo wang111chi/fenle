@@ -30,10 +30,8 @@ def settle(db):
         t_trans_list.c.list_id,
         t_trans_list.c.spid,
         t_trans_list.c.status,
-        t_trans_list.c.paynum,
         t_trans_list.c.fee,
         t_trans_list.c.bank_fee,
-        t_trans_list.c.divided_term,
         t_trans_list.c.fee_duty,
         t_trans_list.c.bank_type]).where(and_(
             t_trans_list.c.status == const.TRANS_STATUS.PAY_SUCCESS,
