@@ -104,6 +104,11 @@ def _cancel_or_refund(db, bank_list):
         'modify_time': now,
         'status': const.REFUND_STATUS.REFUNDING}
 
+    # FIXME @review by liyuan: history中的amount是有符号的，
+    # FIXME 对应的是balance的变化值，这里应该为负，下面的都一样
+    # FIXME 最好把banlance变更和history插入的逻辑写在一起，以
+    # FIXME 明确它们之间的一一对应关系，create_time也不是在这里
+    # FIXME 赋值的，因为还要调银行接口，这段时间不能忽略
     sp_history_data = {
         'biz': const.BIZ.REFUND,
         'amount': list_ret['amount'],
@@ -124,8 +129,13 @@ def _cancel_or_refund(db, bank_list):
     for i in ('spid', 'list_id', 'status', 'modify_time'):
         ret_data[i] = refund_data[i]
 
+    # FIXME @review by liyuan: 这里不是看modify_time，而是看bank_settle_time
     if now.date() == list_ret['modify_time'].date():
+        # FIXME @review by liyuan: 在调接口之前插入退款单，调完接口后再更新退款单，
+        # FIXME: 这跟交易单先建单再调接口的逻辑一样
+        # FIXME @review by liyuan: 这里把调接口的代码加上，因为接口已经有了
         # [TODO] 调用银行撤销接口
+        # FIXME: 如果成功才会修改分乐、商家的余额等，失败只会改退款单状态
         # 更新status
         udp_sp_balance_b = dbl.update_sp_balance(
             list_ret['spid'], const.ACCOUNT_CLASS.B,
@@ -148,13 +158,17 @@ def _cancel_or_refund(db, bank_list):
             db.execute(udp_fenle_balance)
             db.execute(t_fenle_history.insert(), fenle_history_data)
 
+            # FIXME @review by liyuan: 在调接口之前插入退款单，这里更新状态\时间等
             db.execute(t_refund_list.insert(), refund_data)
             db.execute(udp_trans_list)
             trans.finish()
 
+        # FIXME @review by liyuan: 这里明显有问题，只是返回值改了？数据库中的状态还是退款中？
         ret_data.update({"status": const.REFUND_STATUS.REFUND_SUCCESS})
         return True, ret_data
     elif list_ret['bank_settle_time'] is None:
+        # FIXME @review by liyuan: 退款中表示提交银行到银行返回这段时间的状态，
+        # FIXME 这里用另外一个状态，比如审核中
         refund_data.update({'status': const.REFUND_STATUS.REFUNDING})
         db.execute(t_refund_list.insert(), refund_data)
         # 保存退款单，异步处理
@@ -170,11 +184,14 @@ def _cancel_or_refund(db, bank_list):
         ret_sel_b = db.execute(sel_b).first()
         b_balance = ret_sel_b['balance'] - ret_sel_b['freezing']
 
+        # FIXME @review by liyuan: 这个是在调用退款接口成功之后才更新的，不用急着在这里
+        # 赋值，比如modify_time就不能取now这个值，下面的now同样。
         udp_trans_list = t_trans_list.update().where(
             t_trans_list.c.id == list_ret['id']).values(
             refund_id=refund_id, modify_time=now)
 
         if b_balance >= sp_amount:
+
             # [TODO] 调用银行撤销接口
             udp_sp_balance = dbl.update_sp_balance(
                 list_ret['spid'], const.ACCOUNT_CLASS.B,

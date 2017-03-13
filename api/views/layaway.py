@@ -49,4 +49,5 @@ def trade(db, safe_vars):
     sp_pubkey = dbl.get_sp_pubkey(db, safe_vars['spid'])
     cipher_data = util.rsa_sign_and_encrypt_params(
         msg, config.FENLE_PRIVATE_KEY, sp_pubkey)
+    # FIXME @review by liyuan: 返回的key统一称为cipher_data
     return ApiJsonOkResponse(trans=cipher_data)

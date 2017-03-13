@@ -87,6 +87,9 @@ def check_repeat_list(db, spid, sp_list, bank_type, mobile,
     ret_data = {'spid': spid,
                 'sp_list': sp_list,
                 'encode_type': const.ENCODE_TYPE.RSA}
+    # FIXME @review by liyuan: 这里和trade中返回不完全一致：如没有div_term?
+    # FIXME 最好都到trade中统一处理返回值，另：像encode_type这种参数放在views
+    # FIXME 中去处理比较妥当
     for k in ('amount', 'cur_type', 'product', 'id',
               'fee_duty', 'bank_list', 'status'):
         ret_data[k] = list_ret.get(k)
@@ -280,6 +283,7 @@ def get_sp_pubkey(db, spid):
 
 
 def get_terminal_spid(db, spid, bank_type):
+    # FIXME @review by liyuan: 注释不对
     """从mysql获取商户公钥"""
     s = select([
         t_sp_bank.c.bank_spid,
@@ -334,6 +338,8 @@ def check_sign_rsa(db, params):
 
 
 def trade(db, product, safe_vars):
+    # FIXME @review by liyuan: 这里可以直接删了， 产品不是用户输入的，
+    # FIXME 这样注释会当作函数的文档
     """ 处理逻辑
 
     if product not in (
@@ -446,6 +452,7 @@ def trade(db, product, safe_vars):
         bank_settle_time=msg['bank_settle_time'],
         status=const.TRANS_STATUS.PAY_SUCCESS,
         modify_time=now)
+    # FIXME @review by liyuan: 事务中去更改订单状态，不是这里
     db.execute(udp_trans_list)
 
     sp_history_data = {

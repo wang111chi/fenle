@@ -225,6 +225,7 @@ class API_ERROR(object):
     SP_BALANCE_NOT_EXIST = 207506
     FENLE_BALANCE_NOT_EXIST = 207507
 
+    # FIXME @review by liyuan: 这个code没检测过？没有对应的NAME
     LIST_ID_NOT_EXIST = 207600
     LIST_STATUS_ERROR = 207605
 
