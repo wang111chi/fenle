@@ -220,6 +220,7 @@ def settle_a_list(db, a_list, now):
             'amount': a_list['fee'] - a_list['bank_fee'],
             'spid': config.FENLE_SPID})
         db.execute(t_sp_history.insert(), sp_history_data)
+
         trans.finish()
 
 
@@ -240,7 +241,7 @@ def check_user_bank(db, acc_no, bank_type, mobile, now):
         db.execute(t_user_bank.insert(), user_bank_info)
     else:
         # 检查银行卡是否被冻结 user_bank
-        if user_bank_ret['status'] == const.USER_BANK_STATUS.FREEZING:  # 冻结标志
+        if user_bank_ret['status'] == const.USER_BANK_STATUS.FREEZING:
             return False, const.API_ERROR.ACCOUNT_FREEZED
     return True, None
 
