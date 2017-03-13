@@ -8,6 +8,7 @@ from werkzeug.datastructures import MultiDict
 
 import config
 from base import logger
+from base.pps_errcode import pps_error_codes
 
 
 def call2(params, host=config.PP_SERVER_HOST, port=config.PP_SERVER_PORT):
@@ -19,13 +20,25 @@ def call2(params, host=config.PP_SERVER_HOST, port=config.PP_SERVER_PORT):
         'params: {}\nmsg returned: {}'.format(params, msg))
 
     bank_ret = msg
-    if bank_ret["result"] != '0':
-        if bank_ret.get("bank_time_out", '') == 'true':
-            revoke(params, host, port)
-            return False, "银行超时"
-        return False, bank_ret["res_info"]
+    result = bank_ret["result"]
+    if result != '0':
+        maybe_revoke(bank_ret, params, host, port)
+        internal_message, message = pps_error_codes.get(
+            result, ("未知错误代码{}".format(result), "未知银行错误"))
+        logger.get("pp-interface").debug(
+            "error_code: %s, internal_message: %s, message: %s",
+            result, internal_message, message)
+
+        return False, message
 
     return True, bank_ret
+
+
+def maybe_revoke(bank_ret, params, host, port):
+    # TODO: other conditions may be added
+
+    if bank_ret.get("bank_time_out", '') == 'true':
+        revoke(params, host, port)
 
 
 REVOKE_REQUEST_CODE_MAPPING = {
