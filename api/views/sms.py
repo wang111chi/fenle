@@ -68,7 +68,7 @@ def send(db, safe_vars):
         'bank_list': util.gen_bank_list()}
     for k in ('amount', 'bankacc_no', 'mobile', 'valid_date'):
         input_data[k] = safe_vars[k]
-    ok, msg = pi.call_def(input_data)
+    ok, msg = pi.call2(input_data)
     if not ok:
         return ApiJsonErrorResponse(msg)
 

@@ -64,6 +64,7 @@ def check_repeat_list(db, spid, sp_list, bank_type, mobile,
         t_trans_list.c.cur_type,
         t_trans_list.c.bank_list,
         t_trans_list.c.fee_duty,
+        t_trans_list.c.div_term,
         t_trans_list.c.product]).where(and_(
             t_trans_list.c.spid == spid,
             t_trans_list.c.sp_list == sp_list))
@@ -83,17 +84,7 @@ def check_repeat_list(db, spid, sp_list, bank_type, mobile,
     if list_ret['bank_type'] != bank_type:
         return False, const.API_ERROR.REPEAT_PAY_BANKTYPE_ERROR, None
 
-    list_ret = dict(list_ret)
-    ret_data = {'spid': spid,
-                'sp_list': sp_list,
-                'encode_type': const.ENCODE_TYPE.RSA}
-    # FIXME @review by liyuan: 这里和trade中返回不完全一致：如没有div_term?
-    # FIXME 最好都到trade中统一处理返回值，另：像encode_type这种参数放在views
-    # FIXME 中去处理比较妥当
-    for k in ('amount', 'cur_type', 'product', 'id',
-              'fee_duty', 'bank_list', 'status'):
-        ret_data[k] = list_ret.get(k)
-    return True, ret_data, True
+    return True, list_ret, True
 
 
 def check_bank_channel(db, product, bank_type, pin_code, name, div_term):
@@ -170,60 +161,6 @@ def check_sp_bank(db, product, spid, bank_type, div_term):
     return True, fee_percent
 
 
-def update_sp_balance(spid, account_class, balance, now,
-                      cur_type=const.CUR_TYPE.RMB):
-    """return a sql without execute"""
-    return t_sp_balance.update().where(and_(
-        t_sp_balance.c.spid == spid,
-        t_sp_balance.c.cur_type == cur_type,
-        t_sp_balance.c.account_class == account_class
-    )).values(
-        balance=t_sp_balance.c.balance + balance,
-        modify_time=now)
-
-
-def settle_a_list(db, a_list, now):
-    """B2C"""
-
-    sp_history_data = {
-        'spid': a_list['spid'],
-        'account_class': const.ACCOUNT_CLASS.B,
-        'amount': a_list['amount'],
-        'biz': const.BIZ.SETTLE,
-        'ref_str_id': a_list['id'],
-        'create_time': now}
-
-    udp_sp_balance_b = update_sp_balance(
-        a_list['spid'], const.ACCOUNT_CLASS.B,
-        0 - a_list['amount'], now)
-
-    udp_sp_balance_c = update_sp_balance(
-        a_list['spid'], const.ACCOUNT_CLASS.C,
-        a_list['amount'] - a_list['fee'], now)
-
-    udp_spfen_balance = update_sp_balance(
-        config.FENLE_SPID, const.ACCOUNT_CLASS.C,
-        a_list['fee'] - a_list['bank_fee'], now)
-
-    with transaction(db) as trans:
-        db.execute(udp_sp_balance_b)
-        db.execute(t_sp_history.insert(), sp_history_data)
-
-        db.execute(udp_sp_balance_c)
-        sp_history_data.update({
-            'amount': a_list['amount'] - a_list['fee'],
-            'account_class': const.ACCOUNT_CLASS.C})
-        db.execute(t_sp_history.insert(), sp_history_data)
-
-        db.execute(udp_spfen_balance)
-        sp_history_data.update({
-            'amount': a_list['fee'] - a_list['bank_fee'],
-            'spid': config.FENLE_SPID})
-        db.execute(t_sp_history.insert(), sp_history_data)
-
-        trans.finish()
-
-
 def check_user_bank(db, acc_no, bank_type, mobile, now):
     """ 检查用户银行卡信息 user_bank"""
     sel = select([t_user_bank.c.status]).where(
@@ -251,17 +188,22 @@ def get_list(db, bank_list, what_status=None):
         t_trans_list.c.id,
         t_trans_list.c.status,
         t_trans_list.c.spid,
+        t_trans_list.c.valid_date,
+        t_trans_list.c.bankacc_no,
         t_trans_list.c.mobile,
         t_trans_list.c.bank_type,
         t_trans_list.c.sp_list,
         t_trans_list.c.amount,
+        t_trans_list.c.jf_deduct_money,
+        t_trans_list.c.bank_roll,
         t_trans_list.c.bank_fee,
         t_trans_list.c.fee,
         t_trans_list.c.fee_duty,
         t_trans_list.c.cur_type,
         t_trans_list.c.div_term,
         t_trans_list.c.product,
-        t_trans_list.c.modify_time,
+        t_trans_list.c.create_time,
+        t_trans_list.c.settle_time,
         t_trans_list.c.bank_settle_time
     ]).where(
         t_trans_list.c.bank_list == bank_list)
@@ -284,8 +226,6 @@ def get_sp_pubkey(db, spid):
 
 
 def get_terminal_spid(db, spid, bank_type):
-    # FIXME @review by liyuan: 注释不对
-    """从mysql获取商户公钥"""
     s = select([
         t_sp_bank.c.bank_spid,
         t_sp_bank.c.terminal_no]).where(and_(
@@ -293,6 +233,115 @@ def get_terminal_spid(db, spid, bank_type):
             t_sp_bank.c.bank_type == bank_type))
     sp_bank_ret = db.execute(s).first()
     return sp_bank_ret['terminal_no'], sp_bank_ret['bank_spid']
+
+
+def get_sp_balance(db, spid, account_class,
+                   cur_type=const.CUR_TYPE.RMB):
+    sel_b = select([
+        t_sp_balance.c.balance,
+        t_sp_balance.c.freezing]).where(and_(
+            t_sp_balance.c.spid == spid,
+            t_sp_balance.c.cur_type == cur_type,
+            t_sp_balance.c.account_class == account_class))
+    ret_sel_b = db.execute(sel_b).first()
+    return ret_sel_b['balance'] - ret_sel_b['freezing']
+
+
+def update_fenle_balance(delta_amount, now):
+    """return a sql without execute"""
+    return t_fenle_balance.update().where(and_(
+        t_fenle_balance.c.bankacc_no == config.FENLE_ACCOUNT_NO,
+        t_fenle_balance.c.bank_type == config.FENLE_BANK_TYPE)).values(
+        balance=t_fenle_balance.c.balance + delta_amount,
+        modify_time=now)
+
+
+def update_sp_balance(spid, delta_amount, now, account_class,
+                      cur_type=const.CUR_TYPE.RMB):
+    """return a sql without execute"""
+    return t_sp_balance.update().where(and_(
+        t_sp_balance.c.spid == spid,
+        t_sp_balance.c.cur_type == cur_type,
+        t_sp_balance.c.account_class == account_class
+    )).values(
+        balance=t_sp_balance.c.balance + delta_amount,
+        modify_time=now)
+
+
+def settle_a_list(db, a_list, now):
+    """B2C"""
+
+    def gen_sp_history_data(spid, amount, account_class):
+        return {'spid': a_list['spid'],
+                'account_class': account_class,
+                'amount': amount,
+                'biz': const.BIZ.SETTLE,
+                'ref_str_id': a_list['id'],
+                'create_time': now}
+
+    with transaction(db) as trans:
+        db.execute(update_sp_balance(
+            a_list['spid'], 0 - a_list['amount'], now,
+            const.ACCOUNT_CLASS.B))
+        db.execute(t_sp_history.insert(), gen_sp_history_data(
+            a_list['spid'], 0 - a_list['amount'],
+            const.ACCOUNT_CLASS.B))
+
+        db.execute(update_sp_balance(
+            a_list['spid'], a_list['amount'] - a_list['fee'],
+            now, const.ACCOUNT_CLASS.C))
+        db.execute(t_sp_history.insert(), gen_sp_history_data(
+            a_list['spid'], a_list['amount'] - a_list['fee'],
+            const.ACCOUNT_CLASS.C))
+
+        db.execute(update_sp_balance(
+            config.FENLE_SPID, a_list['fee'] - a_list['bank_fee'],
+            now, const.ACCOUNT_CLASS.C))
+        db.execute(t_sp_history.insert(), gen_sp_history_data(
+            a_list['spid'], a_list['fee'] - a_list['bank_fee'],
+            const.ACCOUNT_CLASS.C))
+
+        db.execute(t_trans_list.update().where(
+            t_trans_list.c.id == a_list['id']).values(
+            settle_time=now, modify_time=now))
+        trans.finish()
+
+
+def settle_for_refund(db, spid, amount, ref_str_id, now):
+    """C2B C账户到B账户"""
+
+    sp_history_data = {
+        'biz': const.BIZ.REFUND,
+        'amount': amount,
+        'ref_str_id': ref_str_id,
+        'create_time': now,
+        'account_class': const.ACCOUNT_CLASS.B,
+        'spid': spid}
+
+    with transaction(db) as trans:
+        db.execute(update_sp_balance(
+            spid, amount, now, const.ACCOUNT_CLASS.B))
+        db.execute(t_sp_history.insert(), sp_history_data)
+
+        db.execute(update_sp_balance(
+            spid, 0 - amount, now, const.ACCOUNT_CLASS.C))
+        sp_history_data.update({
+            'amount': 0 - amount,
+            'account_class': const.ACCOUNT_CLASS.C})
+        db.execute(t_sp_history.insert(), sp_history_data)
+        trans.finish()
+
+
+def with_draw(db, spid, amount, now):
+    db.execute(update_sp_balance(
+        spid, 0 - amount, now, const.ACCOUNT_CLASS.C))
+    db.execute(t_sp_history.insert(), {
+        'biz': const.BIZ.WITHDRAW,
+        'amount': amount,
+        'ref_str_id': 'withdraw' + now.strftime("%Y%m%d%H%M%S"),
+        'create_time': now,
+        'account_class': const.ACCOUNT_CLASS.C,
+        'spid': spid})
 
 
 def check_sign_md5(db, params):
@@ -339,15 +388,7 @@ def check_sign_rsa(db, params):
 
 
 def trade(db, product, safe_vars):
-    # FIXME @review by liyuan: 这里可以直接删了， 产品不是用户输入的，
-    # FIXME 这样注释会当作函数的文档
-    """ 处理逻辑
-
-    if product not in (
-        const.PRODUCT.LAYAWAY, const.PRODUCT.POINT,
-        const.PRODUCT.POINT_CASH, const.PRODUCT.CONSUME):
-        return False, const.API_ERROR.PRODUCT_NOT_EXIST
-    """
+    """ 处理逻辑 """
 
     now = datetime.datetime.now()
     # 检查用户银行卡信息 user_bank
@@ -365,7 +406,15 @@ def trade(db, product, safe_vars):
     if not ok:
         return False, msg  # msg is error_code
     if is_repeat:
-        return True, msg  # msg is list_ret
+        list_ret = dict(msg)
+        ret_data = {'spid': safe_vars['spid'],
+                    'sp_list': safe_vars['sp_list'],
+                    'result': list_ret['status'],
+                    'encode_type': const.ENCODE_TYPE.RSA}
+        for k in ('amount', 'cur_type', 'product', 'id',
+                  'fee_duty', 'bank_list', 'div_term'):
+            ret_data[k] = list_ret.get(k)
+        return True, ret_data
 
     # 检查银行渠道是否可用，
     ok, bank_fee_percent = check_bank_channel(
@@ -435,7 +484,7 @@ def trade(db, product, safe_vars):
     if product == const.PRODUCT.POINT_CASH:
         interface_input['jf_deduct_money'] = list_data['jf_deduct_money']
 
-    ok, msg = pi.call_def(interface_input)
+    ok, msg = pi.call2(interface_input)
     now = datetime.datetime.now()
 
     if not ok:
@@ -447,44 +496,38 @@ def trade(db, product, safe_vars):
         # FIXME
         return False, const.API_ERROR.BANK_ERROR
 
-    udp_trans_list = t_trans_list.update().where(
-        t_trans_list.c.id == list_data['id']).values(
-        bank_roll=msg['bank_roll'],
-        bank_settle_time=msg['bank_settle_time'],
-        status=const.TRANS_STATUS.PAY_SUCCESS,
-        modify_time=now)
-    # FIXME @review by liyuan: 事务中去更改订单状态，不是这里
-    db.execute(udp_trans_list)
-
     sp_history_data = {
         'biz': const.BIZ.TRANS,
         'amount': list_data['amount'],
         'ref_str_id': list_data['id'],
-        'create_time': now}
-    fenle_history_data = sp_history_data.copy()
-
-    udp_sp_balance = update_sp_balance(
-        safe_vars['spid'], const.ACCOUNT_CLASS.B,
-        list_data['amount'], now)
-    sp_history_data.update({
+        'create_time': now,
         'spid': safe_vars['spid'],
-        'account_class': const.ACCOUNT_CLASS.B})
+        'account_class': const.ACCOUNT_CLASS.B}
 
-    udp_fenle_balance = t_fenle_balance.update().where(and_(
-        t_fenle_balance.c.bankacc_no == config.FENLE_ACCOUNT_NO,
-        t_fenle_balance.c.bank_type == config.FENLE_BANK_TYPE)).values(
-        balance=t_fenle_balance.c.balance + list_data['amount'],
-        modify_time=now)
-    fenle_history_data.update({
+    fenle_history_data = {
+        'biz': const.BIZ.TRANS,
+        'amount': list_data['amount'],
+        'ref_str_id': list_data['id'],
+        'create_time': now,
         'bankacc_no': config.FENLE_ACCOUNT_NO,
-        'bank_type': config.FENLE_BANK_TYPE})
+        'bank_type': config.FENLE_BANK_TYPE}
 
     with transaction(db) as trans:
+        db.execute(update_sp_balance(
+            safe_vars['spid'], list_data['amount'],
+            now, const.ACCOUNT_CLASS.B))
         db.execute(t_sp_history.insert(), sp_history_data)
-        db.execute(udp_sp_balance)
+
+        db.execute(update_fenle_balance(list_data['amount'], now))
         db.execute(t_fenle_history.insert(), fenle_history_data)
-        db.execute(udp_fenle_balance)
-        db.execute(udp_trans_list)
+
+        db.execute(t_trans_list.update().where(
+            t_trans_list.c.id == list_data['id']).values(
+            bank_roll=msg['bank_roll'],
+            bank_settle_time=msg['bank_settle_time'],
+            status=const.TRANS_STATUS.PAY_SUCCESS,
+            modify_time=now))
+
         trans.finish()
 
     # 返回的参数

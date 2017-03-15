@@ -41,6 +41,7 @@ CREATE TABLE `trans_list` (
   `status` tinyint(4) NOT NULL COMMENT '状态，支付中/成功/失败等，见const',
   `create_time` datetime NOT NULL COMMENT '创建时间',
   `modify_time` datetime NOT NULL COMMENT '修改时间',
+  `settle_time` datetime DEFAULT NULL COMMENT '结算时间',
   `create_ip` int(10) unsigned DEFAULT NULL COMMENT '创建ip',
   `modify_ip` int(10) unsigned DEFAULT NULL COMMENT '修改ip',
   PRIMARY KEY (`id`),

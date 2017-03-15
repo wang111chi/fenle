@@ -50,4 +50,4 @@ def trade(db, safe_vars):
     cipher_data = util.rsa_sign_and_encrypt_params(
         msg, config.FENLE_PRIVATE_KEY, sp_pubkey)
     # FIXME @review by liyuan: 返回的key统一称为cipher_data
-    return ApiJsonOkResponse(trans=cipher_data)
+    return ApiJsonOkResponse(cipher_data=cipher_data)

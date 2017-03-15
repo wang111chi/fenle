@@ -110,7 +110,8 @@ class TRANS_STATUS(object):
 class REFUND_STATUS(object):
     REFUNDING = 0  # 退款中
     REFUND_SUCCESS = 1  # 退款成功
-    REFND_FAIL = 2  # 退款失败
+    REFUND_FAIL = 2  # 退款失败
+    CHECKING = 3
 
 
 class MERCHANT_STATUS(object):
@@ -235,6 +236,7 @@ class API_ERROR(object):
     BANK_ERROR = 207710
 
     REFUND_LESS_BALANCE = 207801
+    REFUND_TIME_OVER = 207802
 
     NAMES = {
         PARAM_ERROR: u"参数格式错误",
@@ -262,10 +264,12 @@ class API_ERROR(object):
         SP_BALANCE_NOT_EXIST: u"商户余额账户不存在",
         FENLE_BALANCE_NOT_EXIST: u"分乐余额账户不存在",
         LIST_STATUS_ERROR: u"订单状态错误",
+        LIST_ID_NOT_EXIST: u"订单不存在",
         NO_USER_PAY: u"不支持用户付手续费情形",
         INSERT_ERROR: u"数据库插入异常",
         BANK_ERROR: u"银行错误",
-        REFUND_LESS_BALANCE: u"余额不足退款"}
+        REFUND_LESS_BALANCE: u"余额不足退款",
+        REFUND_TIME_OVER: u"退款时间已过期"}
 
 
 class BANK_ID(object):

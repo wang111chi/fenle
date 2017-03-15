@@ -27,6 +27,7 @@ from base.db import t_sp_bank
 from base.db import t_sp_balance
 from base.db import t_fenle_balance
 from base.db import t_user_bank
+from base.db import t_trans_list
 import config
 from base import logger
 from base import constant as const
@@ -220,9 +221,9 @@ class TestSms(SpModel):
         self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
-        with mock.patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
-                "bank_sms_time": self.now})
+                "bank_sms_time": self.now.strftime("%m%d")})
             self.sms_send(client, const.REQUEST_STATUS.SUCCESS)
 
     def test_sms_banksys_err(self, client, db):
@@ -231,7 +232,7 @@ class TestSms(SpModel):
         self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
-        with mock.patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (False, const.API_ERROR.BANK_ERROR)
             self.sms_send(client, const.API_ERROR.BANK_ERROR)
 
@@ -248,7 +249,7 @@ class Trans(SpModel):
         assert json_rsp["retcode"] == predict_ret
         if predict_ret == 0:
             params = util.rsa_decrypt(
-                json_rsp['trans'],
+                json_rsp['cipher_data'],
                 config.TEST_MERCHANT_PRIVATE_KEY)
             return params['bank_list'][0]
 
@@ -332,7 +333,7 @@ class Trans(SpModel):
         self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
-        with mock.patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (False, None)
             self.layaway_trade(
                 client, self.params, const.API_ERROR.BANK_ERROR)
@@ -343,10 +344,10 @@ class Trans(SpModel):
         self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
-        with mock.patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now})
+                "bank_settle_time": self.now.strftime("%m%d")})
             self.layaway_trade(
                 client, self.params, const.REQUEST_STATUS.SUCCESS)
 
@@ -356,10 +357,10 @@ class Trans(SpModel):
         self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
-        with mock.patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now})
+                "bank_settle_time": self.now.strftime("%m%d")})
             self.layaway_trade(
                 client, self.params, const.REQUEST_STATUS.SUCCESS)
         # 测试重复调用的反应
@@ -396,7 +397,7 @@ class TestRefund_TransQuery(Trans):
         assert json_rsp["retcode"] == predict_ret
         if predict_ret == 0:
             params = util.rsa_decrypt(
-                json_rsp['trans'],
+                json_rsp['cipher_data'],
                 config.TEST_MERCHANT_PRIVATE_KEY)
             return params
 
@@ -411,10 +412,10 @@ class TestRefund_TransQuery(Trans):
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
         params = self.params.copy()
 
-        with mock.patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now})
+                "bank_settle_time": self.now.strftime("%m%d")})
             bank_list = self.layaway_trade(
                 client, params, const.REQUEST_STATUS.SUCCESS)
         return self.trans_query(
@@ -432,9 +433,9 @@ class TestRefund_TransQuery(Trans):
         assert json_rsp["retcode"] == predict_ret
         if predict_ret == 0:
             params = util.rsa_decrypt(
-                json_rsp['trans'],
+                json_rsp['cipher_data'],
                 config.TEST_MERCHANT_PRIVATE_KEY)
-            return params['status'][0]
+            return params['result'][0]
 
     def test_refund_spid(self, client, db):
         self.refund(client, '543212345', const.API_ERROR.SPID_NOT_EXIST)
@@ -447,20 +448,54 @@ class TestRefund_TransQuery(Trans):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.refund(client, '543212345', const.API_ERROR.LIST_ID_NOT_EXIST)
 
-    def test_refund_theday(self, client, db):
+    def test_refund_time(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+        params = self.params.copy()
+        with mock.patch("base.pp_interface.call2") as cd:
+            cd.return_value = (True, {
+                "bank_roll": '5432109876',
+                "bank_settle_time":
+                    (self.now + datetime.timedelta(days=32)).strftime("%m%d")})
+            bank_list = self.layaway_trade(
+                client, params, const.REQUEST_STATUS.SUCCESS)
+
+        self.refund(
+            client, bank_list, const.API_ERROR.REFUND_TIME_OVER)
+
+    def test_refund_theday_ok(self, client, db):
+        self.insert_merchant(db, self. spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+        params = self.params.copy()
+
+        with mock.patch("base.pp_interface.call2") as cd:
+            cd.return_value = (True, {
+                "bank_roll": '5432109876',
+                "bank_settle_time": self.now.strftime("%m%d")})
+            bank_list = self.layaway_trade(
+                client, params, const.REQUEST_STATUS.SUCCESS)
+            self.refund(client, bank_list, const.REQUEST_STATUS.SUCCESS)
+
+    def test_refund_theday_err(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
         self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
         params = self.params.copy()
 
-        with mock.patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now})
+                "bank_settle_time": self.now.strftime("%m%d")})
             bank_list = self.layaway_trade(
                 client, params, const.REQUEST_STATUS.SUCCESS)
-        self.refund(client, bank_list, const.REQUEST_STATUS.SUCCESS)
+        with mock.patch("base.pp_interface.call2") as cd:
+            cd.return_value = (False, const.API_ERROR.BANK_ERROR)
+            self.refund(client, bank_list, const.API_ERROR.BANK_ERROR)
 
     def test_refund_bank_settled(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
@@ -468,59 +503,142 @@ class TestRefund_TransQuery(Trans):
         self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
         params = self.params.copy()
-        with mock.patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": None})
+                "bank_settle_time": self.now.strftime("%m%d")})
             bank_list = self.layaway_trade(
                 client, params, const.REQUEST_STATUS.SUCCESS)
 
         target = self.now + datetime.timedelta(days=1)
-        with mock.patch.object(datetime, 'datetime',
-                               mock.Mock(wraps=datetime.datetime)) as patched:
+        with mock.patch.object(datetime, 'datetime', mock.Mock(
+                wraps=datetime.datetime)) as patched:
             patched.now.return_value = target
-            self.refund(client, bank_list, const.REQUEST_STATUS.SUCCESS)
+            self.refund(
+                client, bank_list, const.REQUEST_STATUS.SUCCESS)
 
-    def test_refund_before_c2b(self, client, db):
+    def test_refund_before_c2b_ok(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
         self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
         params = self.params.copy()
-        with mock.patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now})
+                "bank_settle_time": self.now.strftime("%m%d")})
             bank_list = self.layaway_trade(
                 client, params, const.REQUEST_STATUS.SUCCESS)
 
+        db.execute(t_trans_list.update().where(
+            t_trans_list.c.bank_list == bank_list).values(
+                settle_time=self.now, modify_time=self.now))
         target = self.now + datetime.timedelta(days=1)
-        with mock.patch.object(datetime, 'datetime',
-                               mock.Mock(wraps=datetime.datetime)) as patched:
+        with mock.patch.object(datetime, 'datetime', mock.Mock(
+                wraps=datetime.datetime)) as patched:
             patched.now.return_value = target
-            self.refund(client, bank_list, const.REQUEST_STATUS.SUCCESS)
+            with mock.patch("base.pp_interface.call2") as cd:
+                cd.return_value = (True, {
+                    "bank_roll": '5432109876',
+                    "bank_settle_time": self.now.strftime("%m%d")})
+                self.refund(client, bank_list, const.REQUEST_STATUS.SUCCESS)
 
-    def test_refund_after_c2b(self, client, db):
+    def test_refund_before_c2b_err(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+        params = self.params.copy()
+        with mock.patch("base.pp_interface.call2") as cd:
+            cd.return_value = (True, {
+                "bank_roll": '5432109876',
+                "bank_settle_time": self.now.strftime("%m%d")})
+            bank_list = self.layaway_trade(
+                client, params, const.REQUEST_STATUS.SUCCESS)
+
+        db.execute(t_trans_list.update().where(
+            t_trans_list.c.bank_list == bank_list).values(
+                settle_time=self.now, modify_time=self.now))
+        target = self.now + datetime.timedelta(days=1)
+        with mock.patch.object(datetime, 'datetime', mock.Mock(
+                wraps=datetime.datetime)) as patched:
+            patched.now.return_value = target
+            with mock.patch("base.pp_interface.call2") as cd:
+                cd.return_value = (False, const.API_ERROR.BANK_ERROR)
+                self.refund(client, bank_list, const.API_ERROR.BANK_ERROR)
+
+    def test_refund_after_c2b_ok(self, client, db):
         self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
         self.insert_balance(db)
         self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
         params = self.params.copy()
 
-        with mock.patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now})
+                "bank_settle_time": self.now.strftime("%m%d")})
             bank_list = self.layaway_trade(
                 client, params, const.REQUEST_STATUS.SUCCESS)
 
         ok, a_list = dbl.get_list(db, bank_list)
         dbl.settle_a_list(db, a_list, self.now)
         target = self.now + datetime.timedelta(days=1)
-        with mock.patch.object(datetime, 'datetime',
-                               mock.Mock(wraps=datetime.datetime)) as patched:
+        with mock.patch.object(datetime, 'datetime', mock.Mock(
+                wraps=datetime.datetime)) as patched:
             patched.now.return_value = target
-            self.refund(client, bank_list, const.REQUEST_STATUS.SUCCESS)
+            with mock.patch("base.pp_interface.call2") as cd:
+                cd.return_value = (True, {
+                    "bank_roll": '5432109876',
+                    "bank_settle_time": self.now.strftime("%m%d")})
+                self.refund(client, bank_list, const.REQUEST_STATUS.SUCCESS)
+
+    def test_refund_after_c2b_err(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+        params = self.params.copy()
+
+        with mock.patch("base.pp_interface.call2") as cd:
+            cd.return_value = (True, {
+                "bank_roll": '5432109876',
+                "bank_settle_time": self.now.strftime("%m%d")})
+            bank_list = self.layaway_trade(
+                client, params, const.REQUEST_STATUS.SUCCESS)
+
+        ok, a_list = dbl.get_list(db, bank_list)
+        dbl.settle_a_list(db, a_list, self.now)
+        target = self.now + datetime.timedelta(days=1)
+        with mock.patch.object(datetime, 'datetime', mock.Mock(
+                wraps=datetime.datetime)) as patched:
+            patched.now.return_value = target
+            with mock.patch("base.pp_interface.call2") as cd:
+                cd.return_value = (False, const.API_ERROR.BANK_ERROR)
+                self.refund(client, bank_list, const.API_ERROR.BANK_ERROR)
+
+    def test_refund_withdraw(self, client, db):
+        self.insert_merchant(db, self.spid, const.MERCHANT_STATUS.OPEN)
+        self.insert_balance(db)
+        self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
+        self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
+        params = self.params.copy()
+
+        with mock.patch("base.pp_interface.call2") as cd:
+            cd.return_value = (True, {
+                "bank_roll": '5432109876',
+                "bank_settle_time": self.now.strftime("%m%d")})
+            bank_list = self.layaway_trade(
+                client, params, const.REQUEST_STATUS.SUCCESS)
+
+        ok, a_list = dbl.get_list(db, bank_list)
+        dbl.settle_a_list(db, a_list, self.now)
+        dbl.with_draw(db, a_list['spid'], a_list['amount'] / 3, self.now)
+        target = self.now + datetime.timedelta(days=1)
+        with mock.patch.object(datetime, 'datetime', mock.Mock(
+                wraps=datetime.datetime)) as patched:
+            patched.now.return_value = target
+            self.refund(client, bank_list, const.API_ERROR.REFUND_LESS_BALANCE)
 
 
 class TestPointCash(SpModel):
@@ -535,7 +653,7 @@ class TestPointCash(SpModel):
         assert json_rsp["retcode"] == predict_ret
         if predict_ret == 0:
             params = util.rsa_decrypt(
-                json_rsp['trans'],
+                json_rsp['cipher_data'],
                 config.TEST_MERCHANT_PRIVATE_KEY)
             return params['bank_list'][0]
 
@@ -545,7 +663,7 @@ class TestPointCash(SpModel):
         self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
-        with mock.patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (False, None)
             self.point_cash(
                 client, self.params, const.API_ERROR.BANK_ERROR)
@@ -556,10 +674,10 @@ class TestPointCash(SpModel):
         self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
-        with mock.patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now})
+                "bank_settle_time": self.now.strftime("%m%d")})
             self.point_cash(
                 client, self.params, const.REQUEST_STATUS.SUCCESS)
 
@@ -573,7 +691,7 @@ class TestPoint(SpModel):
         assert json_rsp["retcode"] == predict_ret
         if predict_ret == 0:
             params = util.rsa_decrypt(
-                json_rsp['trans'],
+                json_rsp['cipher_data'],
                 config.TEST_MERCHANT_PRIVATE_KEY)
             return params['bank_list'][0]
 
@@ -583,7 +701,7 @@ class TestPoint(SpModel):
         self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
-        with mock.patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (False, None)
             self.point(
                 client, self.params, const.API_ERROR.BANK_ERROR)
@@ -594,10 +712,10 @@ class TestPoint(SpModel):
         self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
-        with mock.patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now})
+                "bank_settle_time": self.now.strftime("%m%d")})
             self.point(
                 client, self.params, const.REQUEST_STATUS.SUCCESS)
     """
@@ -617,7 +735,7 @@ class TestConsume(SpModel):
         assert json_rsp["retcode"] == predict_ret
         if predict_ret == 0:
             params = util.rsa_decrypt(
-                json_rsp['trans'],
+                json_rsp['cipher_data'],
                 config.TEST_MERCHANT_PRIVATE_KEY)
             return params['bank_list'][0]
 
@@ -627,7 +745,7 @@ class TestConsume(SpModel):
         self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
-        with mock.patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (False, None)
             self.consume(
                 client, self.params, const.API_ERROR.BANK_ERROR)
@@ -638,10 +756,10 @@ class TestConsume(SpModel):
         self.insert_channel(db, const.BOOLEAN.TRUE, {6: 500, 12: 600})
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
 
-        with mock.patch("base.pp_interface.call_def") as cd:
+        with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now})
+                "bank_settle_time": self.now.strftime("%m%d")})
             self.consume(
                 client, self.params, const.REQUEST_STATUS.SUCCESS)
 

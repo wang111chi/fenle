@@ -48,4 +48,4 @@ def trade(db, safe_vars):
     sp_pubkey = dbl.get_sp_pubkey(db, safe_vars['spid'])
     cipher_data = util.rsa_sign_and_encrypt_params(
         msg, config.FENLE_PRIVATE_KEY, sp_pubkey)
-    return ApiJsonOkResponse(trans=cipher_data)
+    return ApiJsonOkResponse(cipher_data=cipher_data)
