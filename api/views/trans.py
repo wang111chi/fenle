@@ -87,6 +87,8 @@ def refund(db, safe_vars):
 
 
 def _cancel_or_refund(db, bank_list):
+    # FIXME review by liyuan: 这里仅仅判断原单状态是否成功不够，
+    # FIXME 还要判断是否已退款或正在退款(审核)，防止重复退款
     is_ok, list_ret = dbl.get_list(
         db, bank_list, const.TRANS_STATUS.PAY_SUCCESS)
     if not is_ok:
