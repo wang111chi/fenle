@@ -310,7 +310,7 @@ def settle_a_list(db, a_list, now):
             'spid': a_list['spid'],
             'product': a_list['product'],
             'bank_type': a_list['bank_type'],
-            'present_date': a_list['bank_settle_time'],
+            'present_date': a_list['create_time'],
             'amount': a_list['amount'],
             'fee': a_list['fee'],
             'create_time': now,

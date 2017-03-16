@@ -27,7 +27,7 @@ class SettleTask(Task):
             t_trans_list.c.fee,
             t_trans_list.c.bank_fee,
             t_trans_list.c.product,
-            t_trans_list.c.bank_settle_time,
+            t_trans_list.c.create_time,
             t_trans_list.c.bank_type]).where(and_(
                 t_trans_list.c.status == const.TRANS_STATUS.PAY_SUCCESS,
                 t_trans_list.c.refund_id is None,

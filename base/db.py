@@ -29,6 +29,7 @@ t_callback_url = meta.tables['callback_url']
 t_task_log = meta.tables['task_log']
 t_task_footprint = meta.tables['task_footprint']
 t_refund_list = meta.tables['refund_list']
+t_settle_list = meta.tables['settle_list']
 
 
 # ########## redis #################
