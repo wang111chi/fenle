@@ -23,6 +23,7 @@ from base.db import t_merchant_info
 from base.db import t_sp_bank
 from base.db import t_bank_channel
 from base.db import t_trans_list
+from base.db import t_settle_list
 from base.db import t_sp_balance
 from base.db import t_sp_history
 from base.db import t_fenle_balance
@@ -270,16 +271,19 @@ def update_sp_balance(spid, delta_amount, now, account_class,
 
 def settle_a_list(db, a_list, now):
     """B2C"""
+    settle_id = util.gen_settle_id(
+        a_list['spid'], a_list['bank_type'])
 
     def gen_sp_history_data(spid, amount, account_class):
-        return {'spid': a_list['spid'],
+        return {'spid': spid,
                 'account_class': account_class,
                 'amount': amount,
                 'biz': const.BIZ.SETTLE,
-                'ref_str_id': a_list['id'],
+                'ref_str_id': settle_id,
                 'create_time': now}
 
     with transaction(db) as trans:
+
         db.execute(update_sp_balance(
             a_list['spid'], 0 - a_list['amount'], now,
             const.ACCOUNT_CLASS.B))
@@ -300,6 +304,17 @@ def settle_a_list(db, a_list, now):
         db.execute(t_sp_history.insert(), gen_sp_history_data(
             a_list['spid'], a_list['fee'] - a_list['bank_fee'],
             const.ACCOUNT_CLASS.C))
+
+        db.execute(t_settle_list.insert(), {
+            'id': settle_id,
+            'spid': a_list['spid'],
+            'product': a_list['product'],
+            'bank_type': a_list['bank_type'],
+            'present_date': a_list['bank_settle_time'],
+            'amount': a_list['amount'],
+            'fee': a_list['fee'],
+            'create_time': now,
+            'status': const.REFUND_STATUS.REFUND_SUCCESS})
 
         db.execute(t_trans_list.update().where(
             t_trans_list.c.id == a_list['id']).values(

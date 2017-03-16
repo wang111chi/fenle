@@ -21,15 +21,17 @@ class SettleTask(Task):
 
     def _run(self):
         sel = select([
-            t_trans_list.c.list_id,
+            t_trans_list.c.id,
             t_trans_list.c.spid,
-            t_trans_list.c.status,
+            t_trans_list.c.amount,
             t_trans_list.c.fee,
             t_trans_list.c.bank_fee,
-            t_trans_list.c.fee_duty,
+            t_trans_list.c.product,
+            t_trans_list.c.bank_settle_time,
             t_trans_list.c.bank_type]).where(and_(
                 t_trans_list.c.status == const.TRANS_STATUS.PAY_SUCCESS,
-                t_trans_list.c.refund_id is None))
+                t_trans_list.c.refund_id is None,
+                t_trans_list.c.settle_time is None))
         list_ret = self.db.execute(sel)
         if list_ret.first() is None:
             return False, const.API_ERROR.LIST_ID_NOT_EXIST
