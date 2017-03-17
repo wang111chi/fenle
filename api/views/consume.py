@@ -17,7 +17,7 @@ consume = Blueprint("consume", __name__)
 
 
 @consume.route("/consume/trade")
-@general("普通信用卡消费交易")
+@general("现金交易")
 @db_conn
 @api_form_check({
     "sign": (F_str("签名") <= 1024) & "strict" & "required",

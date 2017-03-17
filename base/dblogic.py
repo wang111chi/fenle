@@ -24,6 +24,7 @@ from base.db import t_sp_bank
 from base.db import t_bank_channel
 from base.db import t_trans_list
 from base.db import t_settle_list
+from base.db import t_refund_list
 from base.db import t_sp_balance
 from base.db import t_sp_history
 from base.db import t_fenle_balance
@@ -184,7 +185,7 @@ def check_user_bank(db, acc_no, bank_type, mobile, now):
     return True, None
 
 
-def get_list(db, bank_list, what_status=None):
+def get_list(db, list_id):
     sel = select([
         t_trans_list.c.id,
         t_trans_list.c.status,
@@ -203,19 +204,15 @@ def get_list(db, bank_list, what_status=None):
         t_trans_list.c.cur_type,
         t_trans_list.c.div_term,
         t_trans_list.c.product,
+        t_trans_list.c.refund_id,
+        t_trans_list.c.bank_list,
         t_trans_list.c.create_time,
         t_trans_list.c.settle_time,
         t_trans_list.c.bank_settle_time
     ]).where(
-        t_trans_list.c.bank_list == bank_list)
+        t_trans_list.c.id == list_id)
 
-    list_ret = db.execute(sel).first()
-    if list_ret is None:
-        return False, const.API_ERROR.LIST_ID_NOT_EXIST
-    if what_status == const.TRANS_STATUS.PAY_SUCCESS:
-        if list_ret['status'] != const.TRANS_STATUS.PAY_SUCCESS:
-            return False, const.API_ERROR.LIST_STATUS_ERROR
-    return True, list_ret
+    return db.execute(sel).first()
 
 
 def get_sp_pubkey(db, spid):
@@ -503,11 +500,10 @@ def trade(db, product, safe_vars):
     now = datetime.datetime.now()
 
     if not ok:
-        udp_trans_list = t_trans_list.update().where(
+        db.execute(t_trans_list.update().where(
             t_trans_list.c.id == list_data['id']).values(
             status=const.TRANS_STATUS.PAY_FAIL,
-            modify_time=now)
-        db.execute(udp_trans_list)
+            modify_time=now))
         # FIXME
         return False, const.API_ERROR.BANK_ERROR
 
@@ -556,3 +552,246 @@ def trade(db, product, safe_vars):
         "id": list_data['id'],
         "result": const.TRANS_STATUS.PAY_SUCCESS})
     return True, ret_data
+
+
+def cancel_or_refund(db, list_id):
+    list_ret = get_list(db, list_id)
+    if list_ret is None:
+        return False, const.API_ERROR.LIST_ID_NOT_EXIST
+    list_ret = dict(list_ret)
+    if list_ret['status'] != const.TRANS_STATUS.PAY_SUCCESS:
+        return False, const.API_ERROR.LIST_STATUS_ERROR
+    # 已经退款
+    if list_ret['refund_id'] is not None:
+        return False, const.API_ERROR.LIST_REFUNDED
+    # 退款中
+    if db.execute(select([t_refund_list.c.id]).where(
+            t_refund_list.c.list_id == list_id)).first() is not None:
+        return False, const.API_ERROR.LIST_REFUNDING
+
+    now = datetime.datetime.now()
+    bank_settle_time = list_ret['bank_settle_time']
+    create_time = list_ret['create_time']
+    if bank_settle_time[0:2] == '12' and create_time.month == 1:
+        bank_settle_time = datetime.datetime.strptime(
+            str(create_time.year - 1) + bank_settle_time, "%Y%m%d")
+    elif bank_settle_time[0:2] == '01' and create_time.month == 12:
+        bank_settle_time = datetime.datetime.strptime(
+            str(create_time.year + 1) + bank_settle_time, "%Y%m%d")
+    else:
+        bank_settle_time = datetime.datetime.strptime(
+            str(create_time.year) + bank_settle_time, "%Y%m%d")
+
+    if abs((bank_settle_time - create_time).days) > 30:
+        return False, const.API_ERROR.REFUND_TIME_OVER
+
+    # 退款单号
+    refund_id = util.gen_refund_id(
+        list_ret['spid'], list_ret['bank_type'])
+    refund_data = {
+        'id': refund_id,
+        'spid': list_ret['spid'],
+        'list_id': list_ret['id'],
+        'create_time': now,
+        'modify_time': now,
+        'status': const.REFUND_STATUS.REFUNDING}
+    db.execute(t_refund_list.insert(), refund_data)
+
+    def gen_sp_history_data(spid, amount, now, account_class):
+        return {'biz': const.BIZ.REFUND,
+                'amount': amount,
+                'ref_str_id': refund_id,  # 退款单号
+                'create_time': now,
+                'account_class': account_class,
+                'spid': spid}
+
+    def gen_fenle_history_data(amount, now):
+        return {'biz': const.BIZ.REFUND,
+                'amount': amount,
+                'ref_str_id': refund_id,  # 退款单号
+                'create_time': now,
+                'bankacc_no': config.FENLE_ACCOUNT_NO,
+                'bank_type': config.FENLE_BANK_TYPE}
+
+    def gen_ret_data(status, modify_time):
+        """返回的数据"""
+        return {'spid': list_ret['spid'],
+                'refund_id': refund_id,
+                'amount': list_ret['amount'],
+                'list_id': list_ret['id'],
+                'result': status,
+                'modify_time': modify_time}
+
+    def call_interface(is_settled):
+        terminal_no, bank_spid = get_terminal_spid(
+            db, list_ret['spid'], list_ret['bank_type'])
+        interface_input = {
+            "ver": "1.0",
+            "request_type":
+                const.PRODUCT.REFUND_REQUEST_TYPE[list_ret["product"]] if
+                is_settled else
+                const.PRODUCT.CANCEL_REQUEST_TYPE[list_ret["product"]],
+            'terminal_no': terminal_no,
+            'bank_spid': bank_spid}
+        for k in ("bank_type", "valid_date", "bankacc_no", "amount",
+                  "jf_deduct_money", "bank_roll", "bank_settle_time",
+                  "bank_list"):
+            interface_input[k] = list_ret.get(k)
+        return pi.call2(interface_input)
+
+    if now.date() == bank_settle_time.date():
+        # 调用银行撤销接口
+        ok, msg = call_interface(is_settled=False)
+        now = datetime.datetime.now()
+        if not ok:
+            db.execute(t_refund_list.update().where(
+                t_refund_list.c.id == refund_id).values(
+                status=const.REFUND_STATUS.REFUND_FAIL,
+                modify_time=now))
+            return False, msg
+
+        with transaction(db) as trans:
+            # B账户退款
+            db.execute(update_sp_balance(
+                list_ret['spid'], 0 - list_ret['amount'],
+                now, const.ACCOUNT_CLASS.B))
+            db.execute(t_sp_history.insert(), gen_sp_history_data(
+                list_ret['spid'], 0 - list_ret['amount'],
+                now, const.ACCOUNT_CLASS.B))
+
+            # 分乐B账户退款
+            db.execute(update_fenle_balance(0 - list_ret['amount'], now))
+            db.execute(t_fenle_history.insert(), gen_fenle_history_data(
+                0 - list_ret['amount'], now))
+
+            # 更新退款单状态\时间等
+            db.execute(t_refund_list.update().where(
+                t_refund_list.c.id == refund_id).values(
+                status=const.REFUND_STATUS.REFUND_SUCCESS,
+                modify_time=now))
+
+            db.execute(t_trans_list.update().where(
+                t_trans_list.c.id == list_ret['id']).values(
+                refund_id=refund_id, modify_time=now))
+
+            trans.finish()
+        return True, gen_ret_data(
+            const.REFUND_STATUS.REFUND_SUCCESS, now)
+    elif list_ret['settle_time'] is None:
+        # 保存退款单，异步处理
+        db.execute(t_refund_list.update().where(
+            t_refund_list.c.id == refund_id).values(
+            status=const.REFUND_STATUS.CHECKING,
+            modify_time=now))
+        return True, gen_ret_data(const.REFUND_STATUS.CHECKING, now)
+    else:
+        sp_amount = list_ret['amount'] - list_ret['fee']
+        b_balance = get_sp_balance(
+            db, list_ret['spid'], const.ACCOUNT_CLASS.B)
+        if sp_amount <= b_balance:
+            # 调用银行退款接口
+            ok, msg = call_interface(is_settled=True)
+            now = datetime.datetime.now()
+            if not ok:
+                db.execute(t_refund_list.update().where(
+                    t_refund_list.c.id == refund_id).values(
+                    status=const.REFUND_STATUS.REFUND_FAIL,
+                    modify_time=now))
+                return False, msg
+
+            with transaction(db) as trans:
+                # B账户退款
+                db.execute(update_sp_balance(
+                    list_ret['spid'], 0 - sp_amount,
+                    now, const.ACCOUNT_CLASS.B))
+                db.execute(t_sp_history.insert(), gen_sp_history_data(
+                    list_ret['spid'], 0 - sp_amount,
+                    now, const.ACCOUNT_CLASS.B))
+
+                # 分乐C账户退手续费
+                db.execute(update_sp_balance(
+                    config.FENLE_SPID, list_ret['bank_fee'] - list_ret['fee'],
+                    now, const.ACCOUNT_CLASS.C))
+                db.execute(t_sp_history.insert(), gen_sp_history_data(
+                    config.FENLE_SPID, list_ret['bank_fee'] - list_ret['fee'],
+                    now, const.ACCOUNT_CLASS.C))
+
+                # 分乐B账户退款
+                db.execute(update_fenle_balance(
+                    list_ret['bank_fee'] - list_ret['amount'], now))
+                db.execute(t_fenle_history.insert(), gen_fenle_history_data(
+                    list_ret['bank_fee'] - list_ret['amount'], now))
+
+                db.execute(t_refund_list.update().where(
+                    t_refund_list.c.id == refund_id).values(
+                    status=const.REFUND_STATUS.REFUND_SUCCESS,
+                    modify_time=now))
+
+                db.execute(t_trans_list.update().where(
+                    t_trans_list.c.id == list_ret['id']).values(
+                    refund_id=refund_id, modify_time=now))
+
+                trans.finish()
+            return True, gen_ret_data(const.REFUND_STATUS.REFUND_SUCCESS, now)
+        elif sp_amount - b_balance <= get_sp_balance(
+                db, list_ret['spid'], const.ACCOUNT_CLASS.C):
+            # 调用银行退款接口
+            ok, msg = call_interface(is_settled=True)
+            now = datetime.datetime.now()
+            if not ok:
+                db.execute(t_refund_list.update().where(
+                    t_refund_list.c.id == refund_id).values(
+                    status=const.REFUND_STATUS.REFUND_FAIL,
+                    modify_time=now))
+                return False, msg
+
+            with transaction(db) as trans:
+                # C账户转账给B账户，以退款
+                db.execute(update_sp_balance(
+                    list_ret['spid'], b_balance - sp_amount,
+                    now, const.ACCOUNT_CLASS.C))
+                db.execute(t_sp_history.insert(), gen_sp_history_data(
+                    list_ret['spid'], b_balance - sp_amount,
+                    now, const.ACCOUNT_CLASS.C))
+                # B账户接收C账户的汇款
+                db.execute(update_sp_balance(
+                    list_ret['spid'], sp_amount - b_balance,
+                    now, const.ACCOUNT_CLASS.B))
+                db.execute(t_sp_history.insert(), gen_sp_history_data(
+                    list_ret['spid'], sp_amount - b_balance,
+                    now, const.ACCOUNT_CLASS.B))
+
+                # B账户退款
+                db.execute(update_sp_balance(
+                    list_ret['spid'], 0 - sp_amount,
+                    now, const.ACCOUNT_CLASS.B))
+                db.execute(t_sp_history.insert(), gen_sp_history_data(
+                    list_ret['spid'], 0 - sp_amount,
+                    now, const.ACCOUNT_CLASS.B))
+
+                # 分乐C账户退手续费
+                db.execute(update_sp_balance(
+                    config.FENLE_SPID, list_ret['bank_fee'] - list_ret['fee'],
+                    now, const.ACCOUNT_CLASS.C))
+                db.execute(t_sp_history.insert(), gen_sp_history_data(
+                    config.FENLE_SPID, list_ret['bank_fee'] - list_ret['fee'],
+                    now, const.ACCOUNT_CLASS.C))
+
+                # 分乐B账户退款
+                db.execute(update_fenle_balance(
+                    list_ret['bank_fee'] - list_ret['amount'], now))
+                db.execute(t_fenle_history.insert(), gen_fenle_history_data(
+                    list_ret['bank_fee'] - list_ret['amount'], now))
+
+                db.execute(t_refund_list.update().where(
+                    t_refund_list.c.id == refund_id).values(
+                    status=const.REFUND_STATUS.REFUND_SUCCESS,
+                    modify_time=now))
+
+                db.execute(t_trans_list.update().where(
+                    t_trans_list.c.id == list_ret['id']).values(
+                    refund_id=refund_id, modify_time=now))
+                trans.finish()
+            return True, gen_ret_data(const.REFUND_STATUS.REFUND_SUCCESS, now)
+        else:
+            return False, const.API_ERROR.REFUND_LESS_BALANCE

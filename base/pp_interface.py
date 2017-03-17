@@ -72,7 +72,6 @@ def _recv_all(s):
 def call_def(input_data):
     if input_data['ver'] != '1.0':
         return False, const.API_ERROR.PARAM_ERROR
-    # review by liyuan: FIXME
     elif input_data['request_type'] == '2001':
         msg = {'bank_sms_time': datetime.datetime.now()}
         return True, msg
