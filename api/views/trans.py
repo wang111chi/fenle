@@ -34,9 +34,10 @@ def trans_query(db, safe_vars):
     sp_pubkey = dbl.get_sp_pubkey(db, list_data['spid'])
     # 返回的参数
     ret_data = {'list_id': safe_vars['list_id'],
+                'result': safe_vars['status'],
                 'encode_type': const.ENCODE_TYPE.RSA}
     for k in ('spid', 'sp_list', 'amount', 'cur_type',
-              'div_term', 'fee_duty', 'status', 'bank_type'):
+              'div_term', 'fee_duty', 'bank_type'):
         ret_data[k] = list_data.get(k)
 
     cipher_data = util.rsa_sign_and_encrypt_params(
