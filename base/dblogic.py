@@ -319,31 +319,6 @@ def settle_a_list(db, a_list, now):
         trans.finish()
 
 
-def settle_for_refund(db, spid, amount, ref_str_id, now):
-    """C2B C账户到B账户"""
-
-    sp_history_data = {
-        'biz': const.BIZ.REFUND,
-        'amount': amount,
-        'ref_str_id': ref_str_id,
-        'create_time': now,
-        'account_class': const.ACCOUNT_CLASS.B,
-        'spid': spid}
-
-    with transaction(db) as trans:
-        db.execute(update_sp_balance(
-            spid, amount, now, const.ACCOUNT_CLASS.B))
-        db.execute(t_sp_history.insert(), sp_history_data)
-
-        db.execute(update_sp_balance(
-            spid, 0 - amount, now, const.ACCOUNT_CLASS.C))
-        sp_history_data.update({
-            'amount': 0 - amount,
-            'account_class': const.ACCOUNT_CLASS.C})
-        db.execute(t_sp_history.insert(), sp_history_data)
-        trans.finish()
-
-
 def with_draw(db, spid, amount, now):
     db.execute(update_sp_balance(
         spid, 0 - amount, now, const.ACCOUNT_CLASS.C))
@@ -574,13 +549,13 @@ def cancel_or_refund(db, list_id):
     create_time = list_ret['create_time']
     if bank_settle_time[0:2] == '12' and create_time.month == 1:
         bank_settle_time = datetime.datetime.strptime(
-            str(create_time.year - 1) + bank_settle_time, "%Y%m%d")
+            str(create_time.year - 1) + bank_settle_time, "%Y%m%d%H%M%S")
     elif bank_settle_time[0:2] == '01' and create_time.month == 12:
         bank_settle_time = datetime.datetime.strptime(
-            str(create_time.year + 1) + bank_settle_time, "%Y%m%d")
+            str(create_time.year + 1) + bank_settle_time, "%Y%m%d%H%M%S")
     else:
         bank_settle_time = datetime.datetime.strptime(
-            str(create_time.year) + bank_settle_time, "%Y%m%d")
+            str(create_time.year) + bank_settle_time, "%Y%m%d%H%M%S")
 
     if abs((bank_settle_time - create_time).days) > 30:
         return False, const.API_ERROR.REFUND_TIME_OVER

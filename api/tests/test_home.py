@@ -119,7 +119,8 @@ class SpModel():
     def insert_channel(self, conn, is_enable, fee_percent_json, vmask=0):
         bank_data = {
             'bank_type': self.params['bank_type'],
-            'bank_valitype': const.BANK_VALITYPE.MOBILE_VALID,  # 修改此处决定是否验证手机号
+            # 修改此处决定是否验证手机号
+            'bank_valitype': const.BANK_VALITYPE.MOBILE_VALID,
             'interface_mask': vmask,
             'fenqi_fee_percent': json.dumps(fee_percent_json),
             'jifen_fee_percent': 0,
@@ -222,7 +223,7 @@ class TestSms(SpModel):
         self.insert_sp_bank(db, self.spid, {6: 500, 12: 600})
         with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
-                "bank_sms_time": self.now.strftime("%m%d")})
+                "bank_sms_time": self.now.strftime("%m%d%H%M%S")})
             self.sms_send(client, const.REQUEST_STATUS.SUCCESS)
 
     def test_sms_banksys_err(self, client, db):
@@ -343,7 +344,7 @@ class Trans(SpModel):
         with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now.strftime("%m%d")})
+                "bank_settle_time": self.now.strftime("%m%d%H%M%S")})
             self.layaway_trade(
                 client, self.params, const.REQUEST_STATUS.SUCCESS)
 
@@ -355,7 +356,7 @@ class Trans(SpModel):
         with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now.strftime("%m%d")})
+                "bank_settle_time": self.now.strftime("%m%d%H%M%S")})
             self.layaway_trade(
                 client, self.params, const.REQUEST_STATUS.SUCCESS)
         # 测试重复调用的反应
@@ -409,7 +410,7 @@ class TestRefund_TransQuery(Trans):
         with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now.strftime("%m%d")})
+                "bank_settle_time": self.now.strftime("%m%d%H%M%S")})
             list_id = self.layaway_trade(
                 client, params, const.REQUEST_STATUS.SUCCESS)
         return self.trans_query(
@@ -452,8 +453,8 @@ class TestRefund_TransQuery(Trans):
         with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time":
-                    (self.now + datetime.timedelta(days=32)).strftime("%m%d")})
+                "bank_settle_time": (self.now + datetime.timedelta(
+                    days=32)).strftime("%m%d%H%M%S")})
             list_id = self.layaway_trade(
                 client, params, const.REQUEST_STATUS.SUCCESS)
         self.refund(
@@ -468,7 +469,7 @@ class TestRefund_TransQuery(Trans):
         with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now.strftime("%m%d")})
+                "bank_settle_time": self.now.strftime("%m%d%H%M%S")})
             list_id = self.layaway_trade(
                 client, params, const.REQUEST_STATUS.SUCCESS)
             self.refund(client, list_id, const.REQUEST_STATUS.SUCCESS)
@@ -482,7 +483,7 @@ class TestRefund_TransQuery(Trans):
         with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now.strftime("%m%d")})
+                "bank_settle_time": self.now.strftime("%m%d%H%M%S")})
             list_id = self.layaway_trade(
                 client, params, const.REQUEST_STATUS.SUCCESS)
         with mock.patch("base.pp_interface.call2") as cd:
@@ -498,7 +499,7 @@ class TestRefund_TransQuery(Trans):
         with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now.strftime("%m%d")})
+                "bank_settle_time": self.now.strftime("%m%d%H%M%S")})
             list_id = self.layaway_trade(
                 client, params, const.REQUEST_STATUS.SUCCESS)
 
@@ -518,7 +519,7 @@ class TestRefund_TransQuery(Trans):
         with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now.strftime("%m%d")})
+                "bank_settle_time": self.now.strftime("%m%d%H%M%S")})
             list_id = self.layaway_trade(
                 client, params, const.REQUEST_STATUS.SUCCESS)
 
@@ -532,7 +533,7 @@ class TestRefund_TransQuery(Trans):
             with mock.patch("base.pp_interface.call2") as cd:
                 cd.return_value = (True, {
                     "bank_roll": '5432109876',
-                    "bank_settle_time": self.now.strftime("%m%d")})
+                    "bank_settle_time": self.now.strftime("%m%d%H%M%S")})
                 self.refund(client, list_id, const.REQUEST_STATUS.SUCCESS)
 
     def test_refund_before_c2b_err(self, client, db):
@@ -544,7 +545,7 @@ class TestRefund_TransQuery(Trans):
         with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now.strftime("%m%d")})
+                "bank_settle_time": self.now.strftime("%m%d%H%M%S")})
             list_id = self.layaway_trade(
                 client, params, const.REQUEST_STATUS.SUCCESS)
 
@@ -568,7 +569,7 @@ class TestRefund_TransQuery(Trans):
         with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now.strftime("%m%d")})
+                "bank_settle_time": self.now.strftime("%m%d%H%M%S")})
             list_id = self.layaway_trade(
                 client, params, const.REQUEST_STATUS.SUCCESS)
 
@@ -581,7 +582,7 @@ class TestRefund_TransQuery(Trans):
             with mock.patch("base.pp_interface.call2") as cd:
                 cd.return_value = (True, {
                     "bank_roll": '5432109876',
-                    "bank_settle_time": self.now.strftime("%m%d")})
+                    "bank_settle_time": self.now.strftime("%m%d%H%M%S")})
                 self.refund(client, list_id, const.REQUEST_STATUS.SUCCESS)
 
     def test_refund_after_c2b_err(self, client, db):
@@ -593,7 +594,7 @@ class TestRefund_TransQuery(Trans):
         with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now.strftime("%m%d")})
+                "bank_settle_time": self.now.strftime("%m%d%H%M%S")})
             list_id = self.layaway_trade(
                 client, params, const.REQUEST_STATUS.SUCCESS)
 
@@ -616,7 +617,7 @@ class TestRefund_TransQuery(Trans):
         with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now.strftime("%m%d")})
+                "bank_settle_time": self.now.strftime("%m%d%H%M%S")})
             list_id = self.layaway_trade(
                 client, params, const.REQUEST_STATUS.SUCCESS)
 
@@ -664,7 +665,7 @@ class TestPointCash(SpModel):
         with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now.strftime("%m%d")})
+                "bank_settle_time": self.now.strftime("%m%d%H%M%S")})
             self.point_cash(
                 client, self.params, const.REQUEST_STATUS.SUCCESS)
 
@@ -700,7 +701,7 @@ class TestConsume(SpModel):
         with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now.strftime("%m%d")})
+                "bank_settle_time": self.now.strftime("%m%d%H%M%S")})
             self.consume(
                 client, self.params, const.REQUEST_STATUS.SUCCESS)
 
@@ -736,7 +737,7 @@ class TestPoint(SpModel):
         with mock.patch("base.pp_interface.call2") as cd:
             cd.return_value = (True, {
                 "bank_roll": '5432109876',
-                "bank_settle_time": self.now.strftime("%m%d")})
+                "bank_settle_time": self.now.strftime("%m%d%H%M%S")})
             self.point(
                 client, self.params, const.REQUEST_STATUS.SUCCESS)
     """

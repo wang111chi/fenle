@@ -34,7 +34,7 @@ def trans_query(db, safe_vars):
     sp_pubkey = dbl.get_sp_pubkey(db, list_data['spid'])
     # 返回的参数
     ret_data = {'list_id': safe_vars['list_id'],
-                'result': safe_vars['status'],
+                'result': list_data['status'],
                 'encode_type': const.ENCODE_TYPE.RSA}
     for k in ('spid', 'sp_list', 'amount', 'cur_type',
               'div_term', 'fee_duty', 'bank_type'):
