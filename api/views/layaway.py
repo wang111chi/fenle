@@ -39,6 +39,7 @@ layaway = Blueprint("layaway", __name__)
     "bankacc_no": (F_str("付款人帐号") <= 16) & "strict" & "required",
     "mobile": (F_mobile("付款人手机号码")) & "strict" & "required",
     "valid_date": (F_str("有效期") <= 11) & "strict" & "required",
+    "bank_list": (F_str("请求银行订单号") <= 64) & "strict" & "required",
     "bank_sms_time": (F_str("短信下发时间") <= 32) & "strict" & "required",
     "bank_validcode": (F_str("短信验证码") <= 32) & "strict" & "required",
 })

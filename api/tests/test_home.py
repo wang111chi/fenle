@@ -59,6 +59,7 @@ class SpModel():
         "bankacc_no": "1234567890123456",
         "mobile": "13312345678",
         "valid_date": "2020-05",
+        "bank_list": util.gen_bank_list(),
         "bank_sms_time": now,
         "bank_validcode": "456789"
     }

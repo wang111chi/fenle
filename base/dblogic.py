@@ -211,7 +211,6 @@ def get_list(db, list_id):
         t_trans_list.c.bank_settle_time
     ]).where(
         t_trans_list.c.id == list_id)
-
     return db.execute(sel).first()
 
 
@@ -426,7 +425,7 @@ def trade(db, product, safe_vars):
         'fee_duty': const.FEE_DUTY.SP,
         'product': product,
         'channel': const.CHANNEL.API,
-        'bank_list': util.gen_bank_list(),
+        'bank_list': safe_vars['bank_list'],
         'status': const.TRANS_STATUS.PAYING,  # 支付中
         'create_time': now,
         'modify_time': now}
