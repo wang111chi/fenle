@@ -2,4 +2,11 @@
 # -*- coding: utf-8 -*-
 #
 
-__all__ = ("consume", "sms", "layaway", "point", "point_cash", "trans")
+import config
+
+if config.DEBUG:
+    __all__ = ("consume", "sms", "layaway",
+               "point", "point_cash", "trans", "test")
+else:
+    __all__ = ("consume", "sms", "layaway",
+               "point", "point_cash", "trans")

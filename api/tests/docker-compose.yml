@@ -9,6 +9,15 @@ services:
     depends_on:
      - mysql
      - redis
+  server:
+    build:
+      context: ../..
+      dockerfile: api/Dockerfile
+    volumes:
+     - ../..:/fenle
+    depends_on:
+     - mysql
+     - redis
   repl:
     build:
       context: ../..

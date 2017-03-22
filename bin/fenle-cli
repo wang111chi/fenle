@@ -92,6 +92,7 @@ def api_test(ctx):
     if ctx.invoked_subcommand is not None:
         return
 
+    subprocess.call("docker-compose up -d server", shell=True)
     subprocess.call("docker-compose run test", shell=True)
 
 
