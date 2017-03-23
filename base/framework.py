@@ -318,3 +318,31 @@ def transaction(conn):
         trans.commit()
     else:
         trans.rollback()
+
+
+@contextmanager
+def lock_str(conn, s, timeout=0):
+    """
+    Automatic handle lock/release a database string lock.
+
+    >>> with lock_str(conn, s, timeout) as locked:
+    >>>     if not locked:
+    >>>         # lock 's' failed
+    >>>     do something
+    >>>     # after the block, the lock will be automatic released
+
+    @param conn: database connection
+    @param s: the string wanted to lock
+    @param timeout: how many seconds to wait for getting the lock
+    """
+    locked = False
+
+    try:
+        locked = conn.execute(
+            "SELECT GET_LOCK(%s, %s)", s, timeout).first()[0] == 1
+
+        yield locked
+
+    finally:
+        if locked:
+            conn.execute("SELECT RELEASE_LOCK(%s)", s)

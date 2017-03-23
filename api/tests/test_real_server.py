@@ -162,9 +162,28 @@ def test_concurrent_insert_ok(db, t_balance):
     assert set(job.value for job in jobs) == {"ok", "exist"}
 
 
-def _do_something():
+def test_str_lock(db):
+    from base.framework import lock_str
+
+    def req():
+        _db = engine.connect()
+
+        with lock_str(_db, "test") as locked:
+            if not locked:
+                return "error"
+            _do_something(3)
+            return "ok"
+
+    jobs = [gevent.spawn(req) for i in range(10)]
+    gevent.joinall(jobs)
+
+    assert set(job.value for job in jobs) == {"ok", "error"}
+    assert db.execute("SELECT IS_FREE_LOCK(%s)", "test").first()[0] == 1
+
+
+def _do_something(duration=2):
     import time
-    time.sleep(2)
+    time.sleep(duration)
 
 
 @pytest.fixture()
